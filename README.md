@@ -49,8 +49,9 @@ information for the 2010 census
 ```python
 from censusdc import TigerWeb
 from censusdc import TigerWebVariables as TWV
+import os
 
-shp_file = 'Sacramento_neighborhoods.shp'
+shp_file = os.path.join('data','Sacramento_neighborhoods.shp')
 
 # if the shapefile has a label field for polygons we can tag data 
 # using the field parameter
