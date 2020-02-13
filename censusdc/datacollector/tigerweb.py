@@ -20,6 +20,7 @@ class TigerWebVariables(object):
     county = 'COUNTY'
     tract = 'TRACT'
     blkgrp = 'BLKGRP'
+    block = 'BLOCK'
     basename = 'BASENAME'
     name = 'NAME'
     lsadc = 'LSADC'

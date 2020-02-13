@@ -36,15 +36,61 @@ accepts polygon and *point*[future] shapefiles and can query a host of
 geographic information for the census.  
 
 _Example_:  
-Sacramento neighborhoods  
+Sacramento neighborhoods:  
+Two polygons have been drawn; one for the Tahoe Park and one for the La Riviera
+ neighborhood  
 <p align="center">
-  <img src="https://raw.githubusercontent.com/jlarsen-usgs/census_data_collector/master/data/Sacramento_neighborhoods.png" alt="Sacto"/>
+  <img src="https://raw.githubusercontent.com/jlarsen-usgs/census-data-collector/master/data/Sacramento_neighborhoods.png" alt="Sacto"/>
 </p>
 
+We will use this shapefile and these polygon features to query block
+information for the 2010 census
 ```python
-from censusdc import TigerWeb, TigerWebVariables
+from censusdc import TigerWeb
+from censusdc import TigerWebVariables as TWV
 
 shp_file = 'Sacramento_neighborhoods.shp'
 
+# if the shapefile has a label field for polygons we can tag data 
+# using the field parameter
+tigweb = TigerWeb(shp_file, field="name")
+tigweb.get_data(2010, outfields=(TWV.geoid, TWV.state, TWV.county,
+                                 TWV.tract, TWV.blkgrp, TWV.block))
 
+features = tigweb.features
 ```
+The features parameter returns a dictionary of geoJSON objects that can be
+accessed and exported.  
+
+To get the features from a single polygon we can use
+```python
+# get all polygon names
+names = tigweb.feature_names
+
+# get all GeoJSON features associated with a single polygon
+feature = tigweb.get_feature("la_riviera")
+```
+ and we can visualize the geoJSON features using Descartes and matplotlib
+ ```python
+import matplotlib.pyplot as plt
+from descartes import PolygonPatch
+import numpy as np
+import utm
+
+fig = plt.figure()
+ax = fig.gca()
+for name in tigweb.feature_names:
+    for feature in tigweb.get_feature(name):
+        ax.add_patch(PolygonPatch(feature.geometry, alpha=0.5))
+    
+    # get the input polygon shapes and convert from UTM to WGS84
+    y, x = np.array(tigweb.get_shape(name)).T
+    y, x = utm.to_latlon(y, x, 11, zone_letter='N')
+    ax.plot(x, y, 'r-')
+
+ax.axis('scaled')
+plt.show()
+```
+<p align="center">
+  <img src="https://raw.githubusercontent.com/jlarsen-usgs/census-data-collector/master/data/Tigerweb_example.png" alt="TigerWeb"/>
+</p>
