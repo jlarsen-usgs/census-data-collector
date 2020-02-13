@@ -8,8 +8,9 @@ the TigerWeb REST services and the US Census API. Queryable census products
 * ACS 5-Year
 
 ## Installation
-_Method 1_: Download the census data collector from __*url*__ navigate to the
- package in either an anaconda prompt, terminal, or command prompt window and 
+_Method 1_: Download the census data collector from 
+https://github.com/jlarsen-usgs/census-data-collector navigate to the package 
+in either an anaconda prompt, terminal, or command prompt window and 
  run:
 ```shell script
 pip install .
@@ -17,7 +18,7 @@ pip install .
 
 _Method 2_: Install directly from Github using"
 ```shell script
-pip install url....
+pip install https://github.com/jlarsen-usgs/census-data-collector/zipball/master
 ```
 
 ## Basic usage
@@ -94,3 +95,10 @@ plt.show()
 <p align="center">
   <img src="https://raw.githubusercontent.com/jlarsen-usgs/census-data-collector/master/data/Tigerweb_example.png" alt="TigerWeb"/>
 </p>
+
+## Development
+This project is in active development and is in the pre-alpha stages. There 
+will be many updates and changes to the source code in the near future.
+
+## Authors
+Joshua Larsen
