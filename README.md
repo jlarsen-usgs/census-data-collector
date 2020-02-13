@@ -36,8 +36,8 @@ that can be used for creating census api data pulls. The `TigerWeb` class
 accepts polygon and *point*[future] shapefiles and can query a host of 
 geographic information for the census.  
 
-_Example_:  
-Sacramento neighborhoods:  
+_Example 1_:  
+Sacramento neighborhood polygons:  
 Two polygons have been drawn; one for the Tahoe Park and one for the La Riviera
  neighborhood  
 <p align="center">
@@ -86,8 +86,8 @@ for name in tigweb.feature_names:
         ax.add_patch(PolygonPatch(feature.geometry, alpha=0.5))
     
     # get the input polygon shapes and convert from UTM to WGS84
-    y, x = np.array(tigweb.get_shape(name)).T
-    y, x = utm.to_latlon(y, x, 11, zone_letter='N')
+    x, y = np.array(tigweb.get_shape(name)).T
+    y, x = utm.to_latlon(x, y, 11, zone_letter='N')
     ax.plot(x, y, 'r-')
 
 ax.axis('scaled')
@@ -95,6 +95,57 @@ plt.show()
 ```
 <p align="center">
   <img src="https://raw.githubusercontent.com/jlarsen-usgs/census-data-collector/master/data/Tigerweb_example.png" alt="TigerWeb"/>
+</p>
+
+_Example 2_:  
+Sacramento points:  
+Point shapefiles can also be supplied to `TigerWeb`. Here we have on in the
+Tahoe Park neighborhood and one in the La Riviera neighborhood
+<p align="center">
+  <img src="https://raw.githubusercontent.com/jlarsen-usgs/census-data-collector/master/data/Sacramento_points.png" alt="Sacto_pts"/>
+</p>
+
+We can either use the points by themselves or define a radius around the 
+points to query data from. The `radius=` parameter accepts either a string
+which references an attribute column in the point shapefile or a float that
+applies a constant radius to all points.   
+```python
+from censusdc import TigerWeb
+from censusdc import TigerWebVariables as TWV
+import os
+
+shp_file = os.path.join('data','Sacramento_points.shp')
+
+tigweb = TigerWeb(shp_file, field="name", radius="radius")
+tigweb.get_data(2010, outfields=(TWV.geoid, TWV.state, TWV.county,
+                                 TWV.tract, TWV.blkgrp, TWV.block))
+```
+and once again we can visualize the census block features within the 
+defined radius from our points
+```python
+import matplotlib.pyplot as plt
+from descartes import PolygonPatch
+import numpy as np
+import utm
+
+fig = plt.figure()
+    ax = fig.gca()
+    for name in tigweb.feature_names:
+        for feature in tigweb.get_feature(name):
+            ax.add_patch(PolygonPatch(feature.geometry, alpha=0.5))
+
+        x, y = np.array(tigweb.get_shape(name)).T
+        y, x = utm.to_latlon(x, y, 11, zone_letter='N')
+        px, py = np.array(tigweb.get_point(name))
+        py, px = utm.to_latlon(px, py, 11, zone_letter='N')
+        ax.plot(x, y, 'r-')
+        ax.plot(px, py, 'ro')
+
+    ax.axis('scaled')
+    plt.show()
+```
+<p align="center">
+  <img src="https://raw.githubusercontent.com/jlarsen-usgs/census-data-collector/master/data/Tigerweb_points_example.png" alt="TigerWeb_pts"/>
 </p>
 
 ## Development
