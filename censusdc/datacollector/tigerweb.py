@@ -36,20 +36,11 @@ class TigerWebVariables(object):
     population = 'POP100'
 
 
-class TigerWeb(object):
+class TigerWebBase(object):
     """
-    Class to query data from TigerWeb by using shapefile polygons
-
-    Parameters
-    ----------
-    shp : str
-        shapefile path
-    field : str
-        shapefile field to id multiple polygons
-
+    Base class object for all Tigerweb spatial queries
     """
-    def __init__(self, shp, field=None):
-
+    def __init__(self, shp, field, geotype):
         if not os.path.isfile(shp):
             raise FileNotFoundError("{} not a valid file path".format(shp))
         prj = shp[:-4] + ".prj"
@@ -57,6 +48,7 @@ class TigerWeb(object):
             raise FileNotFoundError("{}: projection file not found"
                                     .format(prj))
 
+        self._geotype = geotype
         self._shpname = shp
         self._prjname = prj
         self._field = field.lower()
@@ -66,10 +58,9 @@ class TigerWeb(object):
 
         self._wkid = None
         self._shapes = {}
+        self._points = {}
         self._polygons = {}
         self._features = {}
-
-        self._get_polygons()
 
     @property
     def esri_wkid(self):
@@ -82,7 +73,8 @@ class TigerWeb(object):
         """
         if self._wkid is None:
             df = get_wkt_wkid_table()
-            iloc = df.index[df['name'].str.lower() == self.prj.name.lower()].values
+            iloc = df.index[
+                df['name'].str.lower() == self.prj.name.lower()].values
             if len(iloc) == 1:
                 wkid = df.loc[iloc, 'wkid'].values[0]
                 self._wkid = int(wkid)
@@ -166,43 +158,6 @@ class TigerWeb(object):
         else:
             return self._shapes[name]
 
-    def _get_polygons(self):
-        """
-        Method to read and store polygons from a shapefile for later
-        processing.
-
-        Returns
-        -------
-        """
-        if self.sf.shapeType not in (5, 15, 25):
-            raise TypeError('Shapetype: {}, is not a valid polygon'
-                            .format(self.sf.shapeTypeName))
-
-        named = False
-        fidx = 0
-        if self._field is None:
-            pass
-        else:
-            for ix, field in enumerate(self.sf.fields):
-                if field[0].lower() == self._field:
-                    named = True
-                    fidx = ix - 1
-                    break
-
-        name = -1
-        for ix, shape in enumerate(self.sf.shapes()):
-            esri_json = self.polygon_to_esri_json(shape.points)
-            if named:
-                rec = self.sf.record(ix)
-                name = rec[fidx]
-                if isinstance(name, str):
-                    name = name.lower()
-            else:
-                name += 1
-
-            self._polygons[name] = esri_json
-            self._shapes[name] = shape.points
-
     def polygon_to_esri_json(self, polygon):
         """
         Method to create an esri json string for defining geometry to
@@ -250,6 +205,79 @@ class TigerWeb(object):
         s = s.replace("'", '"')
         s = s.replace(" ", "")
         return s
+
+
+class TigerWebPoint(TigerWebBase):
+    """
+    Class to query data from TigerWeb by using shapefile point(s)
+
+    Parameters
+    ----------
+    shp : str
+        shapefile path
+    field : str
+        shapefile field to id multiple points
+    radius : str or value
+        shapefile radius field or a floating point value
+        to define the polygon to query
+    """
+    def __init__(self, shp, field=None, radius=None):
+        super(TigerWebPoint, self).__init__(shp, field, "point")
+
+
+class TigerWeb(TigerWebBase):
+    """
+    Class to query data from TigerWeb by using shapefile polygon(s)
+
+    Parameters
+    ----------
+    shp : str
+        shapefile path
+    field : str
+        shapefile field to id multiple polygons
+
+    """
+    def __init__(self, shp, field=None):
+        super(TigerWeb, self).__init__(shp, field, 'polygon')
+
+        self._get_polygons()
+
+    def _get_polygons(self):
+        """
+        Method to read and store polygons from a shapefile for later
+        processing.
+
+        Returns
+        -------
+        """
+        if self.sf.shapeType not in (5, 15, 25):
+            raise TypeError('Shapetype: {}, is not a valid polygon'
+                            .format(self.sf.shapeTypeName))
+
+        named = False
+        fidx = 0
+        if self._field is None:
+            pass
+        else:
+            for ix, field in enumerate(self.sf.fields):
+                if field[0].lower() == self._field:
+                    named = True
+                    fidx = ix - 1
+                    break
+
+        name = -1
+        for ix, shape in enumerate(self.sf.shapes()):
+            esri_json = self.polygon_to_esri_json(shape.points)
+            if named:
+                rec = self.sf.record(ix)
+                name = rec[fidx]
+                if isinstance(name, str):
+                    name = name.lower()
+            else:
+                name += 1
+
+            self._polygons[name] = esri_json
+            self._shapes[name] = shape.points
 
     def get_data(self, year, outfields=(), filter=()):
         """
