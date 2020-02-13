@@ -33,11 +33,11 @@ import censusdc
 __Grabbing features from TigerWeb__  
 TigerWeb hosts feature layers that are tagged with geographic id information
 that can be used for creating census api data pulls. The `TigerWeb` class 
-accepts polygon and *point*[future] shapefiles and can query a host of 
+accepts polygon and point shapefiles and can query a host of 
 geographic information for the census.  
 
-_Example 1_:  
-Sacramento neighborhood polygons:  
+*__Example 1__*:  
+_Sacramento neighborhood polygons:_  
 Two polygons have been drawn; one for the Tahoe Park and one for the La Riviera
  neighborhood  
 <p align="center">
@@ -97,8 +97,8 @@ plt.show()
   <img src="https://raw.githubusercontent.com/jlarsen-usgs/census-data-collector/master/data/Tigerweb_example.png" alt="TigerWeb"/>
 </p>
 
-_Example 2_:  
-Sacramento points:  
+*__Example 2__*:  
+_Sacramento neighborhood points:_  
 Point shapefiles can also be supplied to `TigerWeb`. Here we have on in the
 Tahoe Park neighborhood and one in the La Riviera neighborhood
 <p align="center">
@@ -116,6 +116,7 @@ import os
 
 shp_file = os.path.join('data','Sacramento_points.shp')
 
+# radius infromation must be in the same units as the shapefile projection!
 tigweb = TigerWeb(shp_file, field="name", radius="radius")
 tigweb.get_data(2010, outfields=(TWV.geoid, TWV.state, TWV.county,
                                  TWV.tract, TWV.blkgrp, TWV.block))
