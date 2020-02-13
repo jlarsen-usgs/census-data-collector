@@ -39,6 +39,16 @@ class TigerWebVariables(object):
 class TigerWebBase(object):
     """
     Base class object for all Tigerweb spatial queries
+
+    Parameters
+    ----------
+    shp : str
+        shapefile path
+    field : str
+        shapefile tag reference field
+    geotype : str
+        shapefile geometry type
+
     """
     def __init__(self, shp, field, geotype):
         if not os.path.isfile(shp):
@@ -222,7 +232,13 @@ class TigerWebPoint(TigerWebBase):
         to define the polygon to query
     """
     def __init__(self, shp, field=None, radius=None):
-        super(TigerWebPoint, self).__init__(shp, field, "point")
+        if radius is None:
+            super(TigerWebPoint, self).__init__(shp, field, "point")
+        else:
+            super(TigerWebPoint, self).__init__(shp, field, "polygon")
+
+
+
 
 
 class TigerWeb(TigerWebBase):
