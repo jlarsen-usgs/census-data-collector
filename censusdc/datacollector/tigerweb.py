@@ -6,7 +6,7 @@ import requests
 import os
 import shapefile
 import pycrs
-from ..utils import get_wkt_wkid_table
+from ..utils import get_wkt_wkid_table, TigerWebMapServer
 from ..utils.geometry import calculate_circle
 
 
@@ -274,7 +274,7 @@ class TigerWebBase(object):
         s = s.replace(" ", "")
         return s
 
-    def get_data(self, year, outfields=(), filter=()):
+    def get_data(self, year, level='finest', outfields=(), filter=()):
         """
         Method to pull data feature data from tigerweb
 
@@ -282,6 +282,9 @@ class TigerWebBase(object):
         ----------
         year : int
             data year to grab features from
+
+        level : str
+            block, block group, tract, or "finest"...
 
         outFields : tuple
             tuple of output variables to grab from tigerweb
@@ -297,27 +300,30 @@ class TigerWebBase(object):
         -------
 
         """
-        base = "https://tigerweb.geo.census.gov/arcgis/rest/services/" \
-               "TIGERweb/Tracts_Blocks/MapServer"
+        level = level.lower()
 
-        lut = {2010: {'mapserver': 12,
-                      'outFields': 'GEOID,BLOCK,BLKGRP,STATE,'
-                                   'COUNTY,TRACT,POP100'},
-               -2010: {'mapserver': 11,
-                       'outFields': 'GEOID,BLKGRP,STATE,COUNTY,TRACT,POP100'},
-               2015: {'mapserver': 4,
-                      'outFields': 'GEOID,BLKGRP,STATE,COUNTY,TRACT'},
-               2016: {'mapserver': 4,
-                      'outFields': 'GEOID,BLKGRP,STATE,COUNTY,TRACT'},
-               2017: {'mapserver': 4,
-                      'outFields': 'GEOID,BLKGRP,STATE,COUNTY,TRACT'},
-               2018: {'mapserver': 8,
-                      'outFields': 'GEOID,BLKGRP,STATE,COUNTY,TRACT'},
-               2019: {'mapserver': 5,
-                      'outFields': 'GEOID,BLKGRP,STATE,COUNTY,TRACT'}}
+        base = TigerWebMapServer.base[year]
 
-        if year not in lut:
-            raise ValueError("year must be either, 2010, 2018, or 2019")
+        lut = None
+        if level == 'finest':
+            for l in TigerWebMapServer.levels:
+                lut = TigerWebMapServer.__dict__[l]
+                if year in lut:
+                    break
+                else:
+                    lut = None
+
+        else:
+            if level in TigerWebMapServer.__dict__:
+                lut = TigerWebMapServer.__dict__[level]
+                if year in lut:
+                    pass
+                else:
+                    lut = None
+
+        if lut is None:
+            raise KeyError("No TigerWeb server could be found for {} and {}"
+                           .format(year, level))
 
         mapserver = lut[year]['mapserver']
 
