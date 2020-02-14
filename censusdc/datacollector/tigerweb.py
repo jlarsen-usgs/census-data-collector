@@ -194,7 +194,7 @@ class TigerWebBase(object):
             list
         """
         if name not in self._points:
-            raise KeyError("Name: {} not present in shapes dict".format(name))
+            raise KeyError("Name: {} not present in points dict".format(name))
         else:
             return self._points[name]
 
