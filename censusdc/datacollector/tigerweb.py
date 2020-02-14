@@ -282,15 +282,12 @@ class TigerWebBase(object):
         ----------
         year : int
             data year to grab features from
-
         level : str
             block, block group, tract, or "finest"...
-
-        outFields : tuple
+        outfields : tuple
             tuple of output variables to grab from tigerweb
             default is () which grabs GEOID,BLKGRP,STATE,COUNTY,TRACT
             from TigerWeb
-
         filter : tuple
             tuple of names or polygon numbers to pull from
             default is () which grabs all polygons
@@ -338,7 +335,6 @@ class TigerWebBase(object):
             outfields = ','.join(outfields).upper()
         else:
             outfields = lut[year]['outFields']
-
 
         if filter:
             if isinstance(filter, (int, str, float)):
@@ -429,7 +425,6 @@ class TigerWebPoint(TigerWebBase):
 
         else:
             self._get_points()
-
 
     def _get_polygons(self):
         """

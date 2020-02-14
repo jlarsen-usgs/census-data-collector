@@ -39,5 +39,3 @@ def get_wkt_wkid_table(refresh=False):
 
     df = pd.read_csv(table_file, delimiter='\t', index_col=False,)
     return df
-
-

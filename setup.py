@@ -8,7 +8,9 @@ requirements = ["pandas",
                 "numpy",
                 "beautifulsoup4",
                 "pyshp",
-                "pycrs"]
+                "pycrs",
+                "geojson",
+                "requests"]
 setup_requirements = []
 test_requirements = []
 description = """Python package to query census population data and provide
