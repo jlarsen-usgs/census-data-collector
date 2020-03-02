@@ -299,12 +299,10 @@ class TigerWebBase(object):
         """
         level = level.lower()
 
-        base = TigerWebMapServer.base[year]
-
         lut = None
         if level == 'finest':
-            for l in TigerWebMapServer.levels:
-                lut = TigerWebMapServer.__dict__[l]
+            for level in TigerWebMapServer.levels:
+                lut = TigerWebMapServer.__dict__[level]
                 if year in lut:
                     break
                 else:
@@ -321,6 +319,11 @@ class TigerWebBase(object):
         if lut is None:
             raise KeyError("No TigerWeb server could be found for {} and {}"
                            .format(year, level))
+
+        if level == "county_subdivision":
+            base = TigerWebMapServer.lcdbase[year]
+        else:
+            base = TigerWebMapServer.base[year]
 
         mapserver = lut[year]['mapserver']
 
