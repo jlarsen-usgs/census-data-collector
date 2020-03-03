@@ -32,12 +32,17 @@ class TigerWebMapServer(object):
             2018: __gacs.format(2018)}
             # 2019: __base}
 
-    lcdbase = {i: __acs1 for i in range(2005, 2019)}
+    def lcdbase(acs1):
+        return {i: acs1 for i in range(2005, 2019)}
+    lcdbase = lcdbase(__acs1)
 
     __acs1_county_subdivision = 'GEOID,STATE,COUNTY,COUSUB'
     __acs1_server = {'mapserver': 22,
                      'outFields': __acs1_county_subdivision}
-    county_subdivision = {i: __acs1_server for i in range(2005, 2019)}
+
+    def county_subdivision(acs1_server):
+        return {i: acs1_server for i in range(2005, 2019)}
+    county_subdivision = county_subdivision(__acs1_server)
 
     __dec_tract = 'GEOID,STATE,COUNTY,TRACT,POP100'
     __acs_tract = 'GEOID,STATE,COUNTY,TRACT'
@@ -98,14 +103,30 @@ class Acs5Server(object):
 
     levels = ("block_group", "tract", "county", "state")
 
-    state = {i: "state:{}" for i in range(2009, 2019)}
+    __income = ["B19001_0{:02d}E".format(i) for i in range(1,18)]
+    __variables = "B01003_001E," + ",".join(__income)
 
-    county = {i: "county:{}&in=state:{}" for i in range(2009, 2019)}
+    def state(variables):
+        return {i: {"fmt": "state:{}", "variables": variables}
+                for i in range(2009, 2019)}
+    state = state(__variables)
 
-    tract = {i: "tract:{}&in=state:{}&in=county:{}" for i in range(2009, 2019)}
+    def county(variables):
+        return {i: {"fmt": "county:{}&in=state:{}", "variables": variables}
+                for i in range(2009, 2019)}
+    county = county(__variables)
 
-    block_group = {i: 'block%20group:{}&in=state:{}&in=county:{}&in=tract:{}'
-                   for i in (2013, 2014, 2015, 2017, 2018,)}
+    def tract(variables):
+        return {i: {"fmt": "tract:{}&in=state:{}&in=county:{}",
+                    "variables": variables} for i in range(2009, 2019)}
+    tract = tract(__variables)
+
+    def block_group(variables):
+        return {i: {"fmt":
+                    'block%20group:{}&in=state:{}&in=county:{}&in=tract:{}',
+                    "variables": variables}
+                for i in (2013, 2014, 2015, 2017, 2018,)}
+    block_group = block_group(__variables)
 
 
 class Acs1Server(object):
