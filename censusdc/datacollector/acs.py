@@ -63,7 +63,7 @@ class AcsBase(object):
                             3: 'tract', 4: 'block_group'}
 
         self._features_level = 'undefined'
-
+        self.__set_features_level()
 
     @property
     def year(self):
@@ -95,7 +95,22 @@ class AcsBase(object):
         """
         return self._features_level
 
-    def __determine_discretization(self):
+    def get_feature(self, name):
+        """
+        Method to get a set of features
+
+        Parameters
+        ----------
+        name : str
+            feature set name
+
+        Returns
+        -------
+            list of geoJSON features
+        """
+        return self._features[name]
+
+    def __set_features_level(self):
         """
         Internal method to determine a common 'finest' discretization
         of all supplied featues
@@ -103,7 +118,7 @@ class AcsBase(object):
         """
         level = []
         for name in self.feature_names:
-            for feature in self.features[name]:
+            for feature in self.get_feature(name):
                 tmp = 0
                 for key in (TigerWebVariables.state,):
                     if key in feature.properties:
@@ -205,7 +220,7 @@ class AcsBase(object):
         fmt = lut[self.year]['fmt']
 
         for name in self.feature_names:
-            for featix, feature in enumerate(self.features[name]):
+            for featix, feature in enumerate(self.get_feature(name)):
                 loc = ""
                 if level == "block_group":
                     loc = fmt.format(
@@ -238,7 +253,9 @@ class AcsBase(object):
                     '{}={}'.format(k, v) for k, v in payload.items())
                 r = s.get(url, params=payload)
                 r.raise_for_status()
-                print('Getting data for {} feature # {}'.format(name, featix))
+                print('Getting {} data for {} feature # {}'.format(level,
+                                                                   name,
+                                                                   featix))
 
                 data = r.json()
                 if len(data) == 2:
