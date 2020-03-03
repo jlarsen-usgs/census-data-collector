@@ -19,6 +19,7 @@ class TigerWebVariables(object):
     geoid = 'GEOID'
     state = 'STATE'
     county = 'COUNTY'
+    cousub = 'COUSUB'
     tract = 'TRACT'
     blkgrp = 'BLKGRP'
     block = 'BLOCK'

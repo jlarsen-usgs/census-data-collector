@@ -137,9 +137,21 @@ class Acs1Server(object):
 
     levels = ("county_subdivision", "county", "state")
 
-    state = {i: "state:{}" for i in range(2005, 2019)}
+    __income = ["B19001_0{:02d}E".format(i) for i in range(1, 18)]
+    __variables = "B01003_001E," + ",".join(__income)
 
-    county = {i: "county:{}&in=state:{}" for i in range(2005, 2019)}
+    def state(variables):
+        return {i: {"fmt": "state:{}", "variables": variables}
+                for i in range(2005, 2019)}
+    state = state(__variables)
 
-    county_subdivision = {"county%20subdivision:{}&in=state:{}&in=county:{}"
-                          for i in range(2005, 2019)}
+    def county(variables):
+        return {i: {"fmt": "county:{}&in=state:{}", "variables": variables}
+                for i in range(2005, 2019)}
+    county = county(__variables)
+
+    def county_subdivision(variables):
+        return {i: {"fmt": "county%20subdivision:{}&in=state:{}%20county:{}",
+                    "variables": variables}
+                for i in range(2005, 2019)}
+    county_subdivision = county_subdivision(__variables)

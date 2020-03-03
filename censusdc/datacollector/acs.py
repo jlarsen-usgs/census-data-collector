@@ -3,7 +3,7 @@ from .tigerweb import TigerWebVariables
 from ..utils import Acs5Server, Acs1Server
 
 
-class Acs5Variables(object):
+class AcsVariables(object):
     """
     Small listing of common census variable names for querying data
     """
@@ -52,15 +52,16 @@ class AcsBase(object):
         self.__apikey = apikey
         self._text = server
 
-        if server == 'acs5':
-            self._server = Acs5Server
-        elif server == 'acs1':
+        if server == 'acs1':
             self._server = Acs1Server
+            self.__level_dict = {1: 'state', 2: 'county',
+                                 3: 'county_subdivision'}
+        elif server == 'acs5':
+            self._server = Acs5Server
+            self.__level_dict = {1: 'state', 2: 'county',
+                                 3: 'tract', 4: 'block_group'}
         else:
             raise AssertionError("unknown server type")
-
-        self.__level_dict = {1: 'state', 2: 'county',
-                            3: 'tract', 4: 'block_group'}
 
         self._features_level = 'undefined'
         self.__set_features_level()
@@ -134,16 +135,25 @@ class AcsBase(object):
                         else:
                             tmp = 1
                             break
-
                 if tmp == 2:
-                    for key in (TigerWebVariables.tract,
-                                TigerWebVariables.state,
-                                TigerWebVariables.county):
-                        if key in feature.properties:
-                            tmp = 3
-                        else:
-                            tmp = 2
-                            break
+                    if self._text == 'acs1':
+                        for key in (TigerWebVariables.cousub,
+                                    TigerWebVariables.state,
+                                    TigerWebVariables.county):
+                            if key in feature.properties:
+                                tmp = 3
+                            else:
+                                tmp = 2
+                                break
+                    else:
+                        for key in (TigerWebVariables.tract,
+                                    TigerWebVariables.state,
+                                    TigerWebVariables.county):
+                            if key in feature.properties:
+                                tmp = 3
+                            else:
+                                tmp = 2
+                                break
                 if tmp == 3:
                     for key in (TigerWebVariables.blkgrp,
                                 TigerWebVariables.state,
@@ -233,6 +243,11 @@ class AcsBase(object):
                         feature.properties[TigerWebVariables.tract],
                         feature.properties[TigerWebVariables.state],
                         feature.properties[TigerWebVariables.county])
+                elif level == "county_subdivision":
+                    loc = fmt.format(
+                        feature.properties[TigerWebVariables.cousub],
+                        feature.properties[TigerWebVariables.state],
+                        feature.properties[TigerWebVariables.county])
                 elif level == "county":
                     loc = fmt.format(
                         feature.properties[TigerWebVariables.county],
@@ -256,8 +271,12 @@ class AcsBase(object):
                 print('Getting {} data for {} feature # {}'.format(level,
                                                                    name,
                                                                    featix))
-
-                data = r.json()
+                try:
+                    data = r.json()
+                except:
+                    data = []
+                    print('Error getting {} data for {} feature # {}'.format(
+                        level, name, featix))
                 if len(data) == 2:
                     for dix, header in enumerate(data[0]):
                         if header == "NAME":
@@ -267,6 +286,46 @@ class AcsBase(object):
                         else:
                             self._features[name][featix].properties[header] = \
                                 float(data[1][dix])
+
+
+class Acs1(AcsBase):
+    """
+    Class to collect data from the Acs1 census using geojson features
+    from TigerWeb
+
+    Parameters
+    ----------
+    features: dict
+        features from TigerWeb data collections
+        {polygon_name: [geojson, geojson,...]}
+    year : int
+        census data year of the TigerWeb data
+    apikey : str
+        users specific census apikey (obtained from
+        https://api.census.gov/data/key_signup.html)
+
+    """
+    def __init__(self, features, year, apikey):
+        super(Acs1, self).__init__(features, year, apikey, 'acs1')
+
+    def get_data(self, level='finest', variables=()):
+        """
+        Method to get data from the Acs1 servers and set it to feature
+        properties!
+
+        Parameters
+        ----------
+        level : str
+            determines the geographic level of data queried
+            default is 'finest' available based on census dataset and
+            the geoJSON feature information
+
+        variables : list, tuple
+            user specified Acs1 variables, default pulls variables from
+            the AcsVariables class
+
+        """
+        super(Acs1, self).get_data(level=level, variables=variables)
 
 
 class Acs5(AcsBase):
@@ -303,7 +362,9 @@ class Acs5(AcsBase):
 
         variables : list, tuple
             user specified Acs5 variables, default pulls variables from
-            the Acs5Variables class
+            the AcsVariables class
 
         """
         super(Acs5, self).get_data(level=level, variables=variables)
+
+
