@@ -31,6 +31,18 @@ class Acs5Variables(object):
 class AcsBase(object):
     """
     Base class for Acs1 and Acs5 data
+
+    Parameters
+    ----------
+    features: dict
+        features from TigerWeb data collections
+        {polygon_name: [geojson, geojson,...]}
+    year : int
+        census data year of the TigerWeb data
+    apikey : str
+        users specific census apikey (obtained from
+        https://api.census.gov/data/key_signup.html)
+
     """
     def __init__(self, features, year, apikey, server):
         if not isinstance(features, dict):
@@ -252,6 +264,9 @@ class Acs5(AcsBase):
         {polygon_name: [geojson, geojson,...]}
     year : int
         census data year of the TigerWeb data
+    apikey : str
+        users specific census apikey (obtained from
+        https://api.census.gov/data/key_signup.html)
 
     """
     def __init__(self, features, year, apikey):
