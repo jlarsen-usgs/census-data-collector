@@ -151,7 +151,61 @@ fig = plt.figure()
 
 __*Using tigerweb features to grab census data*__
 
+After we get a feature set from tigerweb, we can grab data. In this example we 
+are getting data from the 2013 American Community Survey 5 year data set and 
+plot population of census block groups. Data from the Census data pull is 
+added to each GeoJSON feature to keep spatial correlation. Here is an example:
 
+```python
+from censusdc import TigerWeb, Acs5
+from descartes import PolygonPatch
+import matplotlib.pyplot as plt
+from matplotlib.collections import PatchCollection
+import numpy as np
+import os
+import utm
+
+# the user must have a census api key to pull data from the Acs5
+with open("api_key.dat") as api:
+    apikey = api.readline().strip()
+
+data = 'data'
+point_name = "Sacramento_points.shp"
+
+tigweb = TigerWeb(os.path.join(data, point_name), field='name',
+                  radius='radius')
+tigweb.get_data(2013)
+
+# get ACS5 data
+acs = Acs5(tigweb.features, 2013, apikey)
+acs.get_data()
+
+fig = plt.figure()
+ax = fig.gca()
+population = []
+patches = []
+for name in acs.feature_names:
+    for feature in acs.get_feature(name):
+        patches.append(PolygonPatch(feature.geometry))
+        population.append(feature.properties["B01003_001E"])
+    x, y = np.array(tigweb.get_shape(name)).T
+    y, x = utm.to_latlon(x, y, 11, zone_letter='N')
+    px, py = np.array(tigweb.get_point(name))
+    py, px = utm.to_latlon(px, py, 11, zone_letter='N')
+    ax.plot(x, y, 'r-')
+    ax.plot(px, py, 'ro')
+
+p = PatchCollection(patches, cmap="viridis", alpha=0.75)
+p.set_array(np.array(population))
+ax.add_collection(p)
+ax.axis('scaled')
+plt.colorbar(p, shrink=0.7)
+plt.show()
+```
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/jlarsen-usgs/census-data-collector/master/data/Tigerweb_points_population.png" alt="Acs5_pop_2013"/>
+</p>
 
 ## Development
 This project is in active development and is in the pre-alpha stages. There 
