@@ -118,10 +118,10 @@ shp_file = os.path.join('data','Sacramento_points.shp')
 
 # radius infromation must be in the same units as the shapefile projection!
 tigweb = TigerWeb(shp_file, field="name", radius="radius")
-tigweb.get_data(2010, outfields=(TWV.geoid, TWV.state, TWV.county,
+tigweb.get_data(2013, outfields=(TWV.geoid, TWV.state, TWV.county,
                                  TWV.tract, TWV.blkgrp, TWV.block))
 ```
-and once again we can visualize the census block features within the 
+and here we can visualize the census block group features within the 
 defined radius from our points
 ```python
 import matplotlib.pyplot as plt
@@ -148,6 +148,10 @@ fig = plt.figure()
 <p align="center">
   <img src="https://raw.githubusercontent.com/jlarsen-usgs/census-data-collector/master/data/Tigerweb_points_example.png" alt="TigerWeb_pts"/>
 </p>
+
+__*Using tigerweb features to grab census data*__
+
+
 
 ## Development
 This project is in active development and is in the pre-alpha stages. There 
