@@ -39,6 +39,24 @@ def geoJSON_lat_lon_to_utm(feature):
     -------
         list
     """
-    coords = np.array(feature.geometry.coordinates[0])
+    coords = feature.geometry.coordinates[0]
+    coords = [utm.from_latlon(t[1], t[0])[0:2] for t in coords]
+    return coords
+
+
+def shapefile_lat_lon_to_utm(shape):
+    """
+    Method to convert shapefile lat_lon to UTM for
+    intersection and scaling operations
+
+    Parameters
+    ----------
+    shape : shapefile.Shape object
+
+    Returns
+    -------
+        list
+    """
+    coords = shape.points
     coords = [utm.from_latlon(t[1], t[0])[0:2] for t in coords]
     return coords
