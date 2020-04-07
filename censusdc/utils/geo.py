@@ -56,6 +56,8 @@ class GeoFeatures(object):
             list of shapely polygons
 
         """
+        flag = ""
+
         if isinstance(polygons, shapefile.Reader):
             polygons = [shape for shape in polygons.shapes()]
             flag = "shapefile"
@@ -83,42 +85,37 @@ class GeoFeatures(object):
         elif isinstance(polygons, Polygon):
             polygons = [polygons,]
             flag = "shapely"
-            
+
         else:
             raise TypeError("{}: not yet supported".format(type(polygons)))
 
-
-        if isinstance(polygons, shapefile.Reader) or \
-                isinstance(polygons, shapefile.Shape):
+        if flag == "shapefile":
             # assume there is only one shape, let user do preprocessing
             # if there is more than one
-            if isinstance(polygons, shapefile.Reader):
-                shape = polygons.shape(0)
-            else:
-                shape = polygons
+            t = []
+            for shape in polygons:
 
-            shape_type = shape.__geo_interface__['type']
-            coords = shapefile_lat_lon_to_utm(shape)
+                shape_type = shape.__geo_interface__['type']
+                coords = shapefile_lat_lon_to_utm(shape)
 
-            if shape_type.lower() == "polygon":
-                polygons = [Polygon(coords),]
+                if shape_type.lower() == "polygon":
+                    t.append(Polygon(coords),)
 
-            elif shape_type.lower() == "multipolygon":
-                parts = list(shape.parts)
-                polygons = []
-                for ix in range(1, len(parts)):
-                    i0 = parts[ix - 1]
-                    i1 = parts[ix]
-                    polygons.append(Polygon(coords[i0:i1]))
+                elif shape_type.lower() == "multipolygon":
+                    parts = list(shape.parts)
+                    for ix in range(1, len(parts)):
+                        i0 = parts[ix - 1]
+                        i1 = parts[ix]
+                        t.append(Polygon(coords[i0:i1]))
 
-                    if len(parts) == ix + 1:
-                        polygons.append(Polygon(coords[i1:]))
-                    else:
-                        pass
+                        if len(parts) == ix + 1:
+                            t.append(Polygon(coords[i1:]))
+                        else:
+                            pass
 
-            else:
-                raise NotImplementedError("{} intersection is "
-                                          "not supported".format(shape_type))
+                else:
+                    raise NotImplementedError(
+                        "{} intersection is not supported".format(shape_type))
 
         for polygon in polygons:
             for feature in self._shapely_features:
