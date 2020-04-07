@@ -1,4 +1,4 @@
-import numpy
+import numpy as np
 import pandas as pd
 from .geometry import geoJSON_lat_lon_to_utm, shapefile_lat_lon_to_utm
 from shapely.geometry import Polygon, MultiPolygon
@@ -56,6 +56,38 @@ class GeoFeatures(object):
             list of shapely polygons
 
         """
+        if isinstance(polygons, shapefile.Reader):
+            polygons = [shape for shape in polygons.shapes()]
+            flag = "shapefile"
+
+        elif isinstance(polygons, list):
+            if isinstance(polygons[0], shapefile.Shape):
+                flag = 'shapefile'
+            elif isinstance(polygons[0], Polygon):
+                flag = "shapely"
+            elif isinstance(polygons[0], list):
+                polygons = np.array(polygons)
+                if len(polygons.shape) == 2:
+                    polygons = np.array([polygons])
+                elif len(polygons.shape) == 3:
+                    pass
+                else:
+                    raise IndexError('Polygons must be in a 2 or 3 dimensional'
+                                     ' list')
+                flag = "list"
+
+        elif isinstance(polygons, shapefile.Shape):
+            polygons = [polygons,]
+            flag = "shapefile"
+
+        elif isinstance(polygons, Polygon):
+            polygons = [polygons,]
+            flag = "shapely"
+            
+        else:
+            raise TypeError("{}: not yet supported".format(type(polygons)))
+
+
         if isinstance(polygons, shapefile.Reader) or \
                 isinstance(polygons, shapefile.Shape):
             # assume there is only one shape, let user do preprocessing
