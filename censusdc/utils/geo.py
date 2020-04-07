@@ -74,15 +74,16 @@ class GeoFeatures(object):
                 elif len(polygons.shape) == 3:
                     pass
                 else:
-                    raise IndexError('Polygons must be in a 2 or 3 dimensional'
-                                     ' list')
+                    raise IndexError(
+                        'Polygons must be in a 2 or 3 dimensional list')
+
                 flag = "list"
 
         elif isinstance(polygons, shapefile.Shape):
             polygons = [polygons,]
             flag = "shapefile"
 
-        elif isinstance(polygons, Polygon):
+        elif isinstance(polygons, (Polygon, MultiPolygon)):
             polygons = [polygons,]
             flag = "shapely"
 
@@ -110,12 +111,39 @@ class GeoFeatures(object):
 
                         if len(parts) == ix + 1:
                             t.append(Polygon(coords[i1:]))
+
                         else:
                             pass
 
                 else:
                     raise NotImplementedError(
                         "{} intersection is not supported".format(shape_type))
+
+            polygons = t
+
+        elif flag == "shapely":
+            t = []
+            for shape in polygons:
+                if isinstance(shape, Polygon):
+                    t.append(Polygon)
+
+                elif isinstance(shape, MultiPolygon):
+                    for geom in shape.geoms:
+                        if isinstance(geom, Polygon):
+                            t.append(geom)
+                        else:
+                            continue
+
+                else:
+                    raise NotImplementedError("{}".format(shape.geom_type))
+
+            polygons = t
+
+        elif flag == "list":
+            pass
+
+        else:
+            raise Exception("Code shouldn't have made it here!")
 
         for polygon in polygons:
             for feature in self._shapely_features:
