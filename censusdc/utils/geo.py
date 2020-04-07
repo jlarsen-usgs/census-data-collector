@@ -140,7 +140,11 @@ class GeoFeatures(object):
             polygons = t
 
         elif flag == "list":
-            pass
+            t = []
+            for shape in polygons:
+                t.append(Polygon(shape))
+
+            polygons = t
 
         else:
             raise Exception("Code shouldn't have made it here!")
