@@ -40,8 +40,13 @@ def geoJSON_lat_lon_to_utm(feature):
         list
     """
     coords = feature.geometry.coordinates[0]
-    coords = [utm.from_latlon(t[1], t[0])[0:2] for t in coords]
-    return coords
+    utm_coords = []
+    utm_zones = []
+    for t in coords:
+        temp = utm.from_latlon(t[1], t[0])
+        utm_coords.append(temp[0:2])
+        utm_zones.append(temp[2:])
+    return utm_coords, utm_zones
 
 
 def shapefile_lat_lon_to_utm(shape):

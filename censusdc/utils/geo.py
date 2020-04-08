@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
-from .geometry import geoJSON_lat_lon_to_utm, shapefile_lat_lon_to_utm
 from shapely.geometry import Polygon, MultiPolygon
+import geojson
 import shapefile
 
 
@@ -17,19 +17,41 @@ class GeoFeatures(object):
 
     """
     def __init__(self, features, name=None):
-        self.__name = None
+
+        self.__name = name
         self._features = features
         self._shapely_features = []
         self._ifeatures = None
 
         self._create_shapely_geoms()
 
+        from ..datacollector.tigerweb import TigerWebVariables
+        self.IGNORE = (TigerWebVariables.mtfcc,
+                       TigerWebVariables.oid,
+                       TigerWebVariables.geoid,
+                       TigerWebVariables.state,
+                       TigerWebVariables.county,
+                       TigerWebVariables.tract,
+                       TigerWebVariables.blkgrp,
+                       TigerWebVariables.basename,
+                       TigerWebVariables.name,
+                       TigerWebVariables.lsadc,
+                       TigerWebVariables.funcstat,
+                       TigerWebVariables.arealand,
+                       TigerWebVariables.stgeometry,
+                       TigerWebVariables.centlat,
+                       TigerWebVariables.centlon,
+                       TigerWebVariables.intptlat,
+                       TigerWebVariables.intptlon,
+                       TigerWebVariables.objectid)
+
     def _create_shapely_geoms(self):
         """
         Method to set geoJSON features to shapely geometry objects
         """
         for feature in self._features:
-            coords = geoJSON_lat_lon_to_utm(feature)
+            # coords, utm_zone = geoJSON_lat_lon_to_utm(feature)
+            coords = feature.geometry.coordinates[0]
             poly = Polygon(coords)
             self._shapely_features.append(poly)
 
@@ -53,7 +75,9 @@ class GeoFeatures(object):
         Parameters
         ----------
         polygons: list
-            list of shapely polygons
+            list of shapely polygons, list of shapefile.Shape objects,
+            shapefile.Reader object, shapefile.Shape object, or
+            list of xy points [[(lon, lat)...(lon_n, lat_n)],[...]]
 
         """
         flag = ""
@@ -80,25 +104,22 @@ class GeoFeatures(object):
                 flag = "list"
 
         elif isinstance(polygons, shapefile.Shape):
-            polygons = [polygons,]
+            polygons = [polygons, ]
             flag = "shapefile"
 
         elif isinstance(polygons, (Polygon, MultiPolygon)):
-            polygons = [polygons,]
+            polygons = [polygons, ]
             flag = "shapely"
 
         else:
             raise TypeError("{}: not yet supported".format(type(polygons)))
 
         if flag == "shapefile":
-            # assume there is only one shape, let user do preprocessing
-            # if there is more than one
             t = []
             for shape in polygons:
 
                 shape_type = shape.__geo_interface__['type']
-                coords = shapefile_lat_lon_to_utm(shape)
-
+                coords = shape.points
                 if shape_type.lower() == "polygon":
                     t.append(Polygon(coords),)
 
@@ -150,16 +171,34 @@ class GeoFeatures(object):
             raise Exception("Code shouldn't have made it here!")
 
         for polygon in polygons:
-            for feature in self._shapely_features:
-                a = polygon.intersection(feature)
-                import matplotlib.pyplot as plt
+            for ix, feature in enumerate(self._shapely_features):
+                properties = self._features[ix].properties
 
-                plt.plot(*feature.exterior.xy, label="feature")
-                plt.plot(*polygon.exterior.xy, label="polygon")
-                plt.plot(*a.exterior.xy, label='A')
-                plt.legend()
-                plt.show()
-                print('break')
+                a = polygon.intersection(feature)
+                area = a.area
+                if area == 0:
+                    continue
+                geoarea = feature.area
+                ratio = area / geoarea
+
+                adj_properties = {}
+                for k, v in properties.items():
+                    if k in self.IGNORE:
+                        adj_properties[k] = v
+                    else:
+                        adj_properties[k] = v * ratio
+
+                xy = np.array(a.exterior.xy, dtype=float).T
+                xy = [(i[0], i[1]) for i in xy]
+
+                geopolygon = geojson.Polygon([xy])
+                geofeature = geojson.Feature(geometry=geopolygon,
+                                             properties=adj_properties)
+
+                if self._ifeatures is None:
+                    self._ifeatures = [geofeature, ]
+                else:
+                    self._ifeatures.append(geofeature)
 
     @staticmethod
     def feature_to_dataframe(year, features):

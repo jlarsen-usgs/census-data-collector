@@ -340,6 +340,9 @@ class TigerWebBase(object):
         else:
             outfields = lut[year]['outFields']
 
+        if "GEOID" not in outfields:
+            outfields += ",GEOID"
+
         if filter:
             if isinstance(filter, (int, str, float)):
                 filter = (filter,)
@@ -398,6 +401,22 @@ class TigerWebBase(object):
                           start, "total")
                 else:
                     done = True
+
+            self._features[key] = features
+
+        # cleanup duplicate features after query!
+        for key, features in self._features.items():
+            geocodes = []
+            poplist = []
+            for ix, feat in enumerate(features):
+                # properties = feat.properties
+                if feat.properties["GEOID"] in geocodes:
+                    poplist.insert(0, ix)
+                else:
+                    geocodes.append(feat.properties["GEOID"])
+
+            for p in poplist:
+                features.pop(p)
 
             self._features[key] = features
 
