@@ -202,9 +202,59 @@ ax.axis('scaled')
 plt.colorbar(p, shrink=0.7)
 plt.show()
 ```
-
 <p align="center">
   <img src="https://raw.githubusercontent.com/jlarsen-usgs/census-data-collector/master/data/Tigerweb_points_population.png" alt="Acs5_pop_2013"/>
+</p>
+
+__*Intersecting and area weight adjustment of geoJSON features*__
+
+The `GeoFeature` class allows the user to intersect census designated place 
+data with arbitrary polygons to create new area weighted features that 
+represent the user's area of interest. Input polygons can be supplied to 
+the `GeoFeature` class as a pyshp `shapefile.Reader` instance, a list
+`shapefile.Shape` instances, a list of `shapely.geometry.Polygon` or
+ `shapely.geometry.MultiPolygon` instances, or a list of x,y points that define
+ a closed polygon.
+ 
+ _Note: shapes must be supplied in the WGS84 projection to intersect with the 
+ TigerLine data, as this is the projection returned from TigerWeb_ 
+ 
+ Example:
+ ```python
+# building off of the previous example...
+
+from censusdc.utils import GeoFeatures
+import shapefile
+
+
+ishp_name = "multipolygon_test.shp"
+ishp = shapefile.Reader(os.path.join(data, ishp_name))
+gf = GeoFeatures(acs.get_feature(acs.feature_names[0]))
+gf.intersect(ishp)
+
+    fig = plt.figure()
+    ax = fig.gca()
+    population = []
+    patches = []
+    census_patches = []
+    for feature in acs.get_feature(acs.feature_names[0]):
+        census_patches.append(PolygonPatch(feature.geometry))
+
+    for feature in gf.intersected_features:
+        patches.append(PolygonPatch(feature.geometry))
+        population.append(feature.properties["B01003_001E"])
+
+    p = PatchCollection(patches, cmap="viridis", alpha=0.75)
+    cp = PatchCollection(census_patches, cmap='spring')
+    p.set_array(np.array(population))
+    ax.add_collection(cp)
+    ax.add_collection(p)
+    ax.axis('scaled')
+    plt.colorbar(p, shrink=0.7)
+    plt.show()
+```
+<p align="center">
+  <img src="https://raw.githubusercontent.com/jlarsen-usgs/census-data-collector/master/data/Tigerweb_points_intersection.png" alt="Acs5_intersect_2013"/>
 </p>
 
 ## Development

@@ -266,8 +266,21 @@ class AcsBase(object):
 
                 payload = "&".join(
                     '{}={}'.format(k, v) for k, v in payload.items())
-                r = s.get(url, params=payload)
-                r.raise_for_status()
+
+                n = 0
+                e = "Unknown connection error"
+                while n < 10:
+                    try:
+                        r = s.get(url, params=payload)
+                        r.raise_for_status()
+                        break
+                    except requests.exceptions.HTTPError as e:
+                        n += 1
+                        print("Connection Error: Retry number {}".format(n))
+
+                if n == 10:
+                    raise requests.exceptions.HTTPError(e)
+
                 print('Getting {} data for {} feature # {}'.format(level,
                                                                    name,
                                                                    featix))
