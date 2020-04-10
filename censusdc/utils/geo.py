@@ -201,8 +201,10 @@ class GeoFeatures(object):
                     self._ifeatures.append(geofeature)
 
     @staticmethod
-    def feature_to_dataframe(year, features):
+    def features_to_dataframe(year, features):
         """
+        Method to take a group of features and accumulate values from
+        that dataframe into a single record.
 
         Parameters
         ----------

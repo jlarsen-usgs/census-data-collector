@@ -169,7 +169,7 @@ class AcsBase(object):
 
         self._features_level = self.__level_dict[min(level)]
 
-    def get_data(self, level='finest', variables=()):
+    def get_data(self, level='finest', variables=(), retry=100):
         """
         Method to get data from the Acs5 servers and set it to feature
         properties!
@@ -185,6 +185,8 @@ class AcsBase(object):
             user specified Acs5 variables, default pulls variables from
             the Acs5Variables class
 
+        retry : int
+            number of retries for HTTP connection issues before failure
         """
         url = self._server.base.format(self.year)
 
@@ -269,7 +271,7 @@ class AcsBase(object):
 
                 n = 0
                 e = "Unknown connection error"
-                while n < 10:
+                while n < retry:
                     try:
                         r = s.get(url, params=payload)
                         r.raise_for_status()
@@ -278,7 +280,7 @@ class AcsBase(object):
                         n += 1
                         print("Connection Error: Retry number {}".format(n))
 
-                if n == 10:
+                if n == retry:
                     raise requests.exceptions.HTTPError(e)
 
                 print('Getting {} data for {} feature # {}'.format(level,

@@ -178,7 +178,7 @@ tigweb.get_data(2013)
 
 # get ACS5 data
 acs = Acs5(tigweb.features, 2013, apikey)
-acs.get_data()
+acs.get_data(retry=20)  # number of retries for connection issues
 
 fig = plt.figure()
 ax = fig.gca()
