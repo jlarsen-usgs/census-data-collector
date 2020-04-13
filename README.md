@@ -4,8 +4,8 @@ the TigerWeb REST services and the US Census API. Queryable census products
  include:  
 * TigerWeb
 * Decenial Census data[*future*]
-* ACS 1-Year[*future*]
-* ACS 5-Year[*future*]
+* ACS 1-Year
+* ACS 5-Year
 
 ## Installation
 _Method 1_: Download the census data collector from 
