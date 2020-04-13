@@ -96,16 +96,16 @@ class TigerWebMapServer(object):
                     'outFields': __dec_block}}
 
 
-class DecennialServer(object):
+class Sf3Server(object):
     """
-    Class to store map server information for Decennial census data queries
+    Class to store map server information for Decennial Sf3 census data queries
     """
-    base = "https://api.census.gov/data/{}/dec/sf1"
+    base = "https://api.census.gov/data/{}/sf3"
 
     levels = ("block_group", "block", "tract", "county", "state")
-    
-    __income = []
-    __variables = ""
+
+    __income = ["P0520{:02d}".format(i) for i in range(1, 18)]
+    __variables = "P001001," + ",".join(__income)
 
     def state(variables):
         return {i: {"fmt": "state:{}", "variables": variables}
