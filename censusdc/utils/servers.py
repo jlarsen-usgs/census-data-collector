@@ -96,6 +96,47 @@ class TigerWebMapServer(object):
                     'outFields': __dec_block}}
 
 
+class DecennialServer(object):
+    """
+    Class to store map server information for Decennial census data queries
+    """
+    base = "https://api.census.gov/data/{}/dec/sf1"
+
+    levels = ("block_group", "block", "tract", "county", "state")
+    
+    __income = []
+    __variables = ""
+
+    def state(variables):
+        return {i: {"fmt": "state:{}", "variables": variables}
+                for i in (1990, 2000, 2010)}
+    state = state(__variables)
+
+    def county(variables):
+        return {i: {"fmt": "county:{}&in=state:{}", "variables": variables}
+                for i in (1990, 2000, 2010)}
+    county = county(__variables)
+
+    def tract(variables):
+        return {i: {"fmt": "tract:{}&in=state:{}&in=county:{}",
+                    "variables": variables} for i in (1990, 2000, 2010)}
+
+    tract = tract(__variables)
+
+    def block(variables):
+        return {i: {"fmt": "block:{}&in=state:{}%20county:{}%20tract:{}",
+                    "variables": variables} for i in (2000, 2010)}
+
+    block = block(__variables)
+
+    def block_group(variables):
+        return {i: {"fmt":
+                    'block%20group:{}&in=state:{}&in=county:{}&in=tract:{}',
+                    "variables": variables}
+                for i in (2000, 2010)}
+    block_group = block_group(__variables)
+
+
 class Acs5Server(object):
     """
     Class to store map server information for ACS5 census data queries
