@@ -44,7 +44,7 @@ class Sf3(CensusBase):
     """
 
     def __init__(self, features, year, apikey):
-        super(Sf3, self).__init__(features, year, apikey, 'acs1')
+        super(Sf3, self).__init__(features, year, apikey, 'sf3')
 
     def get_data(self, level='finest', variables=(), retry=100):
         """
