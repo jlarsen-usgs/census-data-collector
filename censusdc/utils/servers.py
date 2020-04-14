@@ -188,7 +188,7 @@ class Acs1Server(object):
     county = county(__variables)
 
     def county_subdivision(variables):
-        return {i: {"fmt": "county%20subdivision:{}&in=state:{}%20county:{}",
+        return {i: {"fmt": "county%20subdivision:{}&in=state:{}&in=county:{}",
                     "variables": variables}
                 for i in range(2005, 2019)}
     county_subdivision = county_subdivision(__variables)

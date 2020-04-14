@@ -31,14 +31,20 @@ class CensusBase(object):
             self._server = Acs1Server
             self.__level_dict = {1: 'state', 2: 'county',
                                  3: 'county_subdivision'}
+            self.__ilevel_dict = {'state': 1, 'county': 2,
+                                  'county_subdivision': 3}
         elif server == 'acs5':
             self._server = Acs5Server
             self.__level_dict = {1: 'state', 2: 'county',
                                  3: 'tract', 4: 'block_group'}
+            self.__ilevel_dict = {"state": 1, "county": 2,
+                                  "tract": 3, "block_group": 4}
         elif server == "sf3":
             self._server = Sf3Server
             self.__level_dict = {1: "state", 2: "county",
                                  3: 'tract', 4: 'block_group'}
+            self.__ilevel_dict = {"state": 1, "county": 2,
+                                  "tract": 3, "block_group": 4}
         else:
             raise AssertionError("unknown server type")
 
@@ -192,8 +198,8 @@ class CensusBase(object):
                 else:
                     lut = None
 
-            if self.__level_dict[level] > \
-                    self.__level_dict[self.features_level]:
+            if self.__ilevel_dict[level] > \
+                    self.__ilevel_dict[self.features_level]:
                 raise AssertionError("Cannot grab level data finer than {}"
                                      .format(self.features_level))
 
