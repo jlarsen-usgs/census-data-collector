@@ -15,7 +15,8 @@ class TigerWebMapServer(object):
 
     levels = ('block', 'block_group', 'tract', 'county_subdivision')
 
-    base = {2000: __2000,
+    base = {1990: __2000,
+            2000: __2000,
             2005: __acs1,
             2006: __acs1,
             2007: __acs1,
@@ -127,7 +128,7 @@ class Sf3Server(object):
         return {i: {"fmt":
                     'block%20group:{}&in=state:{}&in=county:{}&in=tract:{}',
                     "variables": variables}
-                for i in (2000, 2010)}
+                for i in (2000,)}
     block_group = block_group(__variables)
 
 
