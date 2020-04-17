@@ -286,4 +286,3 @@ class CensusBase(object):
                         else:
                             self._features[name][featix].properties[header] = \
                                 float(data[1][dix])
-

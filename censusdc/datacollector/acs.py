@@ -26,6 +26,10 @@ class AcsVariables(object):
     income_gt_200k = "B19001_017E"
 
 
+AcsHR = {v: k for k, v in AcsVariables.__dict__.items()
+         if not k.startswith("__")}
+
+
 class Acs1(CensusBase):
     """
     Class to collect data from the Acs1 census using geojson features

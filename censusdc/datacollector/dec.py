@@ -25,6 +25,10 @@ class Sf3Variables(object):
     income_gt_200k = "P052017"
 
 
+Sf3HR = {v: k for k, v in Sf3Variables.__dict__.items()
+         if not k.startswith("__")}
+
+
 class Sf3(CensusBase):
     """
     Class to collect data from the Sf3 census using geojson features
