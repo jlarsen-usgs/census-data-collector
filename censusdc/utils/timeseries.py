@@ -1,6 +1,7 @@
 from .. import TigerWeb, Acs1, Acs5, Sf3
-from ..utils import TigerWebMapServer
+from ..utils import TigerWebMapServer, GeoFeatures
 import copy
+import shapefile
 
 
 class CensusTimeSeries(object):
@@ -19,14 +20,14 @@ class CensusTimeSeries(object):
         radius : float or str
             radius around points to build a query, or shapefile field with
             radius information
-        ishp : shapefile path, shapefile.Reader, list(shapely Polygon,),
+        polygons : shapefile path, shapefile.Reader, list(shapely Polygon,),
             list(shapefile.Shape,), or list([x,y],[x_n, y_n])
             shapes or shapefile to intersect the timeseries with.
     """
-    def __init__(self, shp, apikey, field=None, radius=0, ishp=None):
+    def __init__(self, shp, apikey, field=None, radius=0, polygons=None):
         self._shp = shp
         self.__apikey = apikey
-        self._ishp = ishp
+        self._polygons = polygons
         self._field = field
         self._radius = radius
         self._timeseries = None
@@ -80,15 +81,32 @@ class CensusTimeSeries(object):
         for year, tw in twobjs.items():
             if year in (1990, 2000):
                 cen = Sf3(tw.features, year, self.__apikey)
-                cen.get_data(level="tract", variables=sf3_variables, retry=retry)
+                cen.get_data(level="tract", variables=sf3_variables,
+                             retry=retry)
             elif year in (2005, 2006, 2007, 2008):
                 cen = Acs1(tw.features, year, self.__apikey)
+                cen.get_data(level='county', variables=acs_variables,
+                             retry=retry)
             else:
                 cen = Acs5(tw.features, year, self.__apikey)
+                cen.get_data(level='tract', variables=acs_variables,
+                             retry=retry)
 
             censusobj[year] = cen
 
+        if isinstance(self._polygons, str):
+            self._polygons = shapefile.Reader(self._polygons)
 
+        timeseries = {}
+        for year, cen in censusobj.items():
+            for name in cen.feature_names:
+                gf = GeoFeatures(cen.get_feature(name), name)
+                if self._polygons is not None:
+                    gf.intersect(self._polygons)
+                    features = gf.intersected_features
+                else:
+                    features = gf.features
 
-
+                # todo: craft a method to accumulate the data
+                # todo: into a single pandas record....
 
