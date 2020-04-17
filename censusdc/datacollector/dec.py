@@ -23,10 +23,48 @@ class Sf3Variables(object):
     income_125k_150k = "P052015"
     income_150k_200k = "P052016"
     income_gt_200k = "P052017"
+    median_income = "HCT012001"
+
+
+class Sf3Variables1990(object):
+    """
+    Small listing of common census variable names for querying data
+    from the 1990 decennial census
+    """
+    population = "P0010001"
+    income_lt_5k = "P0800001"
+    income_5K_10k = "P0800002"
+    income_10k_12k = "P0800003"
+    income_13k_15k = "P0800004"
+    income_15k_17k = "P0800005"
+    income_18k_20k = "P0800006"
+    income_20k_22k = "P0800007"
+    income_22k_25k = "P0800008"
+    income_25k_27k = "P0800009"
+    income_27k_30k = "P0800010"
+    income_30k_32k = "P0800011"
+    income_32k_35k = "P0800012"
+    income_35k_37k = "P0800013"
+    income_37k_40k = "P0800014"
+    income_40k_42k = "P0800015"
+    income_42k_45k = "P0800016"
+    income_45k_47k = "P0800017"
+    income_47k_50k = "P0800018"
+    income_50K_55k = "P0800019"
+    income_55k_60k = "P0800020"
+    income_60k_75k = "P0800021"
+    income_75k_100K = "P0800022"
+    income_100k_125k = "P0800023"
+    income_125k_150k = "P0800024"
+    income_gt_200k = "P0800025"
+    median_income = "P080A001"
 
 
 Sf3HR = {v: k for k, v in Sf3Variables.__dict__.items()
          if not k.startswith("__")}
+
+Sf3HR1990 = {v: k for k, v in Sf3Variables1990.__dict__.items()
+             if not k.startswith("__")}
 
 
 class Sf3(CensusBase):

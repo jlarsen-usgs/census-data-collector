@@ -26,6 +26,8 @@ class GeoFeatures(object):
         self._create_shapely_geoms()
 
         from ..datacollector.tigerweb import TigerWebVariables
+        from ..datacollector.acs import AcsVariables
+        from ..datacollector.dec import Sf3Variables, Sf3Variables1990
         self.IGNORE = (TigerWebVariables.mtfcc,
                        TigerWebVariables.oid,
                        TigerWebVariables.geoid,
@@ -43,7 +45,10 @@ class GeoFeatures(object):
                        TigerWebVariables.centlon,
                        TigerWebVariables.intptlat,
                        TigerWebVariables.intptlon,
-                       TigerWebVariables.objectid)
+                       TigerWebVariables.objectid,
+                       AcsVariables.median_income,
+                       Sf3Variables1990.median_income,
+                       Sf3Variables.median_income)
 
     def _create_shapely_geoms(self):
         """
@@ -186,7 +191,10 @@ class GeoFeatures(object):
                     if k in self.IGNORE:
                         adj_properties[k] = v
                     else:
-                        adj_properties[k] = v * ratio
+                        try:
+                            adj_properties[k] = v * ratio
+                        except TypeError:
+                            adj_properties[k] = v
 
                 xy = np.array(a.exterior.xy, dtype=float).T
                 xy = [(i[0], i[1]) for i in xy]

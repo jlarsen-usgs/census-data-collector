@@ -247,9 +247,14 @@ class CensusBase(object):
 
                 s = requests.session()
 
-                payload = {'get': "NAME," + variables,
-                           'for': loc,
-                           'key': self.__apikey}
+                if self.year == 1990:
+                    payload = {"get": variables,
+                               "for": loc,
+                               "key": self.__apikey}
+                else:
+                    payload = {'get': "NAME," + variables,
+                               'for': loc,
+                               'key': self.__apikey}
 
                 payload = "&".join(
                     '{}={}'.format(k, v) for k, v in payload.items())

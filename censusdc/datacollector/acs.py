@@ -24,6 +24,7 @@ class AcsVariables(object):
     income_125k_150k = "B19001_015E"
     income_150k_200k = "B19001_016E"
     income_gt_200k = "B19001_017E"
+    median_income = "B19013_001E"
 
 
 AcsHR = {v: k for k, v in AcsVariables.__dict__.items()

@@ -47,7 +47,9 @@ class TigerWebMapServer(object):
 
     __dec_tract = 'GEOID,STATE,COUNTY,TRACT,POP100,AREAWATER'
     __acs_tract = 'GEOID,STATE,COUNTY,TRACT,AREALAND'
-    tract = {2000: {'mapserver': 6,
+    tract = {1990: {'mapserver': 6,
+                    'outFields': __dec_tract},
+             2000: {'mapserver': 6,
                     'outFields': __dec_tract},
              2010: {'mapserver': 10,
                     'outFields': __dec_tract},
@@ -106,23 +108,29 @@ class Sf3Server(object):
     levels = ("block_group", "block", "tract", "county", "state")
 
     __income = ["P0520{:02d}".format(i) for i in range(1, 18)]
-    __variables = "P001001," + ",".join(__income)
+    __variables = "P001001," + ",".join(__income) + ",HCT012001"
+
+    __income90 = ["P08000{:02d}".format(i) for i in range(1, 25)]
+    __variables90 = "P0010001," + ",".join(__income90) + ",P080A001"
 
     def state(variables):
         return {i: {"fmt": "state:{}", "variables": variables}
                 for i in (1990, 2000)}
     state = state(__variables)
+    state[1990]["variables"] = __variables90
 
     def county(variables):
         return {i: {"fmt": "county:{}&in=state:{}", "variables": variables}
                 for i in (1990, 2000)}
     county = county(__variables)
+    county[1990]["variables"] = __variables90
 
     def tract(variables):
         return {i: {"fmt": "tract:{}&in=state:{}&in=county:{}",
                     "variables": variables} for i in (1990, 2000)}
 
     tract = tract(__variables)
+    tract[1990]["variables"] = __variables90
 
     def block_group(variables):
         return {i: {"fmt":
