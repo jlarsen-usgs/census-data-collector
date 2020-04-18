@@ -109,7 +109,7 @@ class CensusTimeSeries(object):
                 else:
                     features = gf.features
 
-                print('break')
+                # print('break')
                 # todo: craft a method to accumulate the data
                 # todo: into a single pandas record....
 

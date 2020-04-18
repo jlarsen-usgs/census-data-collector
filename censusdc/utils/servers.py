@@ -149,7 +149,7 @@ class Acs5Server(object):
     levels = ("block_group", "tract", "county", "state")
 
     __income = ["B19001_0{:02d}E".format(i) for i in range(1,18)]
-    __variables = "B01003_001E," + ",".join(__income)
+    __variables = "B01003_001E," + ",".join(__income) + ",B19013_001E"
 
     def state(variables):
         return {i: {"fmt": "state:{}", "variables": variables}

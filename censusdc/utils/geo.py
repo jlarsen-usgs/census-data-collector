@@ -33,6 +33,7 @@ class GeoFeatures(object):
                        TigerWebVariables.geoid,
                        TigerWebVariables.state,
                        TigerWebVariables.county,
+                       TigerWebVariables.cousub,
                        TigerWebVariables.tract,
                        TigerWebVariables.blkgrp,
                        TigerWebVariables.basename,
@@ -195,6 +196,7 @@ class GeoFeatures(object):
                             adj_properties[k] = v * ratio
                         except TypeError:
                             adj_properties[k] = v
+                            print("DEBUG NOTE: ", k, v)
 
                 xy = np.array(a.exterior.xy, dtype=float).T
                 xy = [(i[0], i[1]) for i in xy]
