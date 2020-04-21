@@ -5,6 +5,7 @@ from shapely.ops import cascaded_union
 import geojson
 import shapefile
 
+
 def _IGNORE():
     from ..datacollector.tigerweb import TigerWebVariables
     from ..datacollector.acs import AcsVariables
@@ -276,4 +277,3 @@ class GeoFeatures(object):
 
         df = pd.DataFrame.from_dict(d)
         return df
-

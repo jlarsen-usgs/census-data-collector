@@ -63,7 +63,11 @@ class TigerWebBase(object):
         self._geotype = geotype
         self._shpname = shp
         self._prjname = prj
-        self._field = field.lower()
+
+        if field is not None:
+            self._field = field.lower()
+        else:
+            self._field = field
 
         self.sf = shapefile.Reader(self._shpname)
         self.prj = pycrs.load.from_file(self._prjname)
@@ -595,7 +599,15 @@ class TigerWebPolygon(TigerWebBase):
 
         name = -1
         for ix, shape in enumerate(self.sf.shapes()):
-            esri_json = self.polygon_to_esri_json(shape.points)
+            if len(shape.points) > 20:
+                # get the bbox to do the tigerweb data pull
+                bbox = shape.bbox
+                points = [(bbox[0], bbox[1]), (bbox[2], bbox[1]),
+                          (bbox[2], bbox[3]), (bbox[0], bbox[3]),
+                          (bbox[0], bbox[1])]
+                esri_json = self.polygon_to_esri_json(points)
+            else:
+                esri_json = self.polygon_to_esri_json(shape.points)
             if named:
                 rec = self.sf.record(ix)
                 name = rec[fidx]
