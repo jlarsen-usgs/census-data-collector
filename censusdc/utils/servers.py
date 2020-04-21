@@ -8,12 +8,14 @@ class TigerWebMapServer(object):
              'Generalized_ACS{}/Tracts_Blocks/MapServer'
     __acs1 = 'https://tigerweb.geo.census.gov/arcgis/rest/services/' + \
              'TIGERweb/Places_CouSub_ConCity_SubMCD/MapServer'
+    __acs1co = "https://tigerweb.geo.census.gov/arcgis/rest/services/" + \
+               "TIGERweb/State_County/MapServer/"
     __base = 'https://tigerweb.geo.census.gov/arcgis/rest/services/' + \
              'TIGERweb/Tracts_Blocks/MapServer'
     __2000 = 'https://tigerweb.geo.census.gov/arcgis/rest/services/' + \
              'Census2010/tigerWMS_Census2000/MapServer'
 
-    levels = ('block', 'block_group', 'tract', 'county_subdivision')
+    levels = ('block', 'block_group', 'tract', 'county_subdivision', 'county')
 
     base = {1990: __2000,
             2000: __2000,
@@ -36,6 +38,18 @@ class TigerWebMapServer(object):
     def lcdbase(acs1):
         return {i: acs1 for i in range(2005, 2019)}
     lcdbase = lcdbase(__acs1)
+
+    def cobase(acs1):
+        return {i: acs1 for i in range(2005, 2019)}
+    cobase = cobase(__acs1co)
+
+    __acs1_county = 'GEOID,STATE,COUNTY,AREALAND,AREAWATER'
+    __acs1_co_server = {'mapserver': 1,
+                        'outFields': __acs1_county}
+
+    def county(acs1_server):
+        return {i: acs1_server for i in range(2005, 2019)}
+    county = county(__acs1_co_server)
 
     __acs1_county_subdivision = 'GEOID,STATE,COUNTY,COUSUB,AREALAND,AREAWATER'
     __acs1_server = {'mapserver': 22,
@@ -183,7 +197,7 @@ class Acs1Server(object):
     levels = ("county_subdivision", "county", "state")
 
     __income = ["B19001_0{:02d}E".format(i) for i in range(1, 18)]
-    __variables = "B01003_001E," + ",".join(__income)
+    __variables = "B01003_001E," + ",".join(__income) + ",B19013_001E"
 
     def state(variables):
         return {i: {"fmt": "state:{}", "variables": variables}

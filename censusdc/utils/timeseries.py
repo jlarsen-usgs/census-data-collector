@@ -1,6 +1,7 @@
 from ..utils import TigerWebMapServer, GeoFeatures
 import copy
 import shapefile
+import pandas as pd
 
 
 class CensusTimeSeries(object):
@@ -60,6 +61,8 @@ class CensusTimeSeries(object):
 
         """
         from .. import TigerWeb, Acs1, Acs5, Sf3
+        from ..datacollector.dec import Sf3HR1990, Sf3HR
+        from ..datacollector.acs import AcsHR
 
         url0 = ""
         year0 = 0
@@ -70,7 +73,7 @@ class CensusTimeSeries(object):
             else:
                 tw = TigerWeb(self._shp, self._field, self._radius)
                 if year in (2005, 2006, 2007, 2008, 2009):
-                    tw.get_data(year, level="county_subdivision")
+                    tw.get_data(year, level="county")
                 else:
                     tw.get_data(year, level="tract")
 
@@ -109,7 +112,20 @@ class CensusTimeSeries(object):
                 else:
                     features = gf.features
 
-                # print('break')
-                # todo: craft a method to accumulate the data
-                # todo: into a single pandas record....
+                if year == 1990:
+                    hr_dict = Sf3HR1990
+                elif year == 2000:
+                    hr_dict = Sf3HR
+                else:
+                    hr_dict = AcsHR
 
+                df = GeoFeatures.features_to_dataframe(year, features, hr_dict)
+                if name not in timeseries:
+                    timeseries[name] = df
+                else:
+                    tsdf = timeseries[name]
+                    tsdf.append(df, ignore_index=True)
+                    timeseries[name] = tsdf
+
+        self._timeseries = timeseries
+        return timeseries

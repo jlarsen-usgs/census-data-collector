@@ -1,8 +1,46 @@
 import numpy as np
 import pandas as pd
 from shapely.geometry import Polygon, MultiPolygon
+from shapely.ops import cascaded_union
 import geojson
 import shapefile
+
+def _IGNORE():
+    from ..datacollector.tigerweb import TigerWebVariables
+    from ..datacollector.acs import AcsVariables
+    from ..datacollector.dec import Sf3Variables, Sf3Variables1990
+
+    return (TigerWebVariables.mtfcc,
+            TigerWebVariables.oid,
+            TigerWebVariables.geoid,
+            TigerWebVariables.state,
+            TigerWebVariables.county,
+            TigerWebVariables.cousub,
+            TigerWebVariables.tract,
+            TigerWebVariables.blkgrp,
+            TigerWebVariables.basename,
+            TigerWebVariables.name,
+            TigerWebVariables.lsadc,
+            TigerWebVariables.funcstat,
+            TigerWebVariables.arealand,
+            TigerWebVariables.areawater,
+            TigerWebVariables.stgeometry,
+            TigerWebVariables.centlat,
+            TigerWebVariables.centlon,
+            TigerWebVariables.intptlat,
+            TigerWebVariables.intptlon,
+            TigerWebVariables.objectid,
+            AcsVariables.median_income,
+            Sf3Variables1990.median_income,
+            Sf3Variables.median_income)
+
+
+def _AVERAGE():
+    from ..datacollector.acs import AcsVariables
+    from ..datacollector.dec import Sf3Variables, Sf3Variables1990
+    return (AcsVariables.median_income,
+            Sf3Variables1990.median_income,
+            Sf3Variables.median_income)
 
 
 class GeoFeatures(object):
@@ -24,32 +62,7 @@ class GeoFeatures(object):
         self._ifeatures = None
 
         self._create_shapely_geoms()
-
-        from ..datacollector.tigerweb import TigerWebVariables
-        from ..datacollector.acs import AcsVariables
-        from ..datacollector.dec import Sf3Variables, Sf3Variables1990
-        self.IGNORE = (TigerWebVariables.mtfcc,
-                       TigerWebVariables.oid,
-                       TigerWebVariables.geoid,
-                       TigerWebVariables.state,
-                       TigerWebVariables.county,
-                       TigerWebVariables.cousub,
-                       TigerWebVariables.tract,
-                       TigerWebVariables.blkgrp,
-                       TigerWebVariables.basename,
-                       TigerWebVariables.name,
-                       TigerWebVariables.lsadc,
-                       TigerWebVariables.funcstat,
-                       TigerWebVariables.arealand,
-                       TigerWebVariables.stgeometry,
-                       TigerWebVariables.centlat,
-                       TigerWebVariables.centlon,
-                       TigerWebVariables.intptlat,
-                       TigerWebVariables.intptlon,
-                       TigerWebVariables.objectid,
-                       AcsVariables.median_income,
-                       Sf3Variables1990.median_income,
-                       Sf3Variables.median_income)
+        self.IGNORE = _IGNORE()
 
     def _create_shapely_geoms(self):
         """
@@ -211,7 +224,7 @@ class GeoFeatures(object):
                     self._ifeatures.append(geofeature)
 
     @staticmethod
-    def features_to_dataframe(year, features):
+    def features_to_dataframe(year, features, hr_dict=None):
         """
         Method to take a group of features and accumulate values from
         that dataframe into a single record.
@@ -221,8 +234,46 @@ class GeoFeatures(object):
         year : int
         features : dict
             geoJSON features
+        hr_dict : dict
+            human readable column labels for census fields
 
         Returns
         -------
 
         """
+        IGNORE = _IGNORE()
+        AVERAGE = _AVERAGE()
+        d = {}
+        for feature in features:
+            props = feature.properties
+            for prop, value in props.items():
+                if prop in IGNORE:
+                    if prop in AVERAGE:
+                        if prop in d:
+                            d[prop].append(value)
+                        else:
+                            d[prop] = [value, ]
+                else:
+                    if prop in d:
+                        d[prop] += value
+                    else:
+                        d[prop] = value
+
+        for prop in AVERAGE:
+            if prop in d:
+                d[prop] = np.nanmean(d[prop])
+
+        if hr_dict is not None:
+            keys = list(d.keys())
+            for key in keys:
+                d[hr_dict[key]] = [d.pop(key), ]
+
+        else:
+            for key, value in d.items():
+                d[key] = [value, ]
+
+        d["year"] = [year, ]
+
+        df = pd.DataFrame.from_dict(d)
+        return df
+
