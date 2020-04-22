@@ -30,7 +30,7 @@ class CensusTimeSeries(object):
         self._censusobj = None
 
     def get_timeseries(self, feature_name, sf3_variables=(), acs_variables=(),
-                       polygons=None, hr_dict=None, retry=1000, ):
+                       polygons=None, hr_dict=None, retry=1000):
         """
         Method to get a time series from 1990 through 2018 of census
         data from available products
@@ -105,28 +105,27 @@ class CensusTimeSeries(object):
 
         timeseries = {}
         for year, cen in censusobj.items():
-            for name in cen.feature_names:
-                gf = GeoFeatures(cen.get_feature(name), name)
-                if polygons is not None:
-                    gf.intersect(polygons)
-                    features = gf.intersected_features
+            gf = GeoFeatures(cen.get_feature(feature_name), feature_name)
+            if polygons is not None:
+                gf.intersect(polygons)
+                features = gf.intersected_features
+            else:
+                features = gf.features
+
+            if hr_dict is None:
+                if year == 1990:
+                    hr_dict = Sf3HR1990
+                elif year == 2000:
+                    hr_dict = Sf3HR
                 else:
-                    features = gf.features
+                    hr_dict = AcsHR
 
-                if hr_dict is None:
-                    if year == 1990:
-                        hr_dict = Sf3HR1990
-                    elif year == 2000:
-                        hr_dict = Sf3HR
-                    else:
-                        hr_dict = AcsHR
+            df = GeoFeatures.features_to_dataframe(year, features, hr_dict)
+            if feature_name not in timeseries:
+                timeseries[feature_name] = df
+            else:
+                tsdf = timeseries[feature_name]
+                tsdf.append(df, ignore_index=True)
+                timeseries[feature_name] = tsdf
 
-                df = GeoFeatures.features_to_dataframe(year, features, hr_dict)
-                if name not in timeseries:
-                    timeseries[name] = df
-                else:
-                    tsdf = timeseries[name]
-                    tsdf.append(df, ignore_index=True)
-                    timeseries[name] = tsdf
-
-        return timeseries
+        return timeseries[feature_name]
