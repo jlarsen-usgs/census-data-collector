@@ -6,6 +6,7 @@ import requests
 import os
 import shapefile
 import pycrs
+import copy
 from ..utils import get_wkt_wkid_table, TigerWebMapServer
 from ..utils.geometry import calculate_circle
 
@@ -136,7 +137,7 @@ class TigerWebBase(object):
             print("Warning, no features in feature dict,")
             print('Please run get_data() to get TigerWeb features')
 
-        return self._features
+        return copy.deepcopy(self._features)
 
     @property
     def feature_names(self):
@@ -165,7 +166,7 @@ class TigerWebBase(object):
         if name not in self._features:
             raise KeyError("Name: {} not present in feature dict".format(name))
         else:
-            return self._features[name]
+            return copy.deepcopy(self._features[name])
 
     def get_shape(self, name):
         """

@@ -3,7 +3,7 @@ The census data collector is a geographic based tool to query census data from
 the TigerWeb REST services and the US Census API. Queryable census products
  include:  
 * TigerWeb
-* Decenial Census data[*future*]
+* Decenial Census data from Sf3
 * ACS 1-Year
 * ACS 5-Year
 
@@ -56,8 +56,13 @@ shp_file = os.path.join('data','Sacramento_neighborhoods.shp')
 # if the shapefile has a label field for polygons we can tag data 
 # using the field parameter
 tigweb = TigerWeb(shp_file, field="name")
+
+# if you have only specific fields that you would like
 tigweb.get_data(2010, outfields=(TWV.geoid, TWV.state, TWV.county,
                                  TWV.tract, TWV.blkgrp, TWV.block))
+
+# default method gets all relevant tigerweb attributes
+tigweb.get_data(2010)
 
 features = tigweb.features
 ```
@@ -118,8 +123,7 @@ shp_file = os.path.join('data','Sacramento_points.shp')
 
 # radius infromation must be in the same units as the shapefile projection!
 tigweb = TigerWeb(shp_file, field="name", radius="radius")
-tigweb.get_data(2013, outfields=(TWV.geoid, TWV.state, TWV.county,
-                                 TWV.tract, TWV.blkgrp, TWV.block))
+tigweb.get_data(2013, level='tract')
 ```
 and here we can visualize the census block group features within the 
 defined radius from our points
@@ -174,7 +178,7 @@ point_name = "Sacramento_points.shp"
 
 tigweb = TigerWeb(os.path.join(data, point_name), field='name',
                   radius='radius')
-tigweb.get_data(2013)
+tigweb.get_data(2013, level='tract')
 
 # get ACS5 data
 acs = Acs5(tigweb.features, 2013, apikey)
@@ -256,6 +260,38 @@ gf.intersect(ishp)
 <p align="center">
   <img src="https://raw.githubusercontent.com/jlarsen-usgs/census-data-collector/master/data/Tigerweb_points_intersection.png" alt="Acs5_intersect_2013"/>
 </p>
+
+## Using the `CensusTimeSeries` class to get a pandas dataframe of timeseries data
+Instead of requesting data year by year, the `CensusTimeSeries` class allows 
+the user to pull multiple timeseries of data from the US Census in a few simple
+calls. The default parameters the `CensusTimeSeries` class pulls are defined
+in the `AcsVariables`, `Sf3Variables`, and `Sf3Variables1990` classes. The 
+`CensusTimeSeries` object uses data caching methods to pull all census data
+within a shapefile defined region and allow the user to do multiple time
+series with that data.
+
+_Basic example_
+```python
+import os
+import shapefile
+from censusdc.utils import CensusTimeSeries
+
+ws = os.path.abspath(os.path.dirname(__file__))
+shp = os.path.join(ws, "data", "Sacramento_neighborhoods_WGS.shp")
+apikey = os.path.join(ws, "api_key.dat")
+
+with open(apikey) as api:
+    apikey = api.readline().strip()
+
+ts = CensusTimeSeries(shp, apikey, field="name")
+
+shp = shapefile.Reader(shp)
+polygon = shp.shape(0)
+df = ts.get_timeseries("la_riviera", polygons=polygon)
+
+polygon = shp.shape(1)
+df1 = ts.get_timeseries("tahoe_park", polygons=polygon)
+```
 
 ## Development
 This project is in active development and is in the pre-alpha stages. There 

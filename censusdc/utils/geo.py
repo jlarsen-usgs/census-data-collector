@@ -31,6 +31,7 @@ def _IGNORE():
             TigerWebVariables.intptlat,
             TigerWebVariables.intptlon,
             TigerWebVariables.objectid,
+            TigerWebVariables.population,
             AcsVariables.median_income,
             Sf3Variables1990.median_income,
             Sf3Variables.median_income)
@@ -264,18 +265,20 @@ class GeoFeatures(object):
             if prop in d:
                 d[prop] = np.nanmean(d[prop])
 
+        outdic = {}
         if hr_dict is not None:
             keys = list(d.keys())
             for key in keys:
                 try:
-                    d[hr_dict[key]] = [d.pop(key), ]
+                    new_key = hr_dict[key]
+                    outdic[new_key] = [d[key], ]
                 except KeyError:
-                    d[key] = [d.pop(key), ]
+                    outdic[key] = [d[key], ]
         else:
             for key, value in d.items():
-                d[key] = [value, ]
+                outdic[key] = [value, ]
 
-        d["year"] = [year, ]
+        outdic["year"] = [year, ]
 
-        df = pd.DataFrame.from_dict(d)
+        df = pd.DataFrame.from_dict(outdic)
         return df

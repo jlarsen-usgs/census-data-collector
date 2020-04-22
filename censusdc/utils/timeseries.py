@@ -58,6 +58,7 @@ class CensusTimeSeries(object):
         from .. import TigerWeb, Acs1, Acs5, Sf3
         from ..datacollector.dec import Sf3HR1990, Sf3HR
         from ..datacollector.acs import AcsHR
+        refresh = False
 
         if self._censusobj is None:
             url0 = ""
@@ -101,7 +102,7 @@ class CensusTimeSeries(object):
             censusobj = self._censusobj
 
         if isinstance(polygons, str):
-            self._polygons = shapefile.Reader(self._polygons)
+            polygons = shapefile.Reader(polygons)
 
         timeseries = {}
         for year, cen in censusobj.items():
@@ -112,7 +113,13 @@ class CensusTimeSeries(object):
             else:
                 features = gf.features
 
+            if features is None:
+                raise AssertionError("Check that intersection polygons "
+                                     "intersect the census AOI and that "
+                                     "projection is WGS84")
+
             if hr_dict is None:
+                refresh = True
                 if year == 1990:
                     hr_dict = Sf3HR1990
                 elif year == 2000:
@@ -125,7 +132,10 @@ class CensusTimeSeries(object):
                 timeseries[feature_name] = df
             else:
                 tsdf = timeseries[feature_name]
-                tsdf.append(df, ignore_index=True)
+                tsdf = tsdf.append(df, ignore_index=True)
                 timeseries[feature_name] = tsdf
+
+            if refresh:
+                hr_dict = None
 
         return timeseries[feature_name]
