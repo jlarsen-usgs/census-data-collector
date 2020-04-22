@@ -20,33 +20,25 @@ class CensusTimeSeries(object):
         radius : float or str
             radius around points to build a query, or shapefile field with
             radius information
-        polygons : shapefile path, shapefile.Reader, list(shapely Polygon,),
-            list(shapefile.Shape,), or list([x,y],[x_n, y_n])
-            shapes or shapefile to intersect the timeseries with.
+
     """
-    def __init__(self, shp, apikey, field=None, radius=0, polygons=None):
+    def __init__(self, shp, apikey, field=None, radius=0):
         self._shp = shp
         self.__apikey = apikey
-        self._polygons = polygons
         self._field = field
         self._radius = radius
-        self._timeseries = None
+        self._censusobj = None
 
-    @property
-    def timeseries(self):
-        if self._timeseries is None:
-            print("Collecting census data")
-            self.get_timeseries()
-        return self._timeseries
-
-    def get_timeseries(self, sf3_variables=(), acs_variables=(),
-                       hr_dict=None, retry=1000):
+    def get_timeseries(self, feature_name, sf3_variables=(), acs_variables=(),
+                       polygons=None, hr_dict=None, retry=1000, ):
         """
         Method to get a time series from 1990 through 2018 of census
         data from available products
 
         Parameters
         ----------
+        feature_name : str, int
+            feature name to perform intersections on
         sf3_variables : tuple
             tuple of variables to grab from the sf3 census. Default is all
             variables defined in Sf3Variables class
@@ -55,6 +47,9 @@ class CensusTimeSeries(object):
         hr_dict : dict
             human readable label dict, assists in aligning data. If hr_dict
             is None, defaults are used that cover AcsVariables and Sf3_Variables
+        polygons : shapefile path, shapefile.Reader, list(shapely Polygon,),
+            list(shapefile.Shape,), or list([x,y],[x_n, y_n])
+            shapes or shapefile to intersect the timeseries with.
 
         Returns
         -------
@@ -64,60 +59,67 @@ class CensusTimeSeries(object):
         from ..datacollector.dec import Sf3HR1990, Sf3HR
         from ..datacollector.acs import AcsHR
 
-        url0 = ""
-        year0 = 0
-        twobjs = {}
-        for year, url in TigerWebMapServer.base.items():
-            if url == url0:
-                twobjs[year] = copy.copy(twobjs[year0])
-            else:
-                tw = TigerWeb(self._shp, self._field, self._radius)
-                if year in (2005, 2006, 2007, 2008, 2009):
-                    tw.get_data(year, level="county")
+        if self._censusobj is None:
+            url0 = ""
+            year0 = 0
+            twobjs = {}
+            for year, url in TigerWebMapServer.base.items():
+                if url == url0:
+                    twobjs[year] = copy.copy(twobjs[year0])
                 else:
-                    tw.get_data(year, level="tract")
+                    tw = TigerWeb(self._shp, self._field, self._radius)
+                    if year in (2005, 2006, 2007, 2008, 2009):
+                        tw.get_data(year, level="county")
+                    else:
+                        tw.get_data(year, level="tract")
 
-                twobjs[year] = tw
-            url0 = url
-            year0 = year
+                    twobjs[year] = tw
+                url0 = url
+                year0 = year
 
-        censusobj = {}
-        for year, tw in twobjs.items():
-            print("Getting data for census year {}".format(year))
-            if year in (1990, 2000):
-                cen = Sf3(tw.features, year, self.__apikey)
-                cen.get_data(level="tract", variables=sf3_variables,
-                             retry=retry)
-            elif year in (2005, 2006, 2007, 2008, 2009):
-                cen = Acs1(tw.features, year, self.__apikey)
-                cen.get_data(level='county', variables=acs_variables,
-                             retry=retry)
-            else:
-                cen = Acs5(tw.features, year, self.__apikey)
-                cen.get_data(level='tract', variables=acs_variables,
-                             retry=retry)
+            censusobj = {}
+            for year, tw in twobjs.items():
+                print("Getting data for census year {}".format(year))
+                if year in (1990, 2000):
+                    cen = Sf3(tw.features, year, self.__apikey)
+                    cen.get_data(level="tract", variables=sf3_variables,
+                                 retry=retry)
+                elif year in (2005, 2006, 2007, 2008, 2009):
+                    cen = Acs1(tw.features, year, self.__apikey)
+                    cen.get_data(level='county', variables=acs_variables,
+                                 retry=retry)
+                else:
+                    cen = Acs5(tw.features, year, self.__apikey)
+                    cen.get_data(level='tract', variables=acs_variables,
+                                 retry=retry)
 
-            censusobj[year] = cen
+                censusobj[year] = cen
 
-        if isinstance(self._polygons, str):
+            self._censusobj = censusobj
+
+        else:
+            censusobj = self._censusobj
+
+        if isinstance(polygons, str):
             self._polygons = shapefile.Reader(self._polygons)
 
         timeseries = {}
         for year, cen in censusobj.items():
             for name in cen.feature_names:
                 gf = GeoFeatures(cen.get_feature(name), name)
-                if self._polygons is not None:
-                    gf.intersect(self._polygons)
+                if polygons is not None:
+                    gf.intersect(polygons)
                     features = gf.intersected_features
                 else:
                     features = gf.features
 
-                if year == 1990:
-                    hr_dict = Sf3HR1990
-                elif year == 2000:
-                    hr_dict = Sf3HR
-                else:
-                    hr_dict = AcsHR
+                if hr_dict is None:
+                    if year == 1990:
+                        hr_dict = Sf3HR1990
+                    elif year == 2000:
+                        hr_dict = Sf3HR
+                    else:
+                        hr_dict = AcsHR
 
                 df = GeoFeatures.features_to_dataframe(year, features, hr_dict)
                 if name not in timeseries:
@@ -127,5 +129,4 @@ class CensusTimeSeries(object):
                     tsdf.append(df, ignore_index=True)
                     timeseries[name] = tsdf
 
-        self._timeseries = timeseries
         return timeseries

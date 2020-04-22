@@ -267,8 +267,10 @@ class GeoFeatures(object):
         if hr_dict is not None:
             keys = list(d.keys())
             for key in keys:
-                d[hr_dict[key]] = [d.pop(key), ]
-
+                try:
+                    d[hr_dict[key]] = [d.pop(key), ]
+                except KeyError:
+                    d[key] = [d.pop(key), ]
         else:
             for key, value in d.items():
                 d[key] = [value, ]
