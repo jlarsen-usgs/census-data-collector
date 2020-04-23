@@ -1,6 +1,7 @@
 import requests
 from .tigerweb import TigerWebVariables
 from ..utils import Acs5Server, Acs1Server, Sf3Server
+import copy
 
 
 class CensusBase(object):
@@ -63,7 +64,7 @@ class CensusBase(object):
         """
         Method to return the feature dictionary
         """
-        return self._features
+        return copy.deepcopy(self._features)
 
     @property
     def feature_names(self):
@@ -94,7 +95,7 @@ class CensusBase(object):
         -------
             list of geoJSON features
         """
-        return self._features[name]
+        return copy.deepcopy(self._features[name])
 
     def __set_features_level(self):
         """

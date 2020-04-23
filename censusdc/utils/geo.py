@@ -4,6 +4,7 @@ from shapely.geometry import Polygon, MultiPolygon
 from shapely.ops import cascaded_union
 import geojson
 import shapefile
+import copy
 
 
 def _IGNORE():
@@ -82,11 +83,11 @@ class GeoFeatures(object):
 
     @property
     def features(self):
-        return self._features
+        return copy.deepcopy(self._features)
 
     @property
     def intersected_features(self):
-        return self._ifeatures
+        return copy.deepcopy(self._ifeatures)
 
     def intersect(self, polygons):
         """
@@ -193,7 +194,7 @@ class GeoFeatures(object):
 
         for polygon in polygons:
             for ix, feature in enumerate(self._shapely_features):
-                properties = self._features[ix].properties
+                properties = self.features[ix].properties
 
                 a = polygon.intersection(feature)
                 area = a.area
