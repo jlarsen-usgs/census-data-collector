@@ -59,7 +59,7 @@ class TigerWebMapServer(object):
         return {i: acs1_server for i in range(2005, 2019)}
     county_subdivision = county_subdivision(__acs1_server)
 
-    __dec_tract = 'GEOID,STATE,COUNTY,TRACT,POP100,AREAWATER'
+    __dec_tract = 'GEOID,STATE,COUNTY,TRACT,AREAWATER'
     __acs_tract = 'GEOID,STATE,COUNTY,TRACT,AREALAND'
     tract = {1990: {'mapserver': 6,
                     'outFields': __dec_tract},
@@ -86,7 +86,7 @@ class TigerWebMapServer(object):
              # 2019: {'mapserver': 4,
              #        'outFields': __acs_tract}}
 
-    __dec_blkgrp = 'GEOID,BLKGRP,STATE,COUNTY,TRACT,POP100,AREALAND,AREAWATER'
+    __dec_blkgrp = 'GEOID,BLKGRP,STATE,COUNTY,TRACT,AREALAND,AREAWATER'
     __acs_blkgrp = 'GEOID,BLKGRP,STATE,COUNTY,TRACT,AREALAND,AREAWATER'
     block_group = {2000: {'mapserver': 10,
                           'outFields': __dec_blkgrp},
@@ -105,7 +105,7 @@ class TigerWebMapServer(object):
                    # 2019: {'mapserver': 5,
                    #        'outFields': __acs_blkgrp}}
 
-    __dec_block = 'GEOID,BLOCK,BLKGRP,STATE,COUNTY,TRACT,POP100,' \
+    __dec_block = 'GEOID,BLOCK,BLKGRP,STATE,COUNTY,TRACT,' \
                   'AREALAND,AREAWATER'
     block = {2000: {'mapserver': 10,
                     'outFields': __dec_block},
