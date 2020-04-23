@@ -29,7 +29,8 @@ class CensusTimeSeries(object):
         self._radius = radius
         self._censusobj = None
 
-    def get_timeseries(self, feature_name, sf3_variables=(), acs_variables=(),
+    def get_timeseries(self, feature_name, sf3_variables=(),
+                       sf3_variables_1990=(), acs_variables=(),
                        polygons=None, hr_dict=None, retry=1000):
         """
         Method to get a time series from 1990 through 2018 of census
@@ -42,6 +43,9 @@ class CensusTimeSeries(object):
         sf3_variables : tuple
             tuple of variables to grab from the sf3 census. Default is all
             variables defined in Sf3Variables class
+        sf3_variables_1990 : tuple
+            tuple of variables to grab from the 1990 sf3 census. Default is all
+            variables defined in Sf3Variables1990 class
         acs_variables : tuple
             tuple of variables to grab from the ACS1 and ACS5 census
         hr_dict : dict

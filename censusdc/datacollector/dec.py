@@ -53,7 +53,7 @@ class Sf3Variables1990(object):
     income_50K_55k = "P0800019"
     income_55k_60k = "P0800020"
     income_60k_75k = "P0800021"
-    income_75k_100K = "P0800022"
+    income_75k_100k = "P0800022"
     income_100k_125k = "P0800023"
     income_125k_150k = "P0800024"
     income_gt_200k = "P0800025"

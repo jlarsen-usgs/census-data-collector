@@ -197,34 +197,41 @@ class GeoFeatures(object):
                 properties = self.features[ix].properties
 
                 a = polygon.intersection(feature)
-                area = a.area
-                if area == 0:
-                    continue
-                geoarea = feature.area
-                ratio = area / geoarea
 
-                adj_properties = {}
-                for k, v in properties.items():
-                    if k in self.IGNORE:
-                        adj_properties[k] = v
-                    else:
-                        try:
-                            adj_properties[k] = v * ratio
-                        except TypeError:
-                            adj_properties[k] = v
-                            print("DEBUG NOTE: ", k, v)
-
-                xy = np.array(a.exterior.xy, dtype=float).T
-                xy = [(i[0], i[1]) for i in xy]
-
-                geopolygon = geojson.Polygon([xy])
-                geofeature = geojson.Feature(geometry=geopolygon,
-                                             properties=adj_properties)
-
-                if self._ifeatures is None:
-                    self._ifeatures = [geofeature, ]
+                if a.geom_type == "MultiPolygon":
+                    p = list(a)
                 else:
-                    self._ifeatures.append(geofeature)
+                    p = [a, ]
+
+                for a in p:
+                    area = a.area
+                    if area == 0:
+                        continue
+                    geoarea = feature.area
+                    ratio = area / geoarea
+
+                    adj_properties = {}
+                    for k, v in properties.items():
+                        if k in self.IGNORE:
+                            adj_properties[k] = v
+                        else:
+                            try:
+                                adj_properties[k] = v * ratio
+                            except TypeError:
+                                adj_properties[k] = v
+                                print("DEBUG NOTE: ", k, v)
+
+                    xy = np.array(a.exterior.xy, dtype=float).T
+                    xy = [(i[0], i[1]) for i in xy]
+
+                    geopolygon = geojson.Polygon([xy])
+                    geofeature = geojson.Feature(geometry=geopolygon,
+                                                 properties=adj_properties)
+
+                    if self._ifeatures is None:
+                        self._ifeatures = [geofeature, ]
+                    else:
+                        self._ifeatures.append(geofeature)
 
     @staticmethod
     def features_to_dataframe(year, features, hr_dict=None):
@@ -267,6 +274,7 @@ class GeoFeatures(object):
                 d[prop] = np.nanmean(d[prop])
 
         outdic = {}
+        outdic["year"] = [year, ]
         if hr_dict is not None:
             keys = list(d.keys())
             for key in keys:
@@ -278,8 +286,6 @@ class GeoFeatures(object):
         else:
             for key, value in d.items():
                 outdic[key] = [value, ]
-
-        outdic["year"] = [year, ]
 
         df = pd.DataFrame.from_dict(outdic)
         return df
