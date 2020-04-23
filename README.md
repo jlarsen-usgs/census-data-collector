@@ -261,7 +261,8 @@ gf.intersect(ishp)
   <img src="https://raw.githubusercontent.com/jlarsen-usgs/census-data-collector/master/data/Tigerweb_points_intersection.png" alt="Acs5_intersect_2013"/>
 </p>
 
-## Using the `CensusTimeSeries` class to get a pandas dataframe of timeseries data
+__*Using the `CensusTimeSeries` class to get a pandas dataframe of timeseries data*__  
+
 Instead of requesting data year by year, the `CensusTimeSeries` class allows 
 the user to pull multiple timeseries of data from the US Census in a few simple
 calls. The default parameters the `CensusTimeSeries` class pulls are defined
@@ -292,7 +293,8 @@ df = ts.get_timeseries("la_riviera", polygons=polygon)
 polygon = shp.shape(1)
 df1 = ts.get_timeseries("tahoe_park", polygons=polygon)
 ```
-
+## Example Jupyter Notebooks
+Fully functioning example notebooks can be found [here](https://github.com/jlarsen-usgs/census-data-collector/tree/master/examples)
 ## Development
 This project is in active development and is in the pre-alpha stages. There 
 will be many updates and changes to the source code in the near future.
