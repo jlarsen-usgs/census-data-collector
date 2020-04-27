@@ -89,7 +89,7 @@ class Sf3(CensusBase):
         super(Sf3, self).__init__(features, year, apikey, 'sf3')
 
     def get_data(self, level='finest', variables=(), retry=100,
-                 multithread=False):
+                 multithread=False, thread_pool=4):
         """
         Method to get data from the Sf3 servers and set it to feature
         properties!
@@ -100,17 +100,17 @@ class Sf3(CensusBase):
             determines the geographic level of data queried
             default is 'finest' available based on census dataset and
             the geoJSON feature information
-
         variables : list, tuple
             user specified Acs1 variables, default pulls variables from
             the AcsVariables class
-
         retry : int
             number of retries for HTTP connection issues before failure
-
         multithread : bool
             boolean flag to allow multithreading of data collection
+        thread_pool : int
+            number of CPU threads to use during multithread operations
 
         """
         super(Sf3, self).get_data(level=level, variables=variables,
-                                  retry=retry, multithread=multithread)
+                                  retry=retry, multithread=multithread,
+                                  thread_pool=thread_pool)

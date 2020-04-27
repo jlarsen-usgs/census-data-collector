@@ -73,8 +73,18 @@ class GeoFeatures(object):
         """
         for feature in self._features:
             # coords, utm_zone = geoJSON_lat_lon_to_utm(feature)
-            coords = feature.geometry.coordinates[0]
-            poly = Polygon(coords)
+            if feature.geometry.type == "MultiPolygon":
+                polys = []
+                for coordinates in feature.geometry.coordinates:
+                    coords = coordinates[0]
+                    polys.append(Polygon(coords))
+
+                poly = MultiPolygon(polys)
+
+            else:
+                coords = feature.geometry.coordinates[0]
+                poly = Polygon(coords)
+
             self._shapely_features.append(poly)
 
     @property

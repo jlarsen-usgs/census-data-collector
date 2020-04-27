@@ -157,7 +157,7 @@ class CensusBase(object):
         self._features_level = self.__level_dict[min(level)]
 
     def get_data(self, level='finest', variables=(), retry=100,
-                 multithread=True):
+                 multithread=True, thread_pool=4):
         """
         Method to get data from the Acs5 servers and set it to feature
         properties!
@@ -175,6 +175,8 @@ class CensusBase(object):
             number of retries for HTTP connection issues before failure
         multithread : bool
             flag to use a multithreaded method of collecting census data
+        thread_pool : int
+            number of threads to perform data collection while multithreading
         """
         url = self._server.base.format(self.year)
 
@@ -220,11 +222,17 @@ class CensusBase(object):
         fmt = lut[self.year]['fmt']
 
         if multithread:
+            # Multithreading with a Semaphore management pool
             thread_list = []
+            container = threading.BoundedSemaphore(thread_pool)
             for name in self.feature_names:
-                x = threading.Thread(target=self.threaded_request_data,
-                                     args=(name, level, fmt, variables, url, retry))
-                thread_list.append(x)
+                for featix, feature in enumerate(self.get_feature(name)):
+                    x = threading.Thread(target=self.threaded_request_data,
+                                         args=(feature, featix, name,
+                                               level, fmt, variables,
+                                               url, retry, container))
+                    thread_list.append(x)
+
             for thread in thread_list:
                 thread.start()
             for thread in thread_list:
@@ -312,12 +320,17 @@ class CensusBase(object):
                                     self._features[name][featix].properties[header] = \
                                         float('nan')
 
-    def threaded_request_data(self, name, level, fmt, variables, url, retry):
+    def threaded_request_data(self, feature, featix, name, level, fmt, variables,
+                              url, retry, container):
         """
         Multithread method for requesting census data
 
         Parameters
         ----------
+        feature : geoJSON
+            geoJSON feature
+        featix : int
+            feature index (in an enumeration)
         name : str
             feature name
         level : str
@@ -330,86 +343,88 @@ class CensusBase(object):
             string of census url
         retry : int
             number of retries based on connection error
-
-        Returns
-        -------
+        container : BoundSemaphore
+            bound semaphore instance for thread pool management
 
         """
-        for featix, feature in enumerate(self.get_feature(name)):
-            loc = ""
-            if level == "block_group":
-                loc = fmt.format(
-                    feature.properties[TigerWebVariables.blkgrp],
-                    feature.properties[TigerWebVariables.state],
-                    feature.properties[TigerWebVariables.county],
-                    feature.properties[TigerWebVariables.tract])
-            elif level == "tract":
-                loc = fmt.format(
-                    feature.properties[TigerWebVariables.tract],
-                    feature.properties[TigerWebVariables.state],
-                    feature.properties[TigerWebVariables.county])
-            elif level == "county_subdivision":
-                loc = fmt.format(
-                    feature.properties[TigerWebVariables.cousub],
-                    feature.properties[TigerWebVariables.state],
-                    feature.properties[TigerWebVariables.county])
-            elif level == "county":
-                loc = fmt.format(
-                    feature.properties[TigerWebVariables.county],
-                    feature.properties[TigerWebVariables.state])
-            elif level == "state":
-                loc = fmt.format(
-                    feature.properties[TigerWebVariables.state])
-            else:
-                raise AssertionError("level is undefined")
 
-            s = requests.session()
+        container.acquire()
+        loc = ""
+        if level == "block_group":
+            loc = fmt.format(
+                feature.properties[TigerWebVariables.blkgrp],
+                feature.properties[TigerWebVariables.state],
+                feature.properties[TigerWebVariables.county],
+                feature.properties[TigerWebVariables.tract])
+        elif level == "tract":
+            loc = fmt.format(
+                feature.properties[TigerWebVariables.tract],
+                feature.properties[TigerWebVariables.state],
+                feature.properties[TigerWebVariables.county])
+        elif level == "county_subdivision":
+            loc = fmt.format(
+                feature.properties[TigerWebVariables.cousub],
+                feature.properties[TigerWebVariables.state],
+                feature.properties[TigerWebVariables.county])
+        elif level == "county":
+            loc = fmt.format(
+                feature.properties[TigerWebVariables.county],
+                feature.properties[TigerWebVariables.state])
+        elif level == "state":
+            loc = fmt.format(
+                feature.properties[TigerWebVariables.state])
+        else:
+            raise AssertionError("level is undefined")
 
-            if self.year == 1990:
-                payload = {"get": variables,
-                           "for": loc,
-                           "key": self.__apikey}
-            else:
-                payload = {'get': "NAME," + variables,
-                           'for': loc,
-                           'key': self.__apikey}
+        s = requests.session()
 
-            payload = "&".join(
-                '{}={}'.format(k, v) for k, v in payload.items())
+        if self.year == 1990:
+            payload = {"get": variables,
+                       "for": loc,
+                       "key": self.__apikey}
+        else:
+            payload = {'get': "NAME," + variables,
+                       'for': loc,
+                       'key': self.__apikey}
 
-            n = 0
-            e = "Unknown connection error"
-            while n < retry:
-                try:
-                    r = s.get(url, params=payload)
-                    r.raise_for_status()
-                    break
-                except requests.exceptions.HTTPError as e:
-                    n += 1
-                    print("Connection Error: Retry number {}".format(n))
+        payload = "&".join(
+            '{}={}'.format(k, v) for k, v in payload.items())
 
-            if n == retry:
-                raise requests.exceptions.HTTPError(e)
-
-            print('Getting {} data for {} feature # {}'.format(level,
-                                                               name,
-                                                               featix))
+        n = 0
+        e = "Unknown connection error"
+        while n < retry:
             try:
-                data = r.json()
-            except:
-                data = []
-                print('Error getting {} data for {} feature # {}'.format(
-                    level, name, featix))
-            if len(data) == 2:
-                for dix, header in enumerate(data[0]):
-                    if header == "NAME":
-                        continue
-                    elif header not in variables:
-                        continue
-                    else:
-                        try:
-                            self._features[name][featix].properties[header] = \
-                                float(data[1][dix])
-                        except ValueError:
-                            self._features[name][featix].properties[header] = \
-                                float('nan')
+                r = s.get(url, params=payload)
+                r.raise_for_status()
+                break
+            except requests.exceptions.HTTPError as e:
+                n += 1
+                print("Connection Error: Retry number {}".format(n))
+
+        if n == retry:
+            raise requests.exceptions.HTTPError(e)
+
+        print('Getting {} data for {} feature # {}'.format(level,
+                                                           name,
+                                                           featix))
+        try:
+            data = r.json()
+        except:
+            data = []
+            print('Error getting {} data for {} feature # {}'.format(
+                level, name, featix))
+        if len(data) == 2:
+            for dix, header in enumerate(data[0]):
+                if header == "NAME":
+                    continue
+                elif header not in variables:
+                    continue
+                else:
+                    try:
+                        self._features[name][featix].properties[header] = \
+                            float(data[1][dix])
+                    except ValueError:
+                        self._features[name][featix].properties[header] = \
+                            float('nan')
+
+        container.release()

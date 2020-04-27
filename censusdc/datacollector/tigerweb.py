@@ -361,6 +361,8 @@ class TigerWebBase(object):
                 if key not in filter:
                     continue
 
+            # todo: multithread this operation using a BoundSemaphore!
+
             s = requests.session()
             url = '/'.join([base, str(mapserver), "query?"])
 

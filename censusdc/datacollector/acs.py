@@ -52,7 +52,7 @@ class Acs1(CensusBase):
         super(Acs1, self).__init__(features, year, apikey, 'acs1')
 
     def get_data(self, level='finest', variables=(), retry=100,
-                 multithread=False):
+                 multithread=False, thread_pool=4):
         """
         Method to get data from the Acs1 servers and set it to feature
         properties!
@@ -63,20 +63,20 @@ class Acs1(CensusBase):
             determines the geographic level of data queried
             default is 'finest' available based on census dataset and
             the geoJSON feature information
-
         variables : list, tuple
             user specified Acs1 variables, default pulls variables from
             the AcsVariables class
-
         retry : int
             number of retries for HTTP connection issues before failure
-
         multithread : bool
             boolean flag to allow multithreading of data collection
+        thread_pool : int
+            number of CPU threads to use during multithread operations
 
         """
         super(Acs1, self).get_data(level=level, variables=variables,
-                                   retry=retry, multithread=multithread)
+                                   retry=retry, multithread=multithread,
+                                   thread_pool=thread_pool)
 
 
 class Acs5(CensusBase):
@@ -100,7 +100,7 @@ class Acs5(CensusBase):
         super(Acs5, self).__init__(features, year, apikey, 'acs5')
 
     def get_data(self, level='finest', variables=(), retry=100,
-                 multithread=False):
+                 multithread=False, thread_pool=4):
         """
         Method to get data from the Acs5 servers and set it to feature
         properties!
@@ -111,19 +111,18 @@ class Acs5(CensusBase):
             determines the geographic level of data queried
             default is 'finest' available based on census dataset and
             the geoJSON feature information
-
         variables : list, tuple
             user specified Acs5 variables, default pulls variables from
             the AcsVariables class
-
         retry : int
             number of retries for HTTP connection issues before failure
-
         multithread : bool
             boolean flag to allow multithreading of data collection
-
+        thread_pool : int
+            number of CPU threads to use during multithread operations
         """
         super(Acs5, self).get_data(level=level, variables=variables,
-                                   retry=retry, multithread=multithread)
+                                   retry=retry, multithread=multithread,
+                                   thread_pool=thread_pool)
 
 
