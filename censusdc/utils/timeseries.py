@@ -1,6 +1,7 @@
 from ..utils import TigerWebMapServer, GeoFeatures
 import copy
 import shapefile
+import calendar
 import pandas as pd
 
 
@@ -116,6 +117,7 @@ class CensusTimeSeries(object):
 
         timeseries = {}
         for year, cen in censusobj.items():
+            print(year, feature_name)
             gf = GeoFeatures(cen.get_feature(feature_name), feature_name)
             if polygons is not None:
                 gf.intersect(polygons)
@@ -142,10 +144,109 @@ class CensusTimeSeries(object):
                 timeseries[feature_name] = df
             else:
                 tsdf = timeseries[feature_name]
-                tsdf = tsdf.append(df, ignore_index=True)
+                tsdf = tsdf.append(df, ignore_index=True, sort=False)
                 timeseries[feature_name] = tsdf
 
             if refresh:
                 hr_dict = None
 
         return timeseries[feature_name]
+
+    @staticmethod
+    def interpolate(df, skip_years=(), drop=[], discretization='daily',
+                    kind='linear', extrapolate=0):
+        """
+        Interpolation method to get daily or monthly data from a census
+        timeseries dataframe
+
+        Parameters
+        ----------
+        df : pd.Dataframe object
+        skip_years: tuple
+            a tuple of years to exculude from interpolation
+        drop : list
+            columns to drop from the interpolation
+        discretization : str
+            string flag to indicate either monthly or daily interpolation
+            results
+        kind : str
+            scipy.interpolate kind string. Specifies the kind of interpolation
+             as a string (‘linear’, ‘nearest’, ‘zero’, ‘slinear’, ‘quadratic’,
+              ‘cubic’, ‘previous’, ‘next’, where ‘zero’, ‘slinear’, ‘quadratic’
+               and ‘cubic’ refer to a spline interpolation of zeroth, first,
+               second or third order; ‘previous’ and ‘next’ simply return the
+               previous or next value of the point) or as an integer specifying
+                the order of the spline interpolator to use. Default is
+                ‘linear’.
+        extrapolate: array-like or "extrapolate"
+            If "extrapolate" then points outside the data range will be
+            extrapolated.
+
+        Returns
+        -------
+            pd.Dataframe
+        """
+        if skip_years:
+            df = df[~df.year.isin(skip_years)]
+
+        if drop:
+            df = df.drop(columns=drop)
+
+        years = df.year.values
+        ymin = min(years)
+        ymax = max(years)
+
+        if extrapolate and extrapolate > ymax:
+            ymax = extrapolate
+        elif extrapolate and extrapolate < ymin:
+            ymin = extrapolate
+        else:
+            pass
+
+        if discretization == "daily":
+            x = []
+            for year in range(ymin, ymax + 1):
+                ndays = 365
+                dec = 0
+                if calendar.isleap(year):
+                    ndays = 366
+
+                if year == ymin:
+                    if calendar.isleap(year):
+                        dec = 184 / ndays
+                    else:
+                        dec = 183 / ndays
+
+                while dec < 0.999:
+                    x.append(year + dec)
+                    step = 1 / ndays
+                    dec += step
+                    if year == ymax:
+                        if calendar.isleap(year):
+                            stop = 184 / ndays
+                        else:
+                            stop = 183 / ndays
+
+                        if dec > stop:
+                            break
+        else:
+            x = []
+            for year in range(ymin, ymax + 1):
+                dec = 0
+                stop = 0.5
+                if year == ymin:
+                    if calendar.isleap(year):
+                        dec = 6 / 12
+                    else:
+                        dec = 6 / 12
+
+                while dec < 0.94:
+                    x.append(year + dec)
+                    step = 1 / 12
+                    dec += step
+                    if year == ymax:
+
+                        if dec > stop:
+                            break
+
+        print('break')
