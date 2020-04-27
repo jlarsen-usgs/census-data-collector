@@ -88,7 +88,7 @@ class Sf3(CensusBase):
     def __init__(self, features, year, apikey):
         super(Sf3, self).__init__(features, year, apikey, 'sf3')
 
-    def get_data(self, level='finest', variables=(), retry=100,
+    def get_data(self, level='finest', variables=(), retry=100, verbose=True,
                  multithread=False, thread_pool=4):
         """
         Method to get data from the Sf3 servers and set it to feature
@@ -105,6 +105,8 @@ class Sf3(CensusBase):
             the AcsVariables class
         retry : int
             number of retries for HTTP connection issues before failure
+        verbose : bool
+            verbose operation mode
         multithread : bool
             boolean flag to allow multithreading of data collection
         thread_pool : int
@@ -112,5 +114,6 @@ class Sf3(CensusBase):
 
         """
         super(Sf3, self).get_data(level=level, variables=variables,
-                                  retry=retry, multithread=multithread,
+                                  retry=retry, verbose=verbose,
+                                  multithread=multithread,
                                   thread_pool=thread_pool)

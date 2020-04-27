@@ -157,7 +157,7 @@ class CensusBase(object):
         self._features_level = self.__level_dict[min(level)]
 
     def get_data(self, level='finest', variables=(), retry=100,
-                 multithread=True, thread_pool=4):
+                 multithread=True, thread_pool=4, verbose=True):
         """
         Method to get data from the Acs5 servers and set it to feature
         properties!
@@ -230,7 +230,7 @@ class CensusBase(object):
                     x = threading.Thread(target=self.threaded_request_data,
                                          args=(feature, featix, name,
                                                level, fmt, variables,
-                                               url, retry, container))
+                                               url, retry, verbose, container))
                     thread_list.append(x)
 
             for thread in thread_list:
@@ -297,15 +297,16 @@ class CensusBase(object):
                     if n == retry:
                         raise requests.exceptions.HTTPError(e)
 
-                    print('Getting {} data for {} feature # {}'.format(level,
-                                                                       name,
-                                                                       featix))
+                    if verbose:
+                        print('Getting {} data for {} '
+                              'feature # {}'.format(level, name, featix))
                     try:
                         data = r.json()
                     except:
                         data = []
-                        print('Error getting {} data for {} '
-                              'feature # {}'.format(level, name, featix))
+                        if verbose:
+                            print('Error getting {} data for {} '
+                                  'feature # {}'.format(level, name, featix))
                     if len(data) == 2:
                         for dix, header in enumerate(data[0]):
                             if header == "NAME":
@@ -316,12 +317,12 @@ class CensusBase(object):
                                 try:
                                     self._features[name][featix].properties[header] = \
                                         float(data[1][dix])
-                                except ValueError:
+                                except (TypeError, ValueError):
                                     self._features[name][featix].properties[header] = \
                                         float('nan')
 
     def threaded_request_data(self, feature, featix, name, level, fmt, variables,
-                              url, retry, container):
+                              url, retry, verbose, container):
         """
         Multithread method for requesting census data
 
@@ -343,7 +344,9 @@ class CensusBase(object):
             string of census url
         retry : int
             number of retries based on connection error
-        container : BoundSemaphore
+        verbose : str
+            verbose operation flag
+        container : BoundedSemaphore
             bound semaphore instance for thread pool management
 
         """
@@ -404,15 +407,17 @@ class CensusBase(object):
         if n == retry:
             raise requests.exceptions.HTTPError(e)
 
-        print('Getting {} data for {} feature # {}'.format(level,
-                                                           name,
-                                                           featix))
+        if verbose:
+            print('Getting {} data for {} feature # {}'.format(level,
+                                                               name,
+                                                               featix))
         try:
             data = r.json()
         except:
             data = []
-            print('Error getting {} data for {} feature # {}'.format(
-                level, name, featix))
+            if verbose:
+                print('Error getting {} data for {} feature # {}'.format(
+                      level, name, featix))
         if len(data) == 2:
             for dix, header in enumerate(data[0]):
                 if header == "NAME":
@@ -423,7 +428,7 @@ class CensusBase(object):
                     try:
                         self._features[name][featix].properties[header] = \
                             float(data[1][dix])
-                    except ValueError:
+                    except (TypeError, ValueError):
                         self._features[name][featix].properties[header] = \
                             float('nan')
 

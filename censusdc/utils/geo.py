@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import threading
 from shapely.geometry import Polygon, MultiPolygon
 from shapely.ops import cascaded_union
 import geojson
@@ -99,17 +100,21 @@ class GeoFeatures(object):
     def intersected_features(self):
         return copy.deepcopy(self._ifeatures)
 
-    def intersect(self, polygons):
+    def intersect(self, polygons, multithread=False, thread_pool=4):
         """
         Intersection method that creates a new dictionary of geoJSON
         features. input polygons must be provided in WGS84 (decimal lat lon.)
 
         Parameters
         ----------
-        polygons: list
+        polygons : list
             list of shapely polygons, list of shapefile.Shape objects,
             shapefile.Reader object, shapefile.Shape object, or
             list of xy points [[(lon, lat)...(lon_n, lat_n)],[...]]
+        multithread : bool
+            flag to enable multithreaded operations
+        thread_pool : int
+            number of threads to use for multi-threaded operations
 
         """
         flag = ""
@@ -202,46 +207,119 @@ class GeoFeatures(object):
         else:
             raise Exception("Code shouldn't have made it here!")
 
-        for polygon in polygons:
-            for ix, feature in enumerate(self._shapely_features):
-                properties = self.features[ix].properties
+        if multithread:
+            thread_list = []
+            container = threading.BoundedSemaphore(thread_pool)
+            for polygon in polygons:
+                for ix, feature in enumerate(self._shapely_features):
+                    x = threading.Thread(target=self.__threaded_intersection,
+                                         args=(polygon, ix,
+                                               feature, container))
+                    thread_list.append(x)
 
-                a = polygon.intersection(feature)
+            for thread in thread_list:
+                thread.start()
+            for thread in thread_list:
+                thread.join()
 
-                if a.geom_type == "MultiPolygon":
-                    p = list(a)
-                else:
-                    p = [a, ]
+        else:
+            for polygon in polygons:
+                for ix, feature in enumerate(self._shapely_features):
+                    properties = self.features[ix].properties
 
-                for a in p:
-                    area = a.area
-                    if area == 0:
-                        continue
-                    geoarea = feature.area
-                    ratio = area / geoarea
+                    a = polygon.intersection(feature)
 
-                    adj_properties = {}
-                    for k, v in properties.items():
-                        if k in self.IGNORE:
-                            adj_properties[k] = v
-                        else:
-                            try:
-                                adj_properties[k] = v * ratio
-                            except TypeError:
-                                adj_properties[k] = v
-                                print("DEBUG NOTE: ", k, v)
-
-                    xy = np.array(a.exterior.xy, dtype=float).T
-                    xy = [(i[0], i[1]) for i in xy]
-
-                    geopolygon = geojson.Polygon([xy])
-                    geofeature = geojson.Feature(geometry=geopolygon,
-                                                 properties=adj_properties)
-
-                    if self._ifeatures is None:
-                        self._ifeatures = [geofeature, ]
+                    if a.geom_type == "MultiPolygon":
+                        p = list(a)
                     else:
-                        self._ifeatures.append(geofeature)
+                        p = [a, ]
+
+                    for a in p:
+                        area = a.area
+                        if area == 0:
+                            continue
+                        geoarea = feature.area
+                        ratio = area / geoarea
+
+                        adj_properties = {}
+                        for k, v in properties.items():
+                            if k in self.IGNORE:
+                                adj_properties[k] = v
+                            else:
+                                try:
+                                    adj_properties[k] = v * ratio
+                                except TypeError:
+                                    adj_properties[k] = v
+                                    print("DEBUG NOTE: ", k, v)
+
+                        xy = np.array(a.exterior.xy, dtype=float).T
+                        xy = [(i[0], i[1]) for i in xy]
+
+                        geopolygon = geojson.Polygon([xy])
+                        geofeature = geojson.Feature(geometry=geopolygon,
+                                                     properties=adj_properties)
+
+                        if self._ifeatures is None:
+                            self._ifeatures = [geofeature, ]
+                        else:
+                            self._ifeatures.append(geofeature)
+
+    def __threaded_intersection(self, polygon, ix, feature, container):
+        """
+        Multithreaded intersection operation handler
+
+        Parameters
+        ----------
+        polygon : shapely.geometry.Polygon
+        ix : int
+            enumeration number
+        feature : shapely.geometry.Polygon
+            feature
+        container : threading.BoundedSemaphore
+
+        """
+        container.acquire()
+
+        properties = self.features[ix].properties
+
+        a = polygon.intersection(feature)
+
+        if a.geom_type == "MultiPolygon":
+            p = list(a)
+        else:
+            p = [a, ]
+
+        for a in p:
+            area = a.area
+            if area == 0:
+                continue
+            geoarea = feature.area
+            ratio = area / geoarea
+
+            adj_properties = {}
+            for k, v in properties.items():
+                if k in self.IGNORE:
+                    adj_properties[k] = v
+                else:
+                    try:
+                        adj_properties[k] = v * ratio
+                    except TypeError:
+                        adj_properties[k] = v
+                        print("DEBUG NOTE: ", k, v)
+
+            xy = np.array(a.exterior.xy, dtype=float).T
+            xy = [(i[0], i[1]) for i in xy]
+
+            geopolygon = geojson.Polygon([xy])
+            geofeature = geojson.Feature(geometry=geopolygon,
+                                         properties=adj_properties)
+
+            if self._ifeatures is None:
+                self._ifeatures = [geofeature, ]
+            else:
+                self._ifeatures.append(geofeature)
+
+        container.release()
 
     @staticmethod
     def features_to_dataframe(year, features, hr_dict=None):

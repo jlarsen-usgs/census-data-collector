@@ -51,7 +51,7 @@ class Acs1(CensusBase):
     def __init__(self, features, year, apikey):
         super(Acs1, self).__init__(features, year, apikey, 'acs1')
 
-    def get_data(self, level='finest', variables=(), retry=100,
+    def get_data(self, level='finest', variables=(), retry=100, verbose=True,
                  multithread=False, thread_pool=4):
         """
         Method to get data from the Acs1 servers and set it to feature
@@ -68,6 +68,8 @@ class Acs1(CensusBase):
             the AcsVariables class
         retry : int
             number of retries for HTTP connection issues before failure
+        verbose : bool
+            verbose operation mode
         multithread : bool
             boolean flag to allow multithreading of data collection
         thread_pool : int
@@ -75,7 +77,8 @@ class Acs1(CensusBase):
 
         """
         super(Acs1, self).get_data(level=level, variables=variables,
-                                   retry=retry, multithread=multithread,
+                                   retry=retry, verbose=verbose,
+                                   multithread=multithread,
                                    thread_pool=thread_pool)
 
 
@@ -99,7 +102,7 @@ class Acs5(CensusBase):
     def __init__(self, features, year, apikey):
         super(Acs5, self).__init__(features, year, apikey, 'acs5')
 
-    def get_data(self, level='finest', variables=(), retry=100,
+    def get_data(self, level='finest', variables=(), retry=100, verbose=True,
                  multithread=False, thread_pool=4):
         """
         Method to get data from the Acs5 servers and set it to feature
@@ -116,13 +119,16 @@ class Acs5(CensusBase):
             the AcsVariables class
         retry : int
             number of retries for HTTP connection issues before failure
+        verbose : bool
+            verbose operation mode
         multithread : bool
             boolean flag to allow multithreading of data collection
         thread_pool : int
             number of CPU threads to use during multithread operations
         """
         super(Acs5, self).get_data(level=level, variables=variables,
-                                   retry=retry, multithread=multithread,
+                                   retry=retry, verbose=verbose,
+                                   multithread=multithread,
                                    thread_pool=thread_pool)
 
 

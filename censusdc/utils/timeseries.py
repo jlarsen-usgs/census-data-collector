@@ -33,7 +33,7 @@ class CensusTimeSeries(object):
     def get_timeseries(self, feature_name, sf3_variables=(),
                        sf3_variables_1990=(), acs_variables=(),
                        polygons=None, hr_dict=None, retry=1000,
-                       multithread=False, thread_pool=4):
+                       verbose=1, multithread=False, thread_pool=4):
         """
         Method to get a time series from 1990 through 2018 of census
         data from available products
@@ -50,12 +50,22 @@ class CensusTimeSeries(object):
             variables defined in Sf3Variables1990 class
         acs_variables : tuple
             tuple of variables to grab from the ACS1 and ACS5 census
-        hr_dict : dict
-            human readable label dict, assists in aligning data. If hr_dict
-            is None, defaults are used that cover AcsVariables and Sf3_Variables
         polygons : shapefile path, shapefile.Reader, list(shapely Polygon,),
             list(shapefile.Shape,), or list([x,y],[x_n, y_n])
             shapes or shapefile to intersect the timeseries with.
+        hr_dict : dict
+            human readable label dict, assists in aligning data. If hr_dict
+            is None, defaults are used that cover AcsVariables and
+            Sf3_Variables
+        retry : int
+            number of retries for connection issues
+        verbose : int or bool
+            verbosity flag. 0 is not verbose, 1 is minimum verbosity, > 1
+            is maximum verbosity.
+        multithread : bool
+            multithreaded operation flag
+        thread_pool : int
+            number of threads to run multithreading on
 
         Returns
         -------
@@ -66,19 +76,33 @@ class CensusTimeSeries(object):
         from ..datacollector.acs import AcsHR
         refresh = False
 
+        verb = False
+        if isinstance(verbose, int):
+            if verbose > 1:
+                verb = True
+
         if self._censusobj is None:
             url0 = ""
             year0 = 0
             twobjs = {}
             for year, url in TigerWebMapServer.base.items():
+                if verbose:
+                    print("Getting Tigerline data for census "
+                          "year {}".format(year))
                 if url == url0:
                     twobjs[year] = copy.copy(twobjs[year0])
                 else:
                     tw = TigerWeb(self._shp, self._field, self._radius)
                     if year in (2005, 2006, 2007, 2008, 2009):
-                        tw.get_data(year, level="county")
+                        tw.get_data(year, level="county",
+                                    verbose=verb,
+                                    multithread=multithread,
+                                    thread_pool=thread_pool)
                     else:
-                        tw.get_data(year, level="tract")
+                        tw.get_data(year, level="tract",
+                                    verbose=verb,
+                                    multithread=multithread,
+                                    thread_pool=thread_pool)
 
                     twobjs[year] = tw
                 url0 = url
@@ -86,28 +110,33 @@ class CensusTimeSeries(object):
 
             censusobj = {}
             for year, tw in twobjs.items():
-                print("Getting data for census year {}".format(year))
+                if verbose:
+                    print("Getting data for census year {}".format(year))
                 if year in (1990, 2000):
                     cen = Sf3(tw.features, year, self.__apikey)
                     if year == 1990:
                         cen.get_data(level='tract',
                                      variables=sf3_variables_1990,
-                                     retry=retry, multithread=multithread,
+                                     retry=retry, verbose=verb,
+                                     multithread=multithread,
                                      thread_pool=thread_pool)
                     else:
                         cen.get_data(level="tract", variables=sf3_variables,
-                                     retry=retry, multithread=multithread,
+                                     retry=retry, verbose=verb,
+                                     multithread=multithread,
                                      thread_pool=thread_pool)
 
                 elif year in (2005, 2006, 2007, 2008, 2009):
                     cen = Acs1(tw.features, year, self.__apikey)
                     cen.get_data(level='county', variables=acs_variables,
-                                 retry=retry, multithread=multithread,
+                                 retry=retry, verbose=verb,
+                                 multithread=multithread,
                                  thread_pool=thread_pool)
                 else:
                     cen = Acs5(tw.features, year, self.__apikey)
                     cen.get_data(level='tract', variables=acs_variables,
-                                 retry=retry, multithread=multithread,
+                                 retry=retry, verbose=verb,
+                                 multithread=multithread,
                                  thread_pool=thread_pool)
 
                 censusobj[year] = cen
@@ -120,12 +149,18 @@ class CensusTimeSeries(object):
         if isinstance(polygons, str):
             polygons = shapefile.Reader(polygons)
 
+        if verbose:
+            print("Performing intersections and building DataFrame")
+
         timeseries = {}
         for year, cen in censusobj.items():
-            print(year, feature_name)
+            if verbose > 1:
+                print("performing intersections {}, {}".format(year,
+                                                               feature_name))
             gf = GeoFeatures(cen.get_feature(feature_name), feature_name)
             if polygons is not None:
-                gf.intersect(polygons)
+                gf.intersect(polygons, multithread=multithread,
+                             thread_pool=thread_pool)
                 features = gf.intersected_features
             else:
                 features = gf.features

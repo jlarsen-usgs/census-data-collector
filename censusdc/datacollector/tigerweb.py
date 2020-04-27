@@ -9,6 +9,7 @@ import pycrs
 import copy
 from ..utils import get_wkt_wkid_table, TigerWebMapServer
 from ..utils.geometry import calculate_circle
+import threading
 
 
 class TigerWebVariables(object):
@@ -280,7 +281,8 @@ class TigerWebBase(object):
         s = s.replace(" ", "")
         return s
 
-    def get_data(self, year, level='finest', outfields=(), filter=()):
+    def get_data(self, year, level='finest', outfields=(), filter=(),
+                 verbose=True, multithread=False, thread_pool=4):
         """
         Method to pull data feature data from tigerweb
 
@@ -297,7 +299,12 @@ class TigerWebBase(object):
         filter : tuple
             tuple of names or polygon numbers to pull from
             default is () which grabs all polygons
-
+        verbose : bool
+            verbose operation mode
+        multithread : bool
+            flag to enable/disable multithreaded data collection
+        thread_pool : int
+            number of threads requested for multithreaded operations
 
         Returns
         -------
@@ -356,62 +363,80 @@ class TigerWebBase(object):
             filter = tuple([i.lower() if isinstance(i, str) else
                             i for i in filter])
 
-        for key, esri_json in self._esri_json.items():
-            if filter:
-                if key not in filter:
-                    continue
+        if multithread:
+            thread_list = []
+            container = threading.BoundedSemaphore(thread_pool)
+            for key, esri_json in self._esri_json.items():
+                if filter:
+                    if key not in filter:
+                        continue
+                x = threading.Thread(target=self.threaded_request_data,
+                                     args=(key, base, mapserver, esri_json,
+                                           geotype, outfields, verbose,
+                                           container))
+                thread_list.append(x)
 
-            # todo: multithread this operation using a BoundSemaphore!
+            for thread in thread_list:
+                thread.start()
+            for thread in thread_list:
+                thread.join()
 
-            s = requests.session()
-            url = '/'.join([base, str(mapserver), "query?"])
+        else:
+            for key, esri_json in self._esri_json.items():
+                if filter:
+                    if key not in filter:
+                        continue
 
-            s.params = {'where': '',
-                        'text': '',
-                        'objectIds': '',
-                        'geometry': esri_json,
-                        'geometryType': geotype,
-                        'inSR': '',
-                        'spatialRel': 'esriSpatialRelIntersects',
-                        'relationParam': '',
-                        'outFields': outfields,
-                        'returnGeometry': True,
-                        'returnTrueCurves': False,
-                        'maxAllowableOffset': '',
-                        'geometryPrecision': '',
-                        'outSR': '',
-                        'returnIdsOnly': False,
-                        'returnCountOnly': False,
-                        'orderByFields': '',
-                        'groupByFieldsForStatistics': '',
-                        'outStatistics': '',
-                        'returnZ': False,
-                        'returnM': False,
-                        'gdbVersion': '',
-                        'returnDistinctValues': False,
-                        'f': 'geojson',
-                        }
-            start = 0
-            done = False
-            features = []
+                s = requests.session()
+                url = '/'.join([base, str(mapserver), "query?"])
 
-            while not done:
-                r = s.get(url, params={'resultOffset': start,
-                                       'resultRecordCount': 32})
-                r.raise_for_status()
-                # print(r.text)
-                counties = geojson.loads(r.text)
-                newfeats = counties.__geo_interface__['features']
-                if newfeats:
-                    features.extend(newfeats)
-                    # crs = counties.__geo_interface__['crs']
-                    start += len(newfeats)
-                    print("Received", len(newfeats), "entries,",
-                          start, "total")
-                else:
-                    done = True
+                s.params = {'where': '',
+                            'text': '',
+                            'objectIds': '',
+                            'geometry': esri_json,
+                            'geometryType': geotype,
+                            'inSR': '',
+                            'spatialRel': 'esriSpatialRelIntersects',
+                            'relationParam': '',
+                            'outFields': outfields,
+                            'returnGeometry': True,
+                            'returnTrueCurves': False,
+                            'maxAllowableOffset': '',
+                            'geometryPrecision': '',
+                            'outSR': '',
+                            'returnIdsOnly': False,
+                            'returnCountOnly': False,
+                            'orderByFields': '',
+                            'groupByFieldsForStatistics': '',
+                            'outStatistics': '',
+                            'returnZ': False,
+                            'returnM': False,
+                            'gdbVersion': '',
+                            'returnDistinctValues': False,
+                            'f': 'geojson',
+                            }
+                start = 0
+                done = False
+                features = []
 
-            self._features[key] = features
+                while not done:
+                    r = s.get(url, params={'resultOffset': start,
+                                           'resultRecordCount': 32})
+                    r.raise_for_status()
+                    # print(r.text)
+                    counties = geojson.loads(r.text)
+                    newfeats = counties.__geo_interface__['features']
+                    if newfeats:
+                        features.extend(newfeats)
+                        # crs = counties.__geo_interface__['crs']
+                        start += len(newfeats)
+                        if verbose:
+                            print("Received", len(newfeats), "entries,",
+                                  start, "total")
+                    else:
+                        done = True
+
+                self._features[key] = features
 
         # cleanup duplicate features after query!
         for key, features in self._features.items():
@@ -428,6 +453,85 @@ class TigerWebBase(object):
                 features.pop(p)
 
             self._features[key] = features
+
+    def threaded_request_data(self, key, base, mapserver, esri_json, geotype,
+                              outfields, verbose, container):
+        """
+        Multithread handler method to request data from the TigerWeb server
+
+        Parameters
+        ----------
+        key : str or int
+            feature identifier
+        base : str
+            base url
+        mapserver : int
+            map server number
+        esri_json : str
+            json geography string
+        geotype : str
+            geometery type
+        outfields : str
+            string of requested variables
+        verbose : bool
+            verbose operation mode
+        container : threading.BoundSemaphore
+
+        """
+        container.acquire()
+
+        s = requests.session()
+        url = '/'.join([base, str(mapserver), "query?"])
+
+        s.params = {'where': '',
+                    'text': '',
+                    'objectIds': '',
+                    'geometry': esri_json,
+                    'geometryType': geotype,
+                    'inSR': '',
+                    'spatialRel': 'esriSpatialRelIntersects',
+                    'relationParam': '',
+                    'outFields': outfields,
+                    'returnGeometry': True,
+                    'returnTrueCurves': False,
+                    'maxAllowableOffset': '',
+                    'geometryPrecision': '',
+                    'outSR': '',
+                    'returnIdsOnly': False,
+                    'returnCountOnly': False,
+                    'orderByFields': '',
+                    'groupByFieldsForStatistics': '',
+                    'outStatistics': '',
+                    'returnZ': False,
+                    'returnM': False,
+                    'gdbVersion': '',
+                    'returnDistinctValues': False,
+                    'f': 'geojson',
+                    }
+        start = 0
+        done = False
+        features = []
+
+        while not done:
+            r = s.get(url, params={'resultOffset': start,
+                                   'resultRecordCount': 32})
+            r.raise_for_status()
+            # print(r.text)
+            counties = geojson.loads(r.text)
+            newfeats = counties.__geo_interface__['features']
+            if newfeats:
+                features.extend(newfeats)
+                # crs = counties.__geo_interface__['crs']
+                start += len(newfeats)
+                if verbose:
+                    print("Received", len(newfeats), "entries,",
+                          start, "total")
+            else:
+                done = True
+
+        self._features[key] = features
+
+        container.release()
 
 
 class TigerWebPoint(TigerWebBase):
