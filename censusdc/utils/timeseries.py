@@ -91,19 +91,19 @@ class CensusTimeSeries(object):
                     if year == 1990:
                         cen.get_data(level='tract',
                                      variables=sf3_variables_1990,
-                                     retry=retry)
+                                     retry=retry, multithread=True)
                     else:
                         cen.get_data(level="tract", variables=sf3_variables,
-                                     retry=retry)
+                                     retry=retry, multithread=True)
 
                 elif year in (2005, 2006, 2007, 2008, 2009):
                     cen = Acs1(tw.features, year, self.__apikey)
                     cen.get_data(level='county', variables=acs_variables,
-                                 retry=retry)
+                                 retry=retry, multithread=True)
                 else:
                     cen = Acs5(tw.features, year, self.__apikey)
                     cen.get_data(level='tract', variables=acs_variables,
-                                 retry=retry)
+                                 retry=retry, multithread=True)
 
                 censusobj[year] = cen
 
