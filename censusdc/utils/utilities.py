@@ -40,3 +40,15 @@ def get_wkt_wkid_table(refresh=False):
     df = pd.read_csv(table_file, delimiter='\t', index_col=False,)
     return df
 
+
+def thread_count():
+    """
+    Method to estimate the thread count on a user's machine
+
+    Returns
+    -------
+        int : number of threads
+    """
+    import os
+    nthreads = os.cpu_count()
+    return nthreads

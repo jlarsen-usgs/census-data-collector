@@ -117,6 +117,8 @@ class GeoFeatures(object):
             number of threads to use for multi-threaded operations
 
         """
+        self._ifeatures = None
+
         flag = ""
 
         if isinstance(polygons, shapefile.Reader):
@@ -208,14 +210,17 @@ class GeoFeatures(object):
             raise Exception("Code shouldn't have made it here!")
 
         if multithread:
+
             thread_list = []
             container = threading.BoundedSemaphore(thread_pool)
+            n = 0
             for polygon in polygons:
                 for ix, feature in enumerate(self._shapely_features):
                     x = threading.Thread(target=self.__threaded_intersection,
                                          args=(polygon, ix,
-                                               feature, container))
+                                               feature, n, container))
                     thread_list.append(x)
+                    n += 1
 
             for thread in thread_list:
                 thread.start()
@@ -223,6 +228,7 @@ class GeoFeatures(object):
                 thread.join()
 
         else:
+            n = 0
             for polygon in polygons:
                 for ix, feature in enumerate(self._shapely_features):
                     properties = self.features[ix].properties
@@ -234,6 +240,7 @@ class GeoFeatures(object):
                     else:
                         p = [a, ]
 
+                    m = 0
                     for a in p:
                         area = a.area
                         if area == 0:
@@ -260,11 +267,17 @@ class GeoFeatures(object):
                                                      properties=adj_properties)
 
                         if self._ifeatures is None:
-                            self._ifeatures = [geofeature, ]
+                            self._ifeatures = {"{}_{}".format(n, m):
+                                               geofeature}
                         else:
-                            self._ifeatures.append(geofeature)
+                            self._ifeatures["{}_{}".format(n, m)] = geofeature
+                        m += 1
 
-    def __threaded_intersection(self, polygon, ix, feature, container):
+                    n += 1
+
+        self._ifeatures = [v for k, v in self._ifeatures.items()]
+
+    def __threaded_intersection(self, polygon, ix, feature, n, container):
         """
         Multithreaded intersection operation handler
 
@@ -289,6 +302,7 @@ class GeoFeatures(object):
         else:
             p = [a, ]
 
+        m = 0
         for a in p:
             area = a.area
             if area == 0:
@@ -315,9 +329,10 @@ class GeoFeatures(object):
                                          properties=adj_properties)
 
             if self._ifeatures is None:
-                self._ifeatures = [geofeature, ]
+                self._ifeatures = {"{}_{}".format(n, m): geofeature}
             else:
-                self._ifeatures.append(geofeature)
+                self._ifeatures["{}_{}".format(n, m)] = geofeature
+            m += 1
 
         container.release()
 
