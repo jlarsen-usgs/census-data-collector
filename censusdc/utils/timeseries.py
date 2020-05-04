@@ -32,7 +32,7 @@ class CensusTimeSeries(object):
 
     def get_timeseries(self, feature_name, sf3_variables=(),
                        sf3_variables_1990=(), acs_variables=(),
-                       polygons=None, hr_dict=None, retry=1000,
+                       years=(), polygons=None, hr_dict=None, retry=1000,
                        verbose=1, multithread=False, thread_pool=4):
         """
         Method to get a time series from 1990 through 2018 of census
@@ -50,6 +50,8 @@ class CensusTimeSeries(object):
             variables defined in Sf3Variables1990 class
         acs_variables : tuple
             tuple of variables to grab from the ACS1 and ACS5 census
+        years : list, optional
+            optional method to query only specific years from the Census API
         polygons : shapefile path, shapefile.Reader, list(shapely Polygon,),
             list(shapefile.Shape,), or list([x,y],[x_n, y_n])
             shapes or shapefile to intersect the timeseries with.
@@ -81,11 +83,23 @@ class CensusTimeSeries(object):
             if verbose > 1:
                 verb = True
 
+        if not years:
+            years = [year for year in TigerWebMapServer.base.keys()]
+
+        else:
+            for year in years:
+                if year not in TigerWebMapServer.base:
+                    raise KeyError("No census API data available "
+                                   "for {}".format(year))
+
         if self._censusobj is None:
             url0 = ""
             year0 = 0
             twobjs = {}
             for year, url in TigerWebMapServer.base.items():
+                if year not in years:
+                    continue
+
                 if verbose:
                     print("Getting Tigerline data for census "
                           "year {}".format(year))
