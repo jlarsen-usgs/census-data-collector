@@ -207,8 +207,9 @@ class CensusTimeSeries(object):
         return timeseries[feature_name]
 
     @staticmethod
-    def interpolate(df, skip_years=(), drop=[], discretization='daily',
-                    kind='linear', extrapolate=0):
+    def interpolate(df, skip_years=(), drop=(), discretization='daily',
+                    kind='linear', min_extrapolate=False,
+                    max_extrapolate=False):
         """
         Interpolation method to get daily or monthly data from a census
         timeseries dataframe
@@ -232,14 +233,21 @@ class CensusTimeSeries(object):
                previous or next value of the point) or as an integer specifying
                 the order of the spline interpolator to use. Default is
                 ‘linear’.
-        extrapolate: array-like or "extrapolate"
-            If "extrapolate" then points outside the data range will be
-            extrapolated.
+        min_extrapolate: int
+            minimum year to extrapolate data past bounds of census df data
+        max_extrapolate: int
+            maximum year to extrapolate data past bounds of census df data
 
         Returns
         -------
             pd.Dataframe
         """
+        from scipy import interpolate
+        import matplotlib.pyplot as plt
+
+        if isinstance(drop, tuple):
+            drop = list(drop)
+
         if skip_years:
             df = df[~df.year.isin(skip_years)]
 
@@ -250,10 +258,10 @@ class CensusTimeSeries(object):
         ymin = min(years)
         ymax = max(years)
 
-        if extrapolate and extrapolate > ymax:
-            ymax = extrapolate
-        elif extrapolate and extrapolate < ymin:
-            ymin = extrapolate
+        if max_extrapolate and max_extrapolate > ymax:
+            ymax = max_extrapolate
+        elif min_extrapolate and min_extrapolate < ymin:
+            ymin = min_extrapolate
         else:
             pass
 
@@ -267,9 +275,9 @@ class CensusTimeSeries(object):
 
                 if year == ymin:
                     if calendar.isleap(year):
-                        dec = 184 / ndays
-                    else:
                         dec = 183 / ndays
+                    else:
+                        dec = 182 / ndays
 
                 while dec < 0.999:
                     x.append(year + dec)
@@ -277,9 +285,9 @@ class CensusTimeSeries(object):
                     dec += step
                     if year == ymax:
                         if calendar.isleap(year):
-                            stop = 184 / ndays
-                        else:
                             stop = 183 / ndays
+                        else:
+                            stop = 182 / ndays
 
                         if dec > stop:
                             break
@@ -303,4 +311,24 @@ class CensusTimeSeries(object):
                         if dec > stop:
                             break
 
-        print('break')
+        dyear  = []
+        for year in df.year.values:
+            if calendar.isleap(year):
+                dy = year + (183 / 366)
+            else:
+                dy = year + (182 / 366)
+            dyear.append(dy)
+
+        d = {'dyear': x}
+        for column in list(df.columns):
+            if column in ("year", "dyear"):
+                continue
+
+            f = interpolate.interp1d(dyear, df[column].values,
+                                     kind=kind, fill_value='extrapolate')
+
+            cnew = f(x)
+
+            d[column] = cnew
+
+        return pd.DataFrame.from_dict(d)
