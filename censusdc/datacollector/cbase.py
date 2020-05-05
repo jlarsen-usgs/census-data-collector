@@ -1,6 +1,6 @@
 import requests
 from .tigerweb import TigerWebVariables
-from ..utils import Acs5Server, Acs1Server, Sf3Server
+from ..utils import Acs5Server, Acs1Server, Sf3Server, RestartableThread
 import threading
 import copy
 
@@ -51,6 +51,7 @@ class CensusBase(object):
             raise AssertionError("unknown server type")
 
         self._features_level = 'undefined'
+        self.__thread_fail = {}
         self.__set_features_level()
 
     @property
@@ -225,17 +226,30 @@ class CensusBase(object):
             # Multithreading with a Semaphore management pool
             thread_list = []
             container = threading.BoundedSemaphore(thread_pool)
+            thread_id = 0
             for name in self.feature_names:
                 for featix, feature in enumerate(self.get_feature(name)):
-                    x = threading.Thread(target=self.threaded_request_data,
-                                         args=(feature, featix, name,
-                                               level, fmt, variables,
-                                               url, retry, verbose, container))
+                    x = RestartableThread(target=self.threaded_request_data,
+                                          args=(feature, featix, name,
+                                                level, fmt, variables,
+                                                url, retry, verbose, thread_id,
+                                                container))
                     thread_list.append(x)
+                    thread_id += 1
 
             for thread in thread_list:
                 thread.start()
             for thread in thread_list:
+                thread.join()
+
+            restart = []
+            for thread_id, fail in self.__thread_fail.items():
+                if fail:
+                    restart.append(thread_list[thread_id].clone())
+
+            for thread in restart:
+                thread.start()
+            for thread in restart:
                 thread.join()
 
         else:
@@ -322,7 +336,7 @@ class CensusBase(object):
                                         float('nan')
 
     def threaded_request_data(self, feature, featix, name, level, fmt, variables,
-                              url, retry, verbose, container):
+                              url, retry, verbose, thread_id, container):
         """
         Multithread method for requesting census data
 
@@ -346,12 +360,14 @@ class CensusBase(object):
             number of retries based on connection error
         verbose : str
             verbose operation flag
+        thread_id : int
+            identifier for the thread
         container : BoundedSemaphore
             bound semaphore instance for thread pool management
 
         """
-
         container.acquire()
+        self.__thread_fail[thread_id] = True
         loc = ""
         if level == "block_group":
             loc = fmt.format(
@@ -432,4 +448,5 @@ class CensusBase(object):
                         self._features[name][featix].properties[header] = \
                             float('nan')
 
+        self.__thread_fail[thread_id] = False
         container.release()

@@ -2,6 +2,7 @@ import os
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
+import threading
 
 
 def get_wkt_wkid_table(refresh=False):
@@ -52,3 +53,15 @@ def thread_count():
     import os
     nthreads = os.cpu_count()
     return nthreads
+
+
+class RestartableThread(threading.Thread):
+    """
+    Restartable instance of a thread
+    """
+    def __init__(self, *args, **kwargs):
+        self._args, self._kwargs = args, kwargs
+        super().__init__(*args, **kwargs)
+
+    def clone(self):
+        return RestartableThread(self._args, self._kwargs)
