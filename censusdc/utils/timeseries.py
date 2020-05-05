@@ -243,7 +243,6 @@ class CensusTimeSeries(object):
             pd.Dataframe
         """
         from scipy import interpolate
-        import matplotlib.pyplot as plt
 
         if isinstance(drop, tuple):
             drop = list(drop)
@@ -311,7 +310,7 @@ class CensusTimeSeries(object):
                         if dec > stop:
                             break
 
-        dyear  = []
+        dyear = []
         for year in df.year.values:
             if calendar.isleap(year):
                 dy = year + (183 / 366)
