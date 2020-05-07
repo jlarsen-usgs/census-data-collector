@@ -1,5 +1,4 @@
 import numpy as np
-import utm
 
 
 def calculate_circle(x, y, radius):

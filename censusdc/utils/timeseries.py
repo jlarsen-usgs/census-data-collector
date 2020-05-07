@@ -33,7 +33,8 @@ class CensusTimeSeries(object):
     def get_timeseries(self, feature_name, sf3_variables=(),
                        sf3_variables_1990=(), acs_variables=(),
                        years=(), polygons=None, hr_dict=None, retry=1000,
-                       verbose=1, multithread=False, thread_pool=4):
+                       verbose=1, multiproc=False, multithread=False,
+                       thread_pool=4):
         """
         Method to get a time series from 1990 through 2018 of census
         data from available products
@@ -64,6 +65,8 @@ class CensusTimeSeries(object):
         verbose : int or bool
             verbosity flag. 0 is not verbose, 1 is minimum verbosity, > 1
             is maximum verbosity.
+        multiproc : bool
+            native multiprocessing support for linux only using ray.
         multithread : bool
             multithreaded operation flag
         thread_pool : int
@@ -132,11 +135,13 @@ class CensusTimeSeries(object):
                         cen.get_data(level='tract',
                                      variables=sf3_variables_1990,
                                      retry=retry, verbose=verb,
+                                     multiproc=multiproc,
                                      multithread=multithread,
                                      thread_pool=thread_pool)
                     else:
                         cen.get_data(level="tract", variables=sf3_variables,
                                      retry=retry, verbose=verb,
+                                     multiproc=multiproc,
                                      multithread=multithread,
                                      thread_pool=thread_pool)
 
@@ -144,12 +149,14 @@ class CensusTimeSeries(object):
                     cen = Acs1(tw.features, year, self.__apikey)
                     cen.get_data(level='county', variables=acs_variables,
                                  retry=retry, verbose=verb,
+                                 multiproc=multiproc,
                                  multithread=multithread,
                                  thread_pool=thread_pool)
                 else:
                     cen = Acs5(tw.features, year, self.__apikey)
                     cen.get_data(level='tract', variables=acs_variables,
                                  retry=retry, verbose=verb,
+                                 multiproc=multiproc,
                                  multithread=multithread,
                                  thread_pool=thread_pool)
 

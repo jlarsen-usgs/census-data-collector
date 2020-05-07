@@ -10,8 +10,10 @@ requirements = ["pandas",
                 "pyshp",
                 "pycrs",
                 "geojson",
+                "shapely",
                 "requests",
-                "scipy"]
+                "scipy",
+                "ray"]
 setup_requirements = []
 test_requirements = []
 description = """Python package to query census population data and provide
