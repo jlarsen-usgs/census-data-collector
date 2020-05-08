@@ -269,8 +269,6 @@ class CensusBase(object):
                                 self._features[name][featix].properties[header] = \
                                     float('nan')
 
-            print('xxxxx')
-
         elif multithread:
             container = threading.BoundedSemaphore(thread_pool)
             thread_list = []
@@ -503,8 +501,8 @@ class CensusBase(object):
 
 
 @ray.remote
-def multiproc_request_data(year, apikey, feature, featix, name, level, fmt, variables,
-                           url, retry, verbose):
+def multiproc_request_data(year, apikey, feature, featix, name, level, fmt,
+                           variables, url, retry, verbose):
     """
     Multithread method for requesting census data
 
