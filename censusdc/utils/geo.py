@@ -11,8 +11,8 @@ import copy
 if platform.system().lower() != "windows":
     import ray
 else:
-    # todo: update this to trick windows
-    ray = None
+    # fake ray wrapper function for windows
+    from ..utils import ray
 
 
 def _IGNORE():

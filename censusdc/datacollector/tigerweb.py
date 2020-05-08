@@ -15,8 +15,8 @@ import platform
 if platform.system().lower() != "windows":
     import ray
 else:
-    # todo: update this for a windows decorator
-    ray = None
+    # fake ray wrapper function for windows
+    from ..utils import ray
 
 
 class TigerWebVariables(object):

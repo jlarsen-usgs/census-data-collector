@@ -10,8 +10,8 @@ from simplejson.errors import JSONDecodeError
 if platform.system().lower() != "windows":
     import ray
 else:
-    # todo: create a wrapper function for windows
-    ray = None
+    # fake ray wrapper function for windows
+    from ..utils import ray
 
 
 
