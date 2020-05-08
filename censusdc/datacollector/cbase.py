@@ -5,6 +5,7 @@ from ..utils import Acs5Server, Acs1Server, Sf3Server, RestartableThread, \
 import threading
 import platform
 import copy
+from simplejson.errors import JSONDecodeError
 
 if platform.system().lower() != "windows":
     import ray
@@ -349,7 +350,8 @@ class CensusBase(object):
                             r = s.get(url, params=payload)
                             r.raise_for_status()
                             break
-                        except requests.exceptions.HTTPError as e:
+                        except (requests.exceptions.HTTPError,
+                                requests.exceptions.ConnectionError) as e:
                             n += 1
                             print("Connection Error: Retry number "
                                   "{}".format(n))
@@ -362,11 +364,12 @@ class CensusBase(object):
                               'feature # {}'.format(level, name, featix))
                     try:
                         data = r.json()
-                    except:
+                    except JSONDecodeError:
                         data = []
                         if verbose:
                             print('Error getting {} data for {} '
                                   'feature # {}'.format(level, name, featix))
+
                     if len(data) == 2:
                         for dix, header in enumerate(data[0]):
                             if header == "NAME":
@@ -462,7 +465,8 @@ class CensusBase(object):
                 r = s.get(url, params=payload)
                 r.raise_for_status()
                 break
-            except requests.exceptions.HTTPError as e:
+            except (requests.exceptions.HTTPError,
+                    requests.exceptions.ConnectionError) as e:
                 n += 1
                 print("Connection Error: Retry number {}".format(n))
 
@@ -577,7 +581,8 @@ def multiproc_request_data(year, apikey, feature, featix, name, level, fmt, vari
             r = s.get(url, params=payload)
             r.raise_for_status()
             break
-        except requests.exceptions.HTTPError as e:
+        except (requests.exceptions.HTTPError,
+                requests.exceptions.ConnectionError) as e:
             n += 1
             print("Connection Error: Retry number {}".format(n))
 
@@ -590,7 +595,7 @@ def multiproc_request_data(year, apikey, feature, featix, name, level, fmt, vari
                                                            featix))
     try:
         data = r.json()
-    except:
+    except JSONDecodeError:
         data = []
         if verbose:
             print('Error getting {} data for {} feature # {}'.format(
