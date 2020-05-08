@@ -28,7 +28,7 @@ setup(
     author="Joshua Larsen",
     author_email='jlarsen@usgs.gov',
     classifiers=[
-        'Development Status :: 1 Alpha',
+        'Development Status :: 2 Beta',
         'Intended Audience :: Scientists',
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 3',
@@ -49,6 +49,6 @@ setup(
                                     'censusdc.datacollector',]),
     setup_requires=setup_requirements,
     url='',
-    version='0.1.0',
+    version='0.2.0',
     zip_safe=False
 )
