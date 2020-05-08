@@ -89,7 +89,7 @@ class Sf3(CensusBase):
         super(Sf3, self).__init__(features, year, apikey, 'sf3')
 
     def get_data(self, level='finest', variables=(), retry=100, verbose=True,
-                 multithread=False, thread_pool=4):
+                 multiproc=False, multithread=False, thread_pool=4):
         """
         Method to get data from the Sf3 servers and set it to feature
         properties!
@@ -107,6 +107,8 @@ class Sf3(CensusBase):
             number of retries for HTTP connection issues before failure
         verbose : bool
             verbose operation mode
+        multiproc : bool
+            multiprocessing support using ray, linux only!
         multithread : bool
             boolean flag to allow multithreading of data collection
         thread_pool : int
@@ -115,5 +117,6 @@ class Sf3(CensusBase):
         """
         super(Sf3, self).get_data(level=level, variables=variables,
                                   retry=retry, verbose=verbose,
+                                  multiproc=multiproc,
                                   multithread=multithread,
                                   thread_pool=thread_pool)
