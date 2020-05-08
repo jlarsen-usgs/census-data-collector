@@ -5,14 +5,16 @@ from ..utils import Acs5Server, Acs1Server, Sf3Server, RestartableThread, \
 import threading
 import platform
 import copy
-from simplejson.errors import JSONDecodeError
+try:
+    from simplejson.errors import JSONDecodeError
+except ImportError:
+    from json import JSONDecodeError
 
 if platform.system().lower() != "windows":
     import ray
 else:
     # fake ray wrapper function for windows
     from ..utils import ray
-
 
 
 class CensusBase(object):
@@ -233,7 +235,7 @@ class CensusBase(object):
 
         fmt = lut[self.year]['fmt']
 
-        if multiproc and platform.system().lower == "windows":
+        if multiproc and platform.system().lower() == "windows":
             multiproc = False
             multithread = True
             thread_pool = thread_count() - 1

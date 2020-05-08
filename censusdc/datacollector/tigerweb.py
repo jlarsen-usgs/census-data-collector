@@ -373,7 +373,7 @@ class TigerWebBase(object):
             filter = tuple([i.lower() if isinstance(i, str) else
                             i for i in filter])
 
-        if multiproc and platform.system().lower == "windows":
+        if multiproc and platform.system().lower() == "windows":
             multiproc = False
             multithread = True
             thread_pool = thread_count() - 1
