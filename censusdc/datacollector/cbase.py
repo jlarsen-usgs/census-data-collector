@@ -251,6 +251,7 @@ class CensusBase(object):
             for actor in actors:
                 output.append(ray.get(actor))
 
+
             for out in output:
                 if out is None:
                     continue
