@@ -390,9 +390,7 @@ class TigerWebBase(object):
                                                       outfields, verbose)
                 actors.append(actor)
 
-            output = []
-            for actor in actors:
-                output.append(ray.get(actor))
+            output = ray.get(actors)
 
             for out in output:
                 if out is None:
@@ -628,11 +626,21 @@ def multiproc_request_data(key, base, mapserver, esri_json, geotype,
     done = False
     features = []
 
+    n = 0
     while not done:
-        r = s.get(url, params={'resultOffset': start,
+        try:
+            r = s.get(url, params={'resultOffset': start,
                                'resultRecordCount': 32})
-        r.raise_for_status()
-        # print(r.text)
+            r.raise_for_status()
+        except requests.exceptions.ConnectionError as e:
+            if verbose:
+                print("ConnectionError, retrying")
+            n += 1
+            if n == 100:
+                raise Exception(e)
+
+            continue
+
         counties = geojson.loads(r.text)
         newfeats = counties.__geo_interface__['features']
         if newfeats:

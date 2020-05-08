@@ -242,15 +242,15 @@ class CensusBase(object):
             actors = []
             for name in self.feature_names:
                 for featix, feature in enumerate(self.get_feature(name)):
-                    actor = multiproc_request_data.remote(self.year, self.__apikey,
-                                                          feature, featix, name, level,
-                                                          fmt, variables, url, retry, verbose)
+                    actor = multiproc_request_data.remote(self.year,
+                                                          self.__apikey,
+                                                          feature, featix,
+                                                          name, level,
+                                                          fmt, variables, url,
+                                                          retry, verbose)
                     actors.append(actor)
 
-            output = []
-            for actor in actors:
-                output.append(ray.get(actor))
-
+            output = ray.get(actors)
 
             for out in output:
                 if out is None:
