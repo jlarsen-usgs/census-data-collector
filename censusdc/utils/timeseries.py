@@ -182,7 +182,8 @@ class CensusTimeSeries(object):
                                                                feature_name))
             gf = GeoFeatures(cen.get_feature(feature_name), feature_name)
             if polygons is not None:
-                gf.intersect(polygons, multithread=multithread,
+                gf.intersect(polygons, multiproc=multiproc,
+                             multithread=multithread,
                              thread_pool=thread_pool)
                 features = gf.intersected_features
             else:

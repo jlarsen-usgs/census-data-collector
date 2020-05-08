@@ -2,10 +2,17 @@ import numpy as np
 import pandas as pd
 import threading
 from shapely.geometry import Polygon, MultiPolygon
-from shapely.ops import cascaded_union
+from . import thread_count
+import platform
 import geojson
 import shapefile
 import copy
+
+if platform.system().lower() != "windows":
+    import ray
+else:
+    # todo: update this to trick windows
+    ray = None
 
 
 def _IGNORE():
@@ -100,7 +107,8 @@ class GeoFeatures(object):
     def intersected_features(self):
         return copy.deepcopy(self._ifeatures)
 
-    def intersect(self, polygons, multithread=False, thread_pool=4):
+    def intersect(self, polygons, multiproc=False,
+                  multithread=False, thread_pool=4):
         """
         Intersection method that creates a new dictionary of geoJSON
         features. input polygons must be provided in WGS84 (decimal lat lon.)
@@ -111,6 +119,8 @@ class GeoFeatures(object):
             list of shapely polygons, list of shapefile.Shape objects,
             shapefile.Reader object, shapefile.Shape object, or
             list of xy points [[(lon, lat)...(lon_n, lat_n)],[...]]
+        multiproc : bool
+            flag for multiprocessing with ray on linux machines
         multithread : bool
             flag to enable multithreaded operations
         thread_pool : int
@@ -209,7 +219,36 @@ class GeoFeatures(object):
         else:
             raise Exception("Code shouldn't have made it here!")
 
-        if multithread:
+        if multiproc and platform.system().lower() == "windows":
+            multiproc = False
+            multithread = True
+            thread_pool = thread_count() - 1
+
+        if multiproc:
+            fid = ray.put(self.features)
+            actors = []
+            n = 0
+            for polygon in polygons:
+                for ix, feature in enumerate(self._shapely_features):
+                    actor = multiproc_intersection.remote(self.IGNORE, fid,
+                                                          polygon, ix,
+                                                          feature, n)
+                    actors.append(actor)
+                    n += 1
+
+            output = ray.get(actors)
+
+            for out in output:
+                if out and out is not None:
+                    for record in out:
+                        n, m, geofeature = record
+                        if self._ifeatures is None:
+                            self._ifeatures = {
+                                "{}_{}".format(n, m): geofeature}
+                        else:
+                            self._ifeatures["{}_{}".format(n, m)] = geofeature
+
+        elif multithread:
 
             thread_list = []
             container = threading.BoundedSemaphore(thread_pool)
@@ -392,3 +431,67 @@ class GeoFeatures(object):
 
         df = pd.DataFrame.from_dict(outdic)
         return df
+
+
+@ray.remote
+def multiproc_intersection(IGNORE, features, polygon, ix, feature, n):
+    """
+    Multithreaded intersection operation handler
+
+    Parameters
+    ----------
+    IGNORE : list
+        list of keys to ignore
+    features : ray.put() object
+        ray put object of features
+    polygon : shapely.geometry.Polygon
+    ix : int
+        enumeration number
+    feature : shapely.geometry.Polygon
+        feature
+    container : threading.BoundedSemaphore
+
+    """
+    out = []
+
+    properties = features[ix].properties
+
+    a = polygon.intersection(feature)
+
+    if a.geom_type == "MultiPolygon":
+        p = list(a)
+    else:
+        p = [a, ]
+
+    m = 0
+    for a in p:
+        area = a.area
+        if area == 0:
+            continue
+        geoarea = feature.area
+        ratio = area / geoarea
+
+        adj_properties = {}
+        for k, v in properties.items():
+            if k in IGNORE:
+                adj_properties[k] = v
+            else:
+                try:
+                    adj_properties[k] = v * ratio
+                except TypeError:
+                    adj_properties[k] = v
+                    print("DEBUG NOTE: ", k, v)
+
+        xy = np.array(a.exterior.xy, dtype=float).T
+        xy = [(i[0], i[1]) for i in xy]
+
+        geopolygon = geojson.Polygon([xy])
+        geofeature = geojson.Feature(geometry=geopolygon,
+                                     properties=adj_properties)
+
+
+        out.append([n, m, geofeature])
+        m += 1
+
+    return out
+
