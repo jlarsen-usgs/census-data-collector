@@ -1,10 +1,17 @@
 import requests
-import ray
 from .tigerweb import TigerWebVariables
-from ..utils import Acs5Server, Acs1Server, Sf3Server, RestartableThread
+from ..utils import Acs5Server, Acs1Server, Sf3Server, RestartableThread, \
+    thread_count
 import threading
 import platform
 import copy
+
+if platform.system().lower() != "windows":
+    import ray
+else:
+    # todo: create a wrapper function for windows
+    ray = None
+
 
 
 class CensusBase(object):
@@ -225,7 +232,12 @@ class CensusBase(object):
 
         fmt = lut[self.year]['fmt']
 
-        if multiproc and platform.system().lower() != 'windows':
+        if multiproc and platform.system().lower == "windows":
+            multiproc = False
+            multithread = True
+            thread_pool = thread_count() - 1
+
+        if multiproc:
             actors = []
             for name in self.feature_names:
                 for featix, feature in enumerate(self.get_feature(name)):
@@ -255,6 +267,8 @@ class CensusBase(object):
                             except (TypeError, ValueError):
                                 self._features[name][featix].properties[header] = \
                                     float('nan')
+
+            print('xxxxx')
 
         elif multithread:
             container = threading.BoundedSemaphore(thread_pool)

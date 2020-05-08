@@ -7,9 +7,16 @@ import os
 import shapefile
 import pycrs
 import copy
-from ..utils import get_wkt_wkid_table, TigerWebMapServer
+from ..utils import get_wkt_wkid_table, TigerWebMapServer, thread_count
 from ..utils.geometry import calculate_circle
 import threading
+import platform
+
+if platform.system().lower() != "windows":
+    import ray
+else:
+    # todo: update this for a windows decorator
+    ray = None
 
 
 class TigerWebVariables(object):
@@ -282,7 +289,8 @@ class TigerWebBase(object):
         return s
 
     def get_data(self, year, level='finest', outfields=(), filter=(),
-                 verbose=True, multithread=False, thread_pool=4):
+                 verbose=True, multiproc=False, multithread=False,
+                 thread_pool=4):
         """
         Method to pull data feature data from tigerweb
 
@@ -301,6 +309,8 @@ class TigerWebBase(object):
             default is () which grabs all polygons
         verbose : bool
             verbose operation mode
+        multiproc : bool
+            flag to enable multiprocessing on linux using ray
         multithread : bool
             flag to enable/disable multithreaded data collection
         thread_pool : int
@@ -363,7 +373,35 @@ class TigerWebBase(object):
             filter = tuple([i.lower() if isinstance(i, str) else
                             i for i in filter])
 
-        if multithread:
+        if multiproc and platform.system().lower == "windows":
+            multiproc = False
+            multithread = True
+            thread_pool = thread_count() - 1
+
+        if multiproc:
+            actors = []
+            for key, esri_json in self._esri_json.items():
+                if filter:
+                    if key not in filter:
+                        continue
+
+                actor = multiproc_request_data.remote(key, base, mapserver,
+                                                      esri_json, geotype,
+                                                      outfields, verbose)
+                actors.append(actor)
+
+            output = []
+            for actor in actors:
+                output.append(ray.get(actor))
+
+            for out in output:
+                if out is None:
+                    continue
+                else:
+                    key, features = out
+                    self._features[key] = features
+
+        elif multithread:
             thread_list = []
             container = threading.BoundedSemaphore(thread_pool)
             for key, esri_json in self._esri_json.items():
@@ -532,6 +570,82 @@ class TigerWebBase(object):
         self._features[key] = features
 
         container.release()
+
+@ray.remote
+def multiproc_request_data(key, base, mapserver, esri_json, geotype,
+                           outfields, verbose):
+    """
+    Ray multiprocessing handler method to request data from the TigerWeb server
+
+    Parameters
+    ----------
+    key : str or int
+        feature identifier
+    base : str
+        base url
+    mapserver : int
+        map server number
+    esri_json : str
+        json geography string
+    geotype : str
+        geometery type
+    outfields : str
+        string of requested variables
+    verbose : bool
+        verbose operation mode
+    container : threading.BoundSemaphore
+
+    """
+    s = requests.session()
+    url = '/'.join([base, str(mapserver), "query?"])
+
+    s.params = {'where': '',
+                'text': '',
+                'objectIds': '',
+                'geometry': esri_json,
+                'geometryType': geotype,
+                'inSR': '',
+                'spatialRel': 'esriSpatialRelIntersects',
+                'relationParam': '',
+                'outFields': outfields,
+                'returnGeometry': True,
+                'returnTrueCurves': False,
+                'maxAllowableOffset': '',
+                'geometryPrecision': '',
+                'outSR': '',
+                'returnIdsOnly': False,
+                'returnCountOnly': False,
+                'orderByFields': '',
+                'groupByFieldsForStatistics': '',
+                'outStatistics': '',
+                'returnZ': False,
+                'returnM': False,
+                'gdbVersion': '',
+                'returnDistinctValues': False,
+                'f': 'geojson',
+                }
+    start = 0
+    done = False
+    features = []
+
+    while not done:
+        r = s.get(url, params={'resultOffset': start,
+                               'resultRecordCount': 32})
+        r.raise_for_status()
+        # print(r.text)
+        counties = geojson.loads(r.text)
+        newfeats = counties.__geo_interface__['features']
+        if newfeats:
+            features.extend(newfeats)
+            # crs = counties.__geo_interface__['crs']
+            start += len(newfeats)
+            if verbose:
+                print("Received", len(newfeats), "entries,",
+                      start, "total")
+        else:
+            done = True
+
+    return key, features
 
 
 class TigerWebPoint(TigerWebBase):
