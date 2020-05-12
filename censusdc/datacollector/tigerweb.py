@@ -406,6 +406,7 @@ class TigerWebBase(object):
                 if filter:
                     if key not in filter:
                         continue
+
                 x = threading.Thread(target=self.threaded_request_data,
                                      args=(key, base, mapserver, esri_json,
                                            geotype, outfields, verbose,
@@ -423,56 +424,8 @@ class TigerWebBase(object):
                     if key not in filter:
                         continue
 
-                s = requests.session()
-                url = '/'.join([base, str(mapserver), "query?"])
-
-                s.params = {'where': '',
-                            'text': '',
-                            'objectIds': '',
-                            'geometry': esri_json,
-                            'geometryType': geotype,
-                            'inSR': '',
-                            'spatialRel': 'esriSpatialRelIntersects',
-                            'relationParam': '',
-                            'outFields': outfields,
-                            'returnGeometry': True,
-                            'returnTrueCurves': False,
-                            'maxAllowableOffset': '',
-                            'geometryPrecision': '',
-                            'outSR': '',
-                            'returnIdsOnly': False,
-                            'returnCountOnly': False,
-                            'orderByFields': '',
-                            'groupByFieldsForStatistics': '',
-                            'outStatistics': '',
-                            'returnZ': False,
-                            'returnM': False,
-                            'gdbVersion': '',
-                            'returnDistinctValues': False,
-                            'f': 'geojson',
-                            }
-                start = 0
-                done = False
-                features = []
-
-                while not done:
-                    r = s.get(url, params={'resultOffset': start,
-                                           'resultRecordCount': 32})
-                    r.raise_for_status()
-                    # print(r.text)
-                    counties = geojson.loads(r.text)
-                    newfeats = counties.__geo_interface__['features']
-                    if newfeats:
-                        features.extend(newfeats)
-                        # crs = counties.__geo_interface__['crs']
-                        start += len(newfeats)
-                        if verbose:
-                            print("Received", len(newfeats), "entries,",
-                                  start, "total")
-                    else:
-                        done = True
-
-                self._features[key] = features
+                self.__request_data(key, base, mapserver, esri_json, geotype,
+                                    outfields, verbose)
 
         # cleanup duplicate features after query!
         for key, features in self._features.items():
@@ -490,10 +443,10 @@ class TigerWebBase(object):
 
             self._features[key] = features
 
-    def threaded_request_data(self, key, base, mapserver, esri_json, geotype,
-                              outfields, verbose, container):
+    def __request_data(self, key, base, mapserver, esri_json, geotype,
+                       outfields, verbose):
         """
-        Multithread handler method to request data from the TigerWeb server
+        Request data method for serial and multithread applications
 
         Parameters
         ----------
@@ -511,11 +464,11 @@ class TigerWebBase(object):
             string of requested variables
         verbose : bool
             verbose operation mode
-        container : threading.BoundSemaphore
+
+        Returns
+        -------
 
         """
-        container.acquire()
-
         s = requests.session()
         url = '/'.join([base, str(mapserver), "query?"])
 
@@ -567,7 +520,35 @@ class TigerWebBase(object):
 
         self._features[key] = features
 
+    def threaded_request_data(self, key, base, mapserver, esri_json, geotype,
+                              outfields, verbose, container):
+        """
+        Multithread handler method to request data from the TigerWeb server
+
+        Parameters
+        ----------
+        key : str or int
+            feature identifier
+        base : str
+            base url
+        mapserver : int
+            map server number
+        esri_json : str
+            json geography string
+        geotype : str
+            geometery type
+        outfields : str
+            string of requested variables
+        verbose : bool
+            verbose operation mode
+        container : threading.BoundSemaphore
+
+        """
+        container.acquire()
+        self.__request_data(key, base, mapserver, esri_json, geotype,
+                            outfields, verbose)
         container.release()
+
 
 @ray.remote
 def multiproc_request_data(key, base, mapserver, esri_json, geotype,
@@ -591,7 +572,6 @@ def multiproc_request_data(key, base, mapserver, esri_json, geotype,
         string of requested variables
     verbose : bool
         verbose operation mode
-    container : threading.BoundSemaphore
 
     """
     s = requests.session()
@@ -630,7 +610,7 @@ def multiproc_request_data(key, base, mapserver, esri_json, geotype,
     while not done:
         try:
             r = s.get(url, params={'resultOffset': start,
-                               'resultRecordCount': 32})
+                                   'resultRecordCount': 32})
             r.raise_for_status()
         except requests.exceptions.ConnectionError as e:
             if verbose:

@@ -303,92 +303,13 @@ class CensusBase(object):
         else:
             for name in self.feature_names:
                 for featix, feature in enumerate(self.get_feature(name)):
-                    loc = ""
-                    if level == "block_group":
-                        loc = fmt.format(
-                            feature.properties[TigerWebVariables.blkgrp],
-                            feature.properties[TigerWebVariables.state],
-                            feature.properties[TigerWebVariables.county],
-                            feature.properties[TigerWebVariables.tract])
-                    elif level == "tract":
-                        loc = fmt.format(
-                            feature.properties[TigerWebVariables.tract],
-                            feature.properties[TigerWebVariables.state],
-                            feature.properties[TigerWebVariables.county])
-                    elif level == "county_subdivision":
-                        loc = fmt.format(
-                            feature.properties[TigerWebVariables.cousub],
-                            feature.properties[TigerWebVariables.state],
-                            feature.properties[TigerWebVariables.county])
-                    elif level == "county":
-                        loc = fmt.format(
-                            feature.properties[TigerWebVariables.county],
-                            feature.properties[TigerWebVariables.state])
-                    elif level == "state":
-                        loc = fmt.format(
-                            feature.properties[TigerWebVariables.state])
-                    else:
-                        raise AssertionError("level is undefined")
+                    self.__request_data(feature, featix, name, level, fmt,
+                                        variables, url, retry, verbose)
 
-                    s = requests.session()
-
-                    if self.year == 1990:
-                        payload = {"get": variables,
-                                   "for": loc,
-                                   "key": self.__apikey}
-                    else:
-                        payload = {'get': "NAME," + variables,
-                                   'for': loc,
-                                   'key': self.__apikey}
-
-                    payload = "&".join(
-                        '{}={}'.format(k, v) for k, v in payload.items())
-
-                    n = 0
-                    e = "Unknown connection error"
-                    while n < retry:
-                        try:
-                            r = s.get(url, params=payload)
-                            r.raise_for_status()
-                            break
-                        except (requests.exceptions.HTTPError,
-                                requests.exceptions.ConnectionError) as e:
-                            n += 1
-                            print("Connection Error: Retry number "
-                                  "{}".format(n))
-
-                    if n == retry:
-                        raise requests.exceptions.HTTPError(e)
-
-                    if verbose:
-                        print('Getting {} data for {} '
-                              'feature # {}'.format(level, name, featix))
-                    try:
-                        data = r.json()
-                    except JSONDecodeError:
-                        data = []
-                        if verbose:
-                            print('Error getting {} data for {} '
-                                  'feature # {}'.format(level, name, featix))
-
-                    if len(data) == 2:
-                        for dix, header in enumerate(data[0]):
-                            if header == "NAME":
-                                continue
-                            elif header not in variables:
-                                continue
-                            else:
-                                try:
-                                    self._features[name][featix].properties[header] = \
-                                        float(data[1][dix])
-                                except (TypeError, ValueError):
-                                    self._features[name][featix].properties[header] = \
-                                        float('nan')
-
-    def threaded_request_data(self, feature, featix, name, level, fmt, variables,
-                               url, retry, verbose, thread_id, container):
+    def __request_data(self, feature, featix, name, level, fmt, variables,
+                       url, retry, verbose):
         """
-        Multithread method for requesting census data
+        Request data method for serial and multithreaded applications
 
         Parameters
         ----------
@@ -408,16 +329,13 @@ class CensusBase(object):
             string of census url
         retry : int
             number of retries based on connection error
-        verbose : str
+        verbose : bool
             verbose operation flag
-        thread_id : int
-            identifier for the thread
-        container : BoundedSemaphore
-            bound semaphore instance for thread pool management
+
+        Returns
+        -------
 
         """
-        container.acquire()
-        self.__thread_fail[thread_id] = True
         loc = ""
         if level == "block_group":
             loc = fmt.format(
@@ -469,22 +387,23 @@ class CensusBase(object):
             except (requests.exceptions.HTTPError,
                     requests.exceptions.ConnectionError) as e:
                 n += 1
-                print("Connection Error: Retry number {}".format(n))
+                print("Connection Error: Retry number "
+                      "{}".format(n))
 
         if n == retry:
             raise requests.exceptions.HTTPError(e)
 
         if verbose:
-            print('Getting {} data for {} feature # {}'.format(level,
-                                                               name,
-                                                               featix))
+            print('Getting {} data for {} '
+                  'feature # {}'.format(level, name, featix))
         try:
             data = r.json()
-        except:
+        except JSONDecodeError:
             data = []
             if verbose:
-                print('Error getting {} data for {} feature # {}'.format(
-                    level, name, featix))
+                print('Error getting {} data for {} '
+                      'feature # {}'.format(level, name, featix))
+
         if len(data) == 2:
             for dix, header in enumerate(data[0]):
                 if header == "NAME":
@@ -499,6 +418,41 @@ class CensusBase(object):
                         self._features[name][featix].properties[header] = \
                             float('nan')
 
+    def threaded_request_data(self, feature, featix, name, level, fmt, variables,
+                               url, retry, verbose, thread_id, container):
+        """
+        Multithread method for requesting census data
+
+        Parameters
+        ----------
+        feature : geoJSON
+            geoJSON feature
+        featix : int
+            feature index (in an enumeration)
+        name : str
+            feature name
+        level : str
+            census data level
+        fmt : str
+            format of level request
+        variables : str
+            string of census variables
+        url : str
+            string of census url
+        retry : int
+            number of retries based on connection error
+        verbose : bool
+            verbose operation flag
+        thread_id : int
+            identifier for the thread
+        container : BoundedSemaphore
+            bound semaphore instance for thread pool management
+
+        """
+        container.acquire()
+        self.__thread_fail[thread_id] = True
+        self.__request_data(feature, featix, name, level, fmt, variables,
+                            url, retry, verbose)
         self.__thread_fail[thread_id] = False
         container.release()
 

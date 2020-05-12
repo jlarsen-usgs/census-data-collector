@@ -43,7 +43,8 @@ def _IGNORE():
             TigerWebVariables.population,
             AcsVariables.median_income,
             Sf3Variables1990.median_income,
-            Sf3Variables.median_income)
+            Sf3Variables.median_income,
+            'population_density')
 
 
 def _AVERAGE():
@@ -51,7 +52,17 @@ def _AVERAGE():
     from ..datacollector.dec import Sf3Variables, Sf3Variables1990
     return (AcsVariables.median_income,
             Sf3Variables1990.median_income,
-            Sf3Variables.median_income)
+            Sf3Variables.median_income,
+            'population_density')
+
+
+def _POPULATION():
+    from ..datacollector.acs import AcsVariables
+    from ..datacollector.dec import Sf3Variables, Sf3Variables1990
+
+    return (Sf3Variables.population,
+            AcsVariables.population,
+            Sf3Variables1990.population)
 
 
 class GeoFeatures(object):
@@ -74,6 +85,7 @@ class GeoFeatures(object):
 
         self._create_shapely_geoms()
         self.IGNORE = _IGNORE()
+        self.POPULATION = _POPULATION()
 
     def _create_shapely_geoms(self):
         """
@@ -230,9 +242,10 @@ class GeoFeatures(object):
             n = 0
             for polygon in polygons:
                 for ix, feature in enumerate(self._shapely_features):
-                    actor = multiproc_intersection.remote(self.IGNORE, fid,
-                                                          polygon, ix,
-                                                          feature, n)
+                    actor = multiproc_intersection.remote(self.IGNORE,
+                                                          self.POPULATION,
+                                                          fid, polygon,
+                                                          ix, feature, n)
                     actors.append(actor)
                     n += 1
 
@@ -270,55 +283,14 @@ class GeoFeatures(object):
             n = 0
             for polygon in polygons:
                 for ix, feature in enumerate(self._shapely_features):
-                    properties = self.features[ix].properties
-
-                    a = polygon.intersection(feature)
-
-                    if a.geom_type == "MultiPolygon":
-                        p = list(a)
-                    else:
-                        p = [a, ]
-
-                    m = 0
-                    for a in p:
-                        area = a.area
-                        if area == 0:
-                            continue
-                        geoarea = feature.area
-                        ratio = area / geoarea
-
-                        adj_properties = {}
-                        for k, v in properties.items():
-                            if k in self.IGNORE:
-                                adj_properties[k] = v
-                            else:
-                                try:
-                                    adj_properties[k] = v * ratio
-                                except TypeError:
-                                    adj_properties[k] = v
-                                    print("DEBUG NOTE: ", k, v)
-
-                        xy = np.array(a.exterior.xy, dtype=float).T
-                        xy = [(i[0], i[1]) for i in xy]
-
-                        geopolygon = geojson.Polygon([xy])
-                        geofeature = geojson.Feature(geometry=geopolygon,
-                                                     properties=adj_properties)
-
-                        if self._ifeatures is None:
-                            self._ifeatures = {"{}_{}".format(n, m):
-                                               geofeature}
-                        else:
-                            self._ifeatures["{}_{}".format(n, m)] = geofeature
-                        m += 1
-
+                    self.__intersection(polygon, ix, feature, n)
                     n += 1
 
         self._ifeatures = [v for k, v in self._ifeatures.items()]
 
-    def __threaded_intersection(self, polygon, ix, feature, n, container):
+    def __intersection(self, polygon, ix, feature, n):
         """
-        Multithreaded intersection operation handler
+        Intersection method for threaded and serial function calls
 
         Parameters
         ----------
@@ -327,11 +299,13 @@ class GeoFeatures(object):
             enumeration number
         feature : shapely.geometry.Polygon
             feature
-        container : threading.BoundedSemaphore
+        n : int
+            counter
+
+        Returns
+        -------
 
         """
-        container.acquire()
-
         properties = self.features[ix].properties
 
         a = polygon.intersection(feature)
@@ -350,15 +324,21 @@ class GeoFeatures(object):
             ratio = area / geoarea
 
             adj_properties = {}
+            pop = 0
             for k, v in properties.items():
                 if k in self.IGNORE:
                     adj_properties[k] = v
                 else:
+                    if k in self.POPULATION:
+                        pop = v * ratio
                     try:
                         adj_properties[k] = v * ratio
                     except TypeError:
                         adj_properties[k] = v
                         print("DEBUG NOTE: ", k, v)
+
+            if pop > 0:
+                adj_properties["population_density"] = pop / area
 
             xy = np.array(a.exterior.xy, dtype=float).T
             xy = [(i[0], i[1]) for i in xy]
@@ -373,6 +353,24 @@ class GeoFeatures(object):
                 self._ifeatures["{}_{}".format(n, m)] = geofeature
             m += 1
 
+    def __threaded_intersection(self, polygon, ix, feature, n, container):
+        """
+        Multithreaded intersection operation handler
+
+        Parameters
+        ----------
+        polygon : shapely.geometry.Polygon
+        ix : int
+            enumeration number
+        feature : shapely.geometry.Polygon
+            feature
+        n : int
+            counter
+        container : threading.BoundedSemaphore
+
+        """
+        container.acquire()
+        self.__intersection(polygon, ix, feature, n)
         container.release()
 
     @staticmethod
@@ -415,7 +413,7 @@ class GeoFeatures(object):
             if prop in d:
                 d[prop] = np.nanmean(d[prop])
 
-        outdic = {}
+        outdic = dict()
         outdic["year"] = [year, ]
         if hr_dict is not None:
             keys = list(d.keys())
@@ -434,7 +432,8 @@ class GeoFeatures(object):
 
 
 @ray.remote
-def multiproc_intersection(IGNORE, features, polygon, ix, feature, n):
+def multiproc_intersection(IGNORE, POPULATION, features, polygon, ix,
+                           feature, n):
     """
     Multithreaded intersection operation handler
 
@@ -442,6 +441,8 @@ def multiproc_intersection(IGNORE, features, polygon, ix, feature, n):
     ----------
     IGNORE : list
         list of keys to ignore
+    POPULATION : list
+        list of potential population keys to calc. pop density
     features : ray.put() object
         ray put object of features
     polygon : shapely.geometry.Polygon
@@ -449,7 +450,8 @@ def multiproc_intersection(IGNORE, features, polygon, ix, feature, n):
         enumeration number
     feature : shapely.geometry.Polygon
         feature
-    container : threading.BoundedSemaphore
+    n : int
+        counter
 
     """
     out = []
@@ -472,15 +474,21 @@ def multiproc_intersection(IGNORE, features, polygon, ix, feature, n):
         ratio = area / geoarea
 
         adj_properties = {}
+        pop = 0
         for k, v in properties.items():
             if k in IGNORE:
                 adj_properties[k] = v
             else:
+                if k in POPULATION:
+                    pop = v * ratio
                 try:
                     adj_properties[k] = v * ratio
                 except TypeError:
                     adj_properties[k] = v
                     print("DEBUG NOTE: ", k, v)
+
+        if pop > 0:
+            adj_properties["population_density"] = pop / area
 
         xy = np.array(a.exterior.xy, dtype=float).T
         xy = [(i[0], i[1]) for i in xy]
@@ -489,9 +497,7 @@ def multiproc_intersection(IGNORE, features, polygon, ix, feature, n):
         geofeature = geojson.Feature(geometry=geopolygon,
                                      properties=adj_properties)
 
-
         out.append([n, m, geofeature])
         m += 1
 
     return out
-
