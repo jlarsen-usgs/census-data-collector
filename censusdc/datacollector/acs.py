@@ -136,5 +136,3 @@ class Acs5(CensusBase):
                                    multiproc=multiproc,
                                    multithread=multithread,
                                    thread_pool=thread_pool)
-
-

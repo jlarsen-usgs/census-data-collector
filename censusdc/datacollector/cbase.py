@@ -169,9 +169,8 @@ class CensusBase(object):
 
         self._features_level = self.__level_dict[min(level)]
 
-    def get_data(self, level='finest', variables=(), retry=100,
-                 multiproc=False, multithread=False, thread_pool=4,
-                 verbose=True):
+    def get_data(self, level='finest', variables=(), retry=100, verbose=True,
+                 multiproc=False, multithread=False, thread_pool=4):
         """
         Method to get data from the Acs5 servers and set it to feature
         properties!
@@ -187,8 +186,12 @@ class CensusBase(object):
             the Acs5Variables class
         retry : int
             number of retries for HTTP connection issues before failure
+        verbose : bool
+            verbose operation mode
         multithread : bool
             flag to use a multithreaded method of collecting census data
+        multiproc : bool
+            multiprocessing support using ray, linux only!
         thread_pool : int
             number of threads to perform data collection while multithreading
         """
