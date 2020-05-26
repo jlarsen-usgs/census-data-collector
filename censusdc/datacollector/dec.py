@@ -89,8 +89,7 @@ class Sf3(CensusBase):
         super(Sf3, self).__init__(features, year, apikey, 'sf3')
 
     def get_data(self, level='finest', variables=(), retry=100, verbose=True,
-                 multiproc=False, condor_func=None, multithread=False,
-                 thread_pool=4):
+                 multiproc=False, multithread=False, thread_pool=4):
         """
         Method to get data from the Sf3 servers and set it to feature
         properties!
@@ -110,9 +109,6 @@ class Sf3(CensusBase):
             verbose operation mode
         multiproc : bool
             multiprocessing support using ray, linux only!
-        condor_func : function cbase.multiproc_request_data
-             patch parameter method to get around ray and condor
-             funkiness for now.
         multithread : bool
             boolean flag to allow multithreading of data collection
         thread_pool : int
@@ -122,6 +118,5 @@ class Sf3(CensusBase):
         super(Sf3, self).get_data(level=level, variables=variables,
                                   retry=retry, verbose=verbose,
                                   multiproc=multiproc,
-                                  condor_func=condor_func,
                                   multithread=multithread,
                                   thread_pool=thread_pool)

@@ -170,8 +170,7 @@ class CensusBase(object):
         self._features_level = self.__level_dict[min(level)]
 
     def get_data(self, level='finest', variables=(), retry=100, verbose=True,
-                 multiproc=False, condor_func=None, multithread=False,
-                 thread_pool=4):
+                 multiproc=False, multithread=False, thread_pool=4):
         """
         Method to get data from the Acs5 servers and set it to feature
         properties!
@@ -191,9 +190,6 @@ class CensusBase(object):
             verbose operation mode
         multiproc : bool
             multiprocessing support using ray, linux only!
-        condor_func : function cbase.multiproc_request_data
-             patch parameter method to get around ray and condor
-             funkiness for now.
         multithread : bool
             flag to use a multithreaded method of collecting census data
         thread_pool : int
@@ -248,22 +244,18 @@ class CensusBase(object):
             thread_pool = thread_count() - 1
 
         if multiproc:
+            year = self.year
+            apikey = self.__apikey
             actors = []
+            twv = {k: v for k, v in TigerWebVariables.__dict__.items()
+                   if not k.startswith("__")}
             for name in self.feature_names:
                 for featix, feature in enumerate(self.get_feature(name)):
-                    if condor_func is not None:
-                        actor = condor_func.remote(self.year, self.__apikey,
-                                                   feature, featix, name,
-                                                   level, fmt, variables, url,
-                                                   retry, verbose)
-                    else:
-                        actor = multiproc_request_data.remote(self.year,
-                                                              self.__apikey,
-                                                              feature, featix,
-                                                              name, level,
-                                                              fmt, variables,
-                                                              url, retry,
-                                                              verbose)
+                    actor = multiproc_data_request.remote(
+                        year, apikey, feature, featix,
+                        name, level, fmt, variables, url,
+                        retry, verbose, twv)
+
                     actors.append(actor)
 
             output = ray.get(actors)
@@ -470,10 +462,10 @@ class CensusBase(object):
         self.__thread_fail[thread_id] = False
         container.release()
 
-
 @ray.remote
-def multiproc_request_data(year, apikey, feature, featix, name, level, fmt,
-                           variables, url, retry, verbose):
+def multiproc_data_request(year, apikey, feature, featix, name,
+                           level, fmt, variables, url, retry, verbose,
+                           TigerwebVariables):
     """
     Multithread method for requesting census data
 
@@ -505,27 +497,27 @@ def multiproc_request_data(year, apikey, feature, featix, name, level, fmt,
     loc = ""
     if level == "block_group":
         loc = fmt.format(
-            feature.properties[TigerWebVariables.blkgrp],
-            feature.properties[TigerWebVariables.state],
-            feature.properties[TigerWebVariables.county],
-            feature.properties[TigerWebVariables.tract])
+            feature.properties[TigerwebVariables['blkgrp']],
+            feature.properties[TigerwebVariables['state']],
+            feature.properties[TigerwebVariables['county']],
+            feature.properties[TigerwebVariables['tract']])
     elif level == "tract":
         loc = fmt.format(
-            feature.properties[TigerWebVariables.tract],
-            feature.properties[TigerWebVariables.state],
-            feature.properties[TigerWebVariables.county])
+            feature.properties[TigerwebVariables['tract']],
+            feature.properties[TigerwebVariables['state']],
+            feature.properties[TigerwebVariables['county']])
     elif level == "county_subdivision":
         loc = fmt.format(
-            feature.properties[TigerWebVariables.cousub],
-            feature.properties[TigerWebVariables.state],
-            feature.properties[TigerWebVariables.county])
+            feature.properties[TigerwebVariables['cousub']],
+            feature.properties[TigerwebVariables['state']],
+            feature.properties[TigerwebVariables['county']])
     elif level == "county":
         loc = fmt.format(
-            feature.properties[TigerWebVariables.county],
-            feature.properties[TigerWebVariables.state])
+            feature.properties[TigerwebVariables['county']],
+            feature.properties[TigerwebVariables['state']])
     elif level == "state":
         loc = fmt.format(
-            feature.properties[TigerWebVariables.state])
+            feature.properties[TigerwebVariables['state']])
     else:
         raise AssertionError("level is undefined")
 

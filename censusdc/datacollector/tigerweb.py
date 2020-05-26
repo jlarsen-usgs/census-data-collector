@@ -290,7 +290,7 @@ class TigerWebBase(object):
 
     def get_data(self, year, level='finest', outfields=(), filter=(),
                  verbose=True, multiproc=False, multithread=False,
-                 thread_pool=4):
+                 thread_pool=4, retry=100):
         """
         Method to pull data feature data from tigerweb
 
@@ -315,6 +315,8 @@ class TigerWebBase(object):
             flag to enable/disable multithreaded data collection
         thread_pool : int
             number of threads requested for multithreaded operations
+        retry : int
+            number of retries if connection is interupted
 
         Returns
         -------
@@ -387,7 +389,8 @@ class TigerWebBase(object):
 
                 actor = multiproc_request_data.remote(key, base, mapserver,
                                                       esri_json, geotype,
-                                                      outfields, verbose)
+                                                      outfields, verbose,
+                                                      retry)
                 actors.append(actor)
 
             output = ray.get(actors)
@@ -410,7 +413,7 @@ class TigerWebBase(object):
                 x = threading.Thread(target=self.threaded_request_data,
                                      args=(key, base, mapserver, esri_json,
                                            geotype, outfields, verbose,
-                                           container))
+                                           retry, container))
                 thread_list.append(x)
 
             for thread in thread_list:
@@ -425,7 +428,7 @@ class TigerWebBase(object):
                         continue
 
                 self.__request_data(key, base, mapserver, esri_json, geotype,
-                                    outfields, verbose)
+                                    outfields, verbose, retry)
 
         # cleanup duplicate features after query!
         for key, features in self._features.items():
@@ -444,7 +447,7 @@ class TigerWebBase(object):
             self._features[key] = features
 
     def __request_data(self, key, base, mapserver, esri_json, geotype,
-                       outfields, verbose):
+                       outfields, verbose, retry):
         """
         Request data method for serial and multithread applications
 
@@ -464,6 +467,8 @@ class TigerWebBase(object):
             string of requested variables
         verbose : bool
             verbose operation mode
+        retry : int
+            number of retries
 
         Returns
         -------
@@ -500,11 +505,24 @@ class TigerWebBase(object):
         start = 0
         done = False
         features = []
+        n = 0
 
         while not done:
-            r = s.get(url, params={'resultOffset': start,
-                                   'resultRecordCount': 32})
-            r.raise_for_status()
+            try:
+                r = s.get(url, params={'resultOffset': start,
+                                       'resultRecordCount': 32})
+                r.raise_for_status()
+            except (requests.exceptions.HTTPError,
+                    requests.exceptions.ConnectionError) as e:
+                n += 1
+                if verbose:
+                    print("ConnectionError: retry number {}".format(n))
+
+                if n == retry:
+                    raise Exception(e)
+                else:
+                    continue
+
             # print(r.text)
             counties = geojson.loads(r.text)
             newfeats = counties.__geo_interface__['features']
@@ -521,7 +539,7 @@ class TigerWebBase(object):
         self._features[key] = features
 
     def threaded_request_data(self, key, base, mapserver, esri_json, geotype,
-                              outfields, verbose, container):
+                              outfields, verbose, retry, container):
         """
         Multithread handler method to request data from the TigerWeb server
 
@@ -541,18 +559,20 @@ class TigerWebBase(object):
             string of requested variables
         verbose : bool
             verbose operation mode
+        retry : int
+            number of retries
         container : threading.BoundSemaphore
 
         """
         container.acquire()
         self.__request_data(key, base, mapserver, esri_json, geotype,
-                            outfields, verbose)
+                            outfields, verbose, retry)
         container.release()
 
 
 @ray.remote
 def multiproc_request_data(key, base, mapserver, esri_json, geotype,
-                           outfields, verbose):
+                           outfields, verbose, retry):
     """
     Ray multiprocessing handler method to request data from the TigerWeb server
 
@@ -572,6 +592,8 @@ def multiproc_request_data(key, base, mapserver, esri_json, geotype,
         string of requested variables
     verbose : bool
         verbose operation mode
+    retry : int
+        number of retries
 
     """
     s = requests.session()
@@ -612,14 +634,16 @@ def multiproc_request_data(key, base, mapserver, esri_json, geotype,
             r = s.get(url, params={'resultOffset': start,
                                    'resultRecordCount': 32})
             r.raise_for_status()
-        except requests.exceptions.ConnectionError as e:
-            if verbose:
-                print("ConnectionError, retrying")
+        except (requests.exceptions.HTTPError,
+                requests.exceptions.ConnectionError) as e:
             n += 1
-            if n == 100:
-                raise Exception(e)
+            if verbose:
+                print("ConnectionError: retry number {}".format(n))
 
-            continue
+            if n == retry:
+                raise Exception(e)
+            else:
+                continue
 
         counties = geojson.loads(r.text)
         newfeats = counties.__geo_interface__['features']
