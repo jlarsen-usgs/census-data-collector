@@ -170,7 +170,8 @@ class CensusBase(object):
         self._features_level = self.__level_dict[min(level)]
 
     def get_data(self, level='finest', variables=(), retry=100, verbose=True,
-                 multiproc=False, multithread=False, thread_pool=4):
+                 multiproc=False, condor_func=None, multithread=False,
+                 thread_pool=4):
         """
         Method to get data from the Acs5 servers and set it to feature
         properties!
@@ -188,10 +189,13 @@ class CensusBase(object):
             number of retries for HTTP connection issues before failure
         verbose : bool
             verbose operation mode
-        multithread : bool
-            flag to use a multithreaded method of collecting census data
         multiproc : bool
             multiprocessing support using ray, linux only!
+        condor_func : function cbase.multiproc_request_data
+             patch parameter method to get around ray and condor
+             funkiness for now.
+        multithread : bool
+            flag to use a multithreaded method of collecting census data
         thread_pool : int
             number of threads to perform data collection while multithreading
         """
@@ -247,12 +251,19 @@ class CensusBase(object):
             actors = []
             for name in self.feature_names:
                 for featix, feature in enumerate(self.get_feature(name)):
-                    actor = multiproc_request_data.remote(self.year,
-                                                          self.__apikey,
-                                                          feature, featix,
-                                                          name, level,
-                                                          fmt, variables, url,
-                                                          retry, verbose)
+                    if condor_func is not None:
+                        actor = condor_func.remote(self.year, self.__apikey,
+                                                   feature, featix, name,
+                                                   level, fmt, variables, url,
+                                                   retry, verbose)
+                    else:
+                        actor = multiproc_request_data.remote(self.year,
+                                                              self.__apikey,
+                                                              feature, featix,
+                                                              name, level,
+                                                              fmt, variables,
+                                                              url, retry,
+                                                              verbose)
                     actors.append(actor)
 
             output = ray.get(actors)
