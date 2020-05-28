@@ -172,6 +172,9 @@ class TigerWebBase(object):
             geoJSON object
         """
         if name not in self._features:
+            name = str(name)
+
+        if name not in self._features:
             raise KeyError("Name: {} not present in feature dict".format(name))
         else:
             return copy.deepcopy(self._features[name])
