@@ -45,6 +45,17 @@ class CensusTimeSeries(object):
         """
         return self._shapes
 
+    @property
+    def available_years(self):
+        """
+        Available census data years
+
+        Returns
+        -------
+            list
+        """
+        return TigerWebMapServer.base.keys()
+
     def get_shape(self, name):
         """
         Method to get the shapefile shapes from the shapes dict
