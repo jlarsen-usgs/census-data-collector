@@ -227,26 +227,32 @@ class GeoFeatures(object):
         elif flag == "list":
             t = []
             for shape in polygons:
-                p = Polygon(shape)
-                if not p.is_valid:
-                    if verbose:
-                        print("Reparing Geometry {}".format(self.__name), ":",
-                              explain_validity(p))
-                    p = p.buffer(0.0)
-                    if isinstance(p, MultiPolygon):
-                        p = list(p)
-                    else:
-                        p = [p,]
-                else:
-                    p = [p,]
-
-                for poly in p:
-                    t.append(poly)
+                t.append(Polygon(shape))
 
             polygons = t
 
         else:
             raise Exception("Code shouldn't have made it here!")
+
+        # repair self-intersections
+        t = []
+        for p in polygons:
+            if not p.is_valid:
+                if verbose:
+                    print("Repairing Geometry {}".format(self.__name), ":",
+                          explain_validity(p))
+                p = p.buffer(0.0)
+                if isinstance(p, MultiPolygon):
+                    p = list(p)
+                else:
+                    p = [p,]
+            else:
+                p = [p,]
+
+            for poly in p:
+                t.append(poly)
+
+        polygons = t
 
         if multiproc and platform.system().lower() == "windows":
             multiproc = False
