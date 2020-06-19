@@ -3,6 +3,8 @@ import copy
 import shapefile
 import calendar
 import pandas as pd
+import warnings
+warnings.simplefilter('always', UserWarning)
 
 
 class CensusTimeSeries(object):
@@ -54,7 +56,25 @@ class CensusTimeSeries(object):
         -------
             list
         """
-        return TigerWebMapServer.base.keys()
+        return tuple(TigerWebMapServer.base.keys())
+
+    def get_census_object(self, year):
+        """
+        Method to grab census objects for further post-processing
+
+        Parameters
+        ----------
+        year : int
+            census year
+
+        Returns
+        -------
+            censusdc.datacollector.cbase.CensusBase object
+        """
+        if year in self._censusobj:
+            return self._censusobj[year]
+        else:
+            return None
 
     def get_shape(self, name):
         """
@@ -262,6 +282,10 @@ class CensusTimeSeries(object):
                 raise AssertionError("Check that intersection polygons "
                                      "intersect the census AOI and that "
                                      "projection is WGS84")
+            if not features:
+                msg = "No census data found for {}: year {}, check that " \
+                      "projection is in WGS84".format(feature_name, year)
+                warnings.warn(msg, UserWarning)
 
             if hr_dict is None:
                 refresh = True

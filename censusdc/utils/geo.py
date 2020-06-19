@@ -156,11 +156,17 @@ class GeoFeatures(object):
             elif isinstance(polygons[0], Polygon):
                 flag = "shapely"
             elif isinstance(polygons[0], (list, tuple)):
-                polygons = np.array(polygons)
-                if len(polygons.shape) == 2:
-                    polygons = np.array([polygons])
-                elif len(polygons.shape) == 3:
-                    pass
+                if isinstance(polygons[0][0], (float, np.float_, int)):
+                    polygons = [polygons]
+                elif isinstance(polygons[0][0], (list, tuple)):
+                    if isinstance(polygons[0][0][0], (float, np.float_, int)):
+                        pass
+                    elif isinstance(polygons[0][0][0], (list, tuple)):
+                        raise IndexError('Polygons must be in a 2 or 3 '
+                                         'dimensional list')
+                    else:
+                        raise ValueError("Polygon indicies must be float or "
+                                         "int type values")
                 else:
                     raise IndexError(
                         'Polygons must be in a 2 or 3 dimensional list')
@@ -308,8 +314,10 @@ class GeoFeatures(object):
                 for ix, feature in enumerate(self._shapely_features):
                     self.__intersection(polygon, ix, feature, n)
                     n += 1
-
-        self._ifeatures = [v for k, v in self._ifeatures.items()]
+        if self._ifeatures is not None:
+            self._ifeatures = [v for k, v in self._ifeatures.items()]
+        else:
+            self._ifeatures = []
 
     def __intersection(self, polygon, ix, feature, n):
         """
@@ -412,6 +420,7 @@ class GeoFeatures(object):
 
         Returns
         -------
+            pd.DataFrame
 
         """
         IGNORE = _IGNORE()
@@ -452,6 +461,138 @@ class GeoFeatures(object):
 
         df = pd.DataFrame.from_dict(outdic)
         return df
+
+    @staticmethod
+    def compiled_feature(year, polygon, feature_name, df=None, features=None,
+                         hr_dict=None):
+        """
+        Method to compile intersected features attributes with a supplied
+        polygon and create a new geoJSON feature
+
+        User must supply either a compiled dataframe from
+        GeoFeatures.features_to_dataframe or a dictionary of geoJSON feature
+        objects
+
+        Parameters
+        ----------
+        year : int
+            census year
+        polygon : list, shapefile.Shape, shapely.geometry.Polygon,
+                  shapely.Geometry.MultiPolygon, geojson.Feature,
+                  geojson.Polygon, geojson.MultiPolygon
+            feature to compile and set attributes to
+        feature_name : str, int
+            polygon identifier, recommend using feature_name from tw
+        df : pd.DataFrame
+            optional: output from feature_to_dataframe method
+        features : dict
+            geoJSON features
+        hr_dict : dict
+            human readable column labels for census fields
+
+        Returns
+        -------
+            geoJSON feature object
+
+        """
+        if df is None and features is None:
+            raise AssertionError("User must supply a dataframe or "
+                                 "geoJSON features")
+        elif df is None:
+            df = GeoFeatures.features_to_dataframe(year, features, hr_dict)
+        else:
+            pass
+
+        if isinstance(polygon, list):
+            if isinstance(polygon[0], (tuple, list)):
+                if isinstance(polygon[0][0], (float, np.float_, int)):
+                    polygon = [polygon]
+                elif isinstance(polygon[0][0], (list, tuple)):
+                    if isinstance(polygon[0][0][0], (float, np.float_, int)):
+                        pass
+                    elif isinstance(polygon[0][0][0], (list, tuple)):
+                        raise IndexError('Polygons must be in a 2 or 3 '
+                                         'dimensional list')
+                    else:
+                        raise ValueError("Polygon indicies must be float or "
+                                         "int type values")
+                else:
+                    raise IndexError(
+                        'Polygons must be in a 2 or 3 dimensional list')
+
+                if len(polygon) > 1:
+                    t = []
+                    for p in polygon:
+                        t.append((p,))
+                    polygon = geojson.MultiPolygon(t)
+                else:
+                    polygon = geojson.Polygon(polygon)
+
+            else:
+                err = "Only single polygons/multipolygons are supported"
+                raise NotImplementedError(err)
+
+        elif isinstance(polygon, shapefile.Shape):
+            # todo: debug this part
+            shape_type = polygon.__geo_interface__['type']
+            coords = polygon.points
+            if shape_type.lower() == "polygon":
+                polygon = geojson.Polygon([coords])
+
+            elif shape_type.lower() == "multipolygon":
+                t = []
+                parts = list(polygon.parts)
+                for ix in range(1, len(parts)):
+                    i0 = parts[ix - 1]
+                    i1 = parts[ix]
+                    t.append((coords[i0:i1],))
+
+                    if len(parts) == ix + 1:
+                        t.append((coords[i1:],))
+
+                    else:
+                        pass
+
+                polygon = geojson.MultiPolygon(t)
+
+        elif isinstance(polygon, (Polygon, MultiPolygon)):
+
+            if isinstance(polygon, Polygon):
+                x, y = polygon.exterior.xy
+                coords = list(zip(x, y))
+                polygon = geojson.Polygon([coords])
+            else:
+                t = []
+                for geom in polygon.geoms:
+                    if isinstance(geom, Polygon):
+                        x, y = geom.exterior.xy
+                        coords = list(zip(x, y))
+                        t.append((coords, ))
+
+                polygon = geojson.MultiPolygon(polygon)
+
+        elif isinstance(polygon, (geojson.Feature,
+                                  geojson.Polygon,
+                                  geojson.MultiPolygon)):
+            if isinstance(polygon, geojson.Feature):
+                polygon = geojson.geometry
+
+        else:
+            err = "Input type not yet implemented: Method currently " \
+                  "supports (Shapely, Shapefile.shape, and lists of verticies"
+            raise NotImplementedError(err)
+
+        cols = list(df)
+
+        properties = {"feature_name": feature_name}
+        if "year" in cols:
+            df = df[df.year == year]
+
+        for c in cols:
+            properties[c] = df[c].values[0]
+
+        new_feat = geojson.Feature(geometry=polygon, properties=properties)
+        return new_feat
 
 
 @ray.remote

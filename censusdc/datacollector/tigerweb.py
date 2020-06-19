@@ -835,6 +835,7 @@ class TigerWebPolygon(TigerWebBase):
 
         name = -1
         for ix, shape in enumerate(self.sf.shapes()):
+            shape = self.sf.shape(ix)
             if len(shape.points) > 20:
                 # get the bbox to do the tigerweb data pull
                 bbox = shape.bbox
@@ -853,7 +854,27 @@ class TigerWebPolygon(TigerWebBase):
                 name += 1
 
             self._esri_json[name] = esri_json
-            self._shapes[name] = shape.points
+
+            shape_type = shape.__geo_interface__['type']
+            if shape_type.lower() == "multipolygon":
+                points = []
+                coords = shape.points
+                parts = list(shape.parts)
+                for ix in range(1, len(parts)):
+                    i0 = parts[ix - 1]
+                    i1 = parts[ix]
+                    points.append([list(i) for i in coords[i0:i1]])
+
+                    if len(parts) == ix + 1:
+                        points.append([list(i) for i in coords[i1:]])
+
+                    else:
+                        pass
+
+            else:
+                points =  shape.points
+
+            self._shapes[name] = points
 
 
 class TigerWeb(object):
