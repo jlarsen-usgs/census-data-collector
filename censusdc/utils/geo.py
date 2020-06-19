@@ -533,7 +533,6 @@ class GeoFeatures(object):
                 raise NotImplementedError(err)
 
         elif isinstance(polygon, shapefile.Shape):
-            # todo: debug this part
             shape_type = polygon.__geo_interface__['type']
             coords = polygon.points
             if shape_type.lower() == "polygon":
@@ -584,7 +583,7 @@ class GeoFeatures(object):
 
         cols = list(df)
 
-        properties = {"feature_name": feature_name}
+        properties = {"feat_name": feature_name}
         if "year" in cols:
             df = df[df.year == year]
 
