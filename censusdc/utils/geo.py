@@ -153,8 +153,10 @@ class GeoFeatures(object):
         elif isinstance(polygons, list):
             if isinstance(polygons[0], shapefile.Shape):
                 flag = 'shapefile'
+
             elif isinstance(polygons[0], Polygon):
                 flag = "shapely"
+
             elif isinstance(polygons[0], (list, tuple)):
                 if isinstance(polygons[0][0], (float, np.float_, int)):
                     polygons = [polygons]
@@ -173,6 +175,9 @@ class GeoFeatures(object):
 
                 flag = "list"
 
+            elif isinstance(polygons[0], geojson.Feature):
+                flag = 'geojson'
+
         elif isinstance(polygons, shapefile.Shape):
             polygons = [polygons, ]
             flag = "shapefile"
@@ -180,6 +185,10 @@ class GeoFeatures(object):
         elif isinstance(polygons, (Polygon, MultiPolygon)):
             polygons = [polygons, ]
             flag = "shapely"
+
+        elif isinstance(polygons, (geojson.Feature)):
+            polygons = [polygons, ]
+            flag = 'geojson'
 
         else:
             raise TypeError("{}: not yet supported".format(type(polygons)))
@@ -234,6 +243,37 @@ class GeoFeatures(object):
             t = []
             for shape in polygons:
                 t.append(Polygon(shape))
+
+            polygons = t
+
+        elif flag == 'geojson':
+            # preferred data type!
+            t = []
+            for shape in polygons:
+                if shape.geometry.type.lower() == 'polygon':
+                    if len(shape.geometry.coordinates) > 1:
+                        # handle holes
+                        p = Polygon(shape.geometry.coordinates[0],
+                                    shape.geometry.coordinates[1:])
+                    else:
+                        p = Polygon(shape.geometry.coordinates[0])
+
+                    t.append(p)
+
+                elif shape.geometry.type.lower() == "multipolygon":
+                    for coords in shape.geometry.coordinates:
+                        if len(coords) > 1:
+                            # handle holes
+                            p = Polygon(coords[0],
+                                        coords[1:])
+                        else:
+                            p = Polygon(coords[0])
+
+                        t.append(p)
+
+                else:
+                    raise TypeError('Only multipolygon and polygon '
+                                    'features are supported')
 
             polygons = t
 
@@ -343,6 +383,20 @@ class GeoFeatures(object):
 
         if a.geom_type == "MultiPolygon":
             p = list(a)
+
+        elif a.geom_type == "GeometryCollection":
+            t = list(a)
+            p = []
+            for shape in t:
+                if shape.geom_type == "Polygon":
+                    p.append(shape)
+                elif shape.geom_type == "MultiPolygon":
+                    for sh in list(shape):
+                        p.append(sh)
+
+                else:
+                    pass
+
         else:
             p = [a, ]
 
@@ -570,11 +624,9 @@ class GeoFeatures(object):
 
                 polygon = geojson.MultiPolygon(polygon)
 
-        elif isinstance(polygon, (geojson.Feature,
-                                  geojson.Polygon,
-                                  geojson.MultiPolygon)):
+        elif isinstance(polygon, geojson.Feature):
             if isinstance(polygon, geojson.Feature):
-                polygon = geojson.geometry
+                polygon = polygon.geometry
 
         else:
             err = "Input type not yet implemented: Method currently " \
@@ -625,6 +677,20 @@ def multiproc_intersection(IGNORE, POPULATION, features, polygon, ix,
 
     if a.geom_type == "MultiPolygon":
         p = list(a)
+
+    elif a.geom_type == "GeometryCollection":
+        t = list(a)
+        p = []
+        for shape in t:
+            if shape.geom_type == "Polygon":
+                p.append(shape)
+            elif shape.geom_type == "MultiPolygon":
+                for sh in list(shape):
+                    p.append(sh)
+
+            else:
+                pass
+
     else:
         p = [a, ]
 

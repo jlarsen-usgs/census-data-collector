@@ -748,7 +748,8 @@ class TigerWebPoint(TigerWebBase):
 
             self._esri_json[name] = esri_json
             self._points[name] = points
-            self._shapes[name] = polygon
+            polygon = geojson.Polygon(points)
+            self._shapes[name] = geojson.Feature(geometry=polygon)
 
     def _get_points(self):
         """
@@ -855,6 +856,14 @@ class TigerWebPolygon(TigerWebBase):
 
             self._esri_json[name] = esri_json
 
+            geofeat = shape.__geo_interface__
+            if geofeat['type'].lower() == "polygon":
+                poly = geojson.Polygon(geofeat['coordinates'])
+            else:
+                poly = geojson.MultiPolygon(geofeat['coordinates'])
+
+            geofeat = geojson.Feature(geometry=poly)
+            """
             shape_type = shape.__geo_interface__['type']
             if shape_type.lower() == "multipolygon":
                 points = []
@@ -873,8 +882,8 @@ class TigerWebPolygon(TigerWebBase):
 
             else:
                 points =  shape.points
-
-            self._shapes[name] = points
+            """
+            self._shapes[name] = geofeat
 
 
 class TigerWeb(object):
