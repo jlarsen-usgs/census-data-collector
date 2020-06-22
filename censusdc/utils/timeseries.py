@@ -176,7 +176,6 @@ class CensusTimeSeries(object):
             url0 = ""
             year0 = 0
             censusobj = {}
-            # twobjs = {}
             for year, url in TigerWebMapServer.base.items():
                 if year not in years:
                     continue
@@ -186,7 +185,6 @@ class CensusTimeSeries(object):
                           "year {}".format(year))
                 if url == url0:
                     # reuse tigerweb from previous year
-                    # twobjs[year] = copy.copy(twobjs[year0])
                     pass
 
                 else:

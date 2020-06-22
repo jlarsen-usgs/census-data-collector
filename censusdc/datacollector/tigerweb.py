@@ -863,26 +863,7 @@ class TigerWebPolygon(TigerWebBase):
                 poly = geojson.MultiPolygon(geofeat['coordinates'])
 
             geofeat = geojson.Feature(geometry=poly)
-            """
-            shape_type = shape.__geo_interface__['type']
-            if shape_type.lower() == "multipolygon":
-                points = []
-                coords = shape.points
-                parts = list(shape.parts)
-                for ix in range(1, len(parts)):
-                    i0 = parts[ix - 1]
-                    i1 = parts[ix]
-                    points.append([list(i) for i in coords[i0:i1]])
 
-                    if len(parts) == ix + 1:
-                        points.append([list(i) for i in coords[i1:]])
-
-                    else:
-                        pass
-
-            else:
-                points =  shape.points
-            """
             self._shapes[name] = geofeat
 
 
