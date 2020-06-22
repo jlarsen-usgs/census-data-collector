@@ -175,7 +175,8 @@ class CensusTimeSeries(object):
         if self._censusobj is None:
             url0 = ""
             year0 = 0
-            twobjs = {}
+            censusobj = {}
+            # twobjs = {}
             for year, url in TigerWebMapServer.base.items():
                 if year not in years:
                     continue
@@ -184,7 +185,10 @@ class CensusTimeSeries(object):
                     print("Getting Tigerline data for census "
                           "year {}".format(year))
                 if url == url0:
-                    twobjs[year] = copy.copy(twobjs[year0])
+                    # reuse tigerweb from previous year
+                    # twobjs[year] = copy.copy(twobjs[year0])
+                    pass
+
                 else:
                     tw = TigerWeb(self._shp, self._field, self._radius)
                     if year in (2005, 2006, 2007, 2008, 2009):
@@ -204,16 +208,12 @@ class CensusTimeSeries(object):
                                     retry=retry,
                                     filter=self._filter)
 
-                    twobjs[year] = tw
-
-                    if not self._shapes:
+                    if not self.shapes:
                         self._shapes = tw.shapes
 
                 url0 = url
                 year0 = year
 
-            censusobj = {}
-            for year, tw in twobjs.items():
                 if verbose:
                     print("Getting data for census year {}".format(year))
                 if year in (1990, 2000):

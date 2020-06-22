@@ -97,14 +97,27 @@ class GeoFeatures(object):
             if feature.geometry.type == "MultiPolygon":
                 polys = []
                 for coordinates in feature.geometry.coordinates:
-                    coords = coordinates[0]
-                    polys.append(Polygon(coords))
+                    if len(coordinates) > 1:
+                        coords = coordinates[0]
+                        holes = coordinates[1:]
+                        polys.append(Polygon(coords, holes=holes))
+                    else:
+                        coords = coordinates[0]
+                        polys.append(Polygon(coords))
 
                 poly = MultiPolygon(polys)
 
             else:
-                coords = feature.geometry.coordinates[0]
-                poly = Polygon(coords)
+                coordinates = feature.geometry.coordinates
+                if len(coordinates) > 1:
+                    coords = coordinates[0]
+                    holes = coordinates[1:]
+                    poly = Polygon(coords, holes=holes)
+                else:
+                    poly = Polygon(coordinates[0])
+
+            if not poly.is_valid:
+                poly = poly.buffer(0)
 
             self._shapely_features.append(poly)
 
