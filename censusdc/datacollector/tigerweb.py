@@ -516,7 +516,8 @@ class TigerWebBase(object):
                                        'resultRecordCount': 32})
                 r.raise_for_status()
             except (requests.exceptions.HTTPError,
-                    requests.exceptions.ConnectionError) as e:
+                    requests.exceptions.ConnectionError,
+                    requests.exceptions.ChunkedEncodingError) as e:
                 n += 1
                 if verbose:
                     print("ConnectionError: retry number {}".format(n))
@@ -638,7 +639,8 @@ def multiproc_request_data(key, base, mapserver, esri_json, geotype,
                                    'resultRecordCount': 32})
             r.raise_for_status()
         except (requests.exceptions.HTTPError,
-                requests.exceptions.ConnectionError) as e:
+                requests.exceptions.ConnectionError,
+                requests.exceptions.ChunkedEncodingError) as e:
             n += 1
             if verbose:
                 print("ConnectionError: retry number {}".format(n))
