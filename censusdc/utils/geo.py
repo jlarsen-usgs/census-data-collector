@@ -45,7 +45,7 @@ def _IGNORE():
             AcsVariables.median_income,
             Sf3Variables1990.median_income,
             Sf3Variables.median_income,
-            'population_density')
+            'pop_density')
 
 
 def _AVERAGE():
@@ -54,7 +54,7 @@ def _AVERAGE():
     return (AcsVariables.median_income,
             Sf3Variables1990.median_income,
             Sf3Variables.median_income,
-            'population_density')
+            'pop_density')
 
 
 def _POPULATION():
@@ -436,7 +436,7 @@ class GeoFeatures(object):
                         print("DEBUG NOTE: ", k, v)
 
             if pop > 0:
-                adj_properties["population_density"] = pop / area
+                adj_properties["pop_density"] = pop / area
 
             xy = np.array(a.exterior.xy, dtype=float).T
             xy = [(i[0], i[1]) for i in xy]
@@ -730,7 +730,7 @@ def multiproc_intersection(IGNORE, POPULATION, features, polygon, ix,
                     print("DEBUG NOTE: ", k, v)
 
         if pop > 0:
-            adj_properties["population_density"] = pop / area
+            adj_properties["pop_density"] = pop / area
 
         xy = np.array(a.exterior.xy, dtype=float).T
         xy = [(i[0], i[1]) for i in xy]
