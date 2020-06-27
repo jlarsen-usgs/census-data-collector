@@ -188,23 +188,22 @@ class CensusTimeSeries(object):
                     pass
 
                 else:
-                    tw = TigerWeb(self._shp, self._field, self._radius)
+                    tw = TigerWeb(self._shp, self._field, self._radius,
+                                  self._filter)
                     if year in (2005, 2006, 2007, 2008, 2009):
                         tw.get_data(year, level="county",
                                     verbose=verb,
                                     multiproc=multiproc,
                                     multithread=multithread,
                                     thread_pool=thread_pool,
-                                    retry=retry,
-                                    filter=self._filter)
+                                    retry=retry)
                     else:
                         tw.get_data(year, level="tract",
                                     verbose=verb,
                                     multiproc=multiproc,
                                     multithread=multithread,
                                     thread_pool=thread_pool,
-                                    retry=retry,
-                                    filter=self._filter)
+                                    retry=retry)
 
                     if not self.shapes:
                         self._shapes = tw.shapes
