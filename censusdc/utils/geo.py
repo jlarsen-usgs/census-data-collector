@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import threading
 from shapely.geometry import Polygon, MultiPolygon
+from shapely.strtree import STRtree
 from shapely.validation import explain_validity
 from . import thread_count
 import platform
@@ -88,11 +89,15 @@ class GeoFeatures(object):
         self.IGNORE = _IGNORE()
         self.POPULATION = _POPULATION()
 
+        self._strtree = None
+        if len(self._shapely_features) > 100:
+            self._strtree = STRtree(self._shapely_features)
+
     def _create_shapely_geoms(self):
         """
         Method to set geoJSON features to shapely geometry objects
         """
-        for feature in self._features:
+        for ix, feature in enumerate(self._features):
             # coords, utm_zone = geoJSON_lat_lon_to_utm(feature)
             if feature.geometry.type == "MultiPolygon":
                 polys = []
@@ -118,6 +123,8 @@ class GeoFeatures(object):
 
             if not poly.is_valid:
                 poly = poly.buffer(0)
+
+            poly.ix = ix
 
             self._shapely_features.append(poly)
 
@@ -322,12 +329,19 @@ class GeoFeatures(object):
             fid = ray.put(self.features)
             actors = []
             n = 0
+            shapely_features = self._shapely_features
             for polygon in polygons:
-                for ix, feature in enumerate(self._shapely_features):
+                if self._strtree is not None:
+                    t = self._strtree.query(polygon)
+                    ixs = sorted([i.ix for i in t])
+                    shapely_features = [self._shapely_features[i] for i in ixs]
+
+                for feature in shapely_features:
                     actor = multiproc_intersection.remote(self.IGNORE,
                                                           self.POPULATION,
                                                           fid, polygon,
-                                                          ix, feature, n)
+                                                          feature.ix,
+                                                          feature, n)
                     actors.append(actor)
                     n += 1
 
@@ -348,10 +362,16 @@ class GeoFeatures(object):
             thread_list = []
             container = threading.BoundedSemaphore(thread_pool)
             n = 0
+            shapely_features = self._shapely_features
             for polygon in polygons:
-                for ix, feature in enumerate(self._shapely_features):
+                if self._strtree is not None:
+                    t = self._strtree.query(polygon)
+                    ixs = sorted([i.ix for i in t])
+                    shapely_features = [self._shapely_features[i] for i in ixs]
+
+                for feature in shapely_features:
                     x = threading.Thread(target=self.__threaded_intersection,
-                                         args=(polygon, ix,
+                                         args=(polygon, feature.ix,
                                                feature, n, container))
                     thread_list.append(x)
                     n += 1
@@ -363,10 +383,17 @@ class GeoFeatures(object):
 
         else:
             n = 0
+            shapely_features = self._shapely_features
             for polygon in polygons:
-                for ix, feature in enumerate(self._shapely_features):
-                    self.__intersection(polygon, ix, feature, n)
+                if self._strtree is not None:
+                    t = self._strtree.query(polygon)
+                    ixs = sorted([i.ix for i in t])
+                    shapely_features = [self._shapely_features[i] for i in ixs]
+
+                for feature in shapely_features:
+                    self.__intersection(polygon, feature.ix, feature, n)
                     n += 1
+
         if self._ifeatures is not None:
             self._ifeatures = [v for k, v in self._ifeatures.items()]
         else:

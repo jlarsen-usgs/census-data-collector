@@ -5,6 +5,8 @@ from ..utils import Acs5Server, Acs1Server, Sf3Server, RestartableThread, \
 import threading
 import platform
 import copy
+import warnings
+warnings.simplefilter('always', UserWarning)
 try:
     from simplejson.errors import JSONDecodeError
 except ImportError:
@@ -173,7 +175,13 @@ class CensusBase(object):
 
                 level.append(tmp)
 
-        self._features_level = self.__level_dict[min(level)]
+        if not level:
+            # hack around canadian huc12's for now. print a warning in future
+            msg = "Cannot determine census data level: setting to 'tract'"
+            warnings.warn(msg, UserWarning)
+            self._features_level = self.__level_dict[3]
+        else:
+            self._features_level = self.__level_dict[min(level)]
 
     def get_data(self, level='finest', variables=(), retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4):
