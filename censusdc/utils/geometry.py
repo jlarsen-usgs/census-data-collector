@@ -1,4 +1,5 @@
 import numpy as np
+import geojson
 
 
 # Constants for lon_lat_to_albers and albers_to_lon_lat
@@ -117,3 +118,54 @@ def albers_to_lon_lat(x, y):
     lat = np.arcsin((C - (RHO**2 * N**2)) / (2 * N)) / TO_RAD
 
     return lon, lat
+
+
+def lat_lon_geojson_to_albers_geojson(feature, invert=False):
+    """
+    Method to convert geojson polygons and multipolygon features
+    from lat lon to albers or inverse
+
+    Parameters
+    ----------
+    feature : geoJSON feature
+        geoJSON feature class that contains a geoJSON polygon
+
+    invert : bool
+        when true method converts from albers to lat lon
+
+    Returns
+    -------
+        geoJSON feature
+    """
+    if feature.geometry.type == "Polygon":
+        coords = feature.geometry.coordinates
+        conv_coords = []
+        for coord in coords:
+            if invert:
+                conv = albers_to_lon_lat(*np.array(coord).T)
+            else:
+                conv = lon_lat_to_albers(*np.array(coord).T)
+            conv_coords.append(list(zip(*conv)))
+        geopoly = geojson.Polygon(conv_coords)
+
+    elif feature.geometry.type == "MultiPolygon":
+        polys = feature.geometry.coordinates
+        conv_polys = []
+        for poly in polys:
+            conv_coords = []
+            for coord in poly:
+                if invert:
+                    conv = albers_to_lon_lat(*np.array(coord.T))
+                else:
+                    conv = lon_lat_to_albers(*np.array(coord).T)
+                conv_coords.append(list(zip(*conv)))
+            conv_polys.append(conv_coords)
+        geopoly = geojson.MultiPolygon(conv_polys)
+
+    else:
+        msg = "Geometry type {}, not yet " \
+              "supported".format(feature.geometry.type)
+        raise Exception(msg)
+
+    geofeat = geojson.Feature(geometry=geopoly, properties=feature.properties)
+    return geofeat
