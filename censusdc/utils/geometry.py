@@ -38,7 +38,7 @@ def calculate_circle(x, y, radius):
     return np.array([x, y])
 
 
-def lon_lat_to_albers(lon, lat):
+def lon_lat_to_albers(lon, lat, precision=1.):
     """
     Method to convert decimal longitute and latitude to albers equal
     area projection
@@ -49,7 +49,8 @@ def lon_lat_to_albers(lon, lat):
     ----------
     lon : list or numpy array of longitude
     lat : list of numpy array of latitude
-
+    precision : float
+        multiplier for large polygon precision issues
     Returns
     -------
     x, y: tuple
@@ -57,10 +58,10 @@ def lon_lat_to_albers(lon, lat):
 
     """
     if not isinstance(lon, np.ndarray):
-        lon = np.array(lon, dtype=float)
+        lon = np.array(lon, dtype=np.float64)
 
     if not isinstance(lat, np.ndarray):
-        lat = np.array(lat, dtype=float)
+        lat = np.array(lat, dtype=np.float64)
 
     if lat.shape != lon.shape:
         raise AssertionError("The shape of the lat and lon array must be "
@@ -72,8 +73,10 @@ def lon_lat_to_albers(lon, lat):
     RHO = np.sqrt((C - (2 * N * np.sin(lat)))) / N
     THETA = N * (lon - LON_ORIG)
 
-    x = RHO * np.sin(THETA)
-    y = RHO0 - (RHO * np.cos(THETA))
+    # due to precision issues we need to multiply by 100, which
+    # modifies the albers coordinate system, but preseves equal area
+    x = RHO * np.sin(THETA) * precision
+    y = RHO0 - (RHO * np.cos(THETA)) * precision
 
     # h, scale factor along meridians
     # k, scale factor along parallels... 1/h
@@ -81,7 +84,7 @@ def lon_lat_to_albers(lon, lat):
     return x, y
 
 
-def albers_to_lon_lat(x, y):
+def albers_to_lon_lat(x, y, precsion=1.):
     """
     Method to convert from albers equal area projection back to WGS84
     lat. lon.
@@ -92,26 +95,30 @@ def albers_to_lon_lat(x, y):
     ----------
     x : list or numpy array of x points
     y : list or numpy array of y points
+    precsion : float
+        optional multiplier, used to convert back to lat lon if
+        used in conversion to albers to overcome computer precsion issues.
 
     Returns
     -------
         lon, lat: tuple
     """
     if not isinstance(x, np.ndarray):
-        lon = np.array(x)
+        x = np.array(x, dtype=np.float64)
 
     if not isinstance(y, np.ndarray):
-        lat = np.array(y)
+        y = np.array(y, dtype=np.float64)
 
     if x.shape != y.shape:
         raise AssertionError("The shape of the lat and lon array must be "
                              "exactly the same")
 
+    x /= precsion
+    y /= precsion
+
     # do not covert x, y to radians, because they are already in radial
     # coordinates
-
     THETA = np.arctan(x / (RHO0 - y))
-    t = THETA / TO_RAD
     RHO = np.sqrt(np.square(x) + np.square(RHO0 - y))
 
     lon = (LON_ORIG + (THETA / N)) / TO_RAD
@@ -120,7 +127,7 @@ def albers_to_lon_lat(x, y):
     return lon, lat
 
 
-def lat_lon_geojson_to_albers_geojson(feature, invert=False):
+def lat_lon_geojson_to_albers_geojson(feature, invert=False, precision=1.):
     """
     Method to convert geojson polygons and multipolygon features
     from lat lon to albers or inverse
@@ -133,6 +140,11 @@ def lat_lon_geojson_to_albers_geojson(feature, invert=False):
     invert : bool
         when true method converts from albers to lat lon
 
+    precision : float
+        optional precision parameter to deal with large polygons. Performs
+        an artificial expansion of the precision. Keeps equal area but no
+        longer "Albers" if greater than 1.
+
     Returns
     -------
         geoJSON feature
@@ -142,9 +154,11 @@ def lat_lon_geojson_to_albers_geojson(feature, invert=False):
         conv_coords = []
         for coord in coords:
             if invert:
-                conv = albers_to_lon_lat(*np.array(coord).T)
+                conv = albers_to_lon_lat(*np.array(coord).T,
+                                         precsion=precision)
             else:
-                conv = lon_lat_to_albers(*np.array(coord).T)
+                conv = lon_lat_to_albers(*np.array(coord).T,
+                                         precision=precision)
             conv_coords.append(list(zip(*conv)))
         geopoly = geojson.Polygon(conv_coords)
 
@@ -155,9 +169,11 @@ def lat_lon_geojson_to_albers_geojson(feature, invert=False):
             conv_coords = []
             for coord in poly:
                 if invert:
-                    conv = albers_to_lon_lat(*np.array(coord.T))
+                    conv = albers_to_lon_lat(*np.array(coord.T),
+                                             precision=precision)
                 else:
-                    conv = lon_lat_to_albers(*np.array(coord).T)
+                    conv = lon_lat_to_albers(*np.array(coord).T,
+                                             precision=precision)
                 conv_coords.append(list(zip(*conv)))
             conv_polys.append(conv_coords)
         geopoly = geojson.MultiPolygon(conv_polys)

@@ -413,12 +413,14 @@ class TigerWebBase(object):
             if isinstance(features, list):
                 alb_features = []
                 for feature in features:
-                    geofeat = lat_lon_geojson_to_albers_geojson(feature)
+                    geofeat = lat_lon_geojson_to_albers_geojson(feature,
+                                                                precision=100.)
                     alb_features.append(geofeat)
                 alb_data[name] = alb_features
 
             else:
-                geofeat = lat_lon_geojson_to_albers_geojson(features)
+                geofeat = lat_lon_geojson_to_albers_geojson(features,
+                                                            precision=100.)
                 alb_data[name] = geofeat
 
         if which == "features":

@@ -234,8 +234,6 @@ class CensusTimeSeries(object):
                                     thread_pool=thread_pool,
                                     retry=retry)
 
-                    alb = tw.albers_features
-
                     if not self.shapes:
                         self._shapes = tw.shapes
                         self._albers_shapes = tw.albers_shapes
