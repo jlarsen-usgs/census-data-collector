@@ -84,7 +84,7 @@ def lon_lat_to_albers(lon, lat, precision=1.):
     return x, y
 
 
-def albers_to_lon_lat(x, y, precsion=1.):
+def albers_to_lon_lat(x, y, precision=1.):
     """
     Method to convert from albers equal area projection back to WGS84
     lat. lon.
@@ -95,7 +95,7 @@ def albers_to_lon_lat(x, y, precsion=1.):
     ----------
     x : list or numpy array of x points
     y : list or numpy array of y points
-    precsion : float
+    precision : float
         optional multiplier, used to convert back to lat lon if
         used in conversion to albers to overcome computer precsion issues.
 
@@ -113,8 +113,8 @@ def albers_to_lon_lat(x, y, precsion=1.):
         raise AssertionError("The shape of the lat and lon array must be "
                              "exactly the same")
 
-    x /= precsion
-    y /= precsion
+    x /= precision
+    y /= precision
 
     # do not covert x, y to radians, because they are already in radial
     # coordinates
@@ -155,7 +155,7 @@ def lat_lon_geojson_to_albers_geojson(feature, invert=False, precision=1.):
         for coord in coords:
             if invert:
                 conv = albers_to_lon_lat(*np.array(coord).T,
-                                         precsion=precision)
+                                         precision=precision)
             else:
                 conv = lon_lat_to_albers(*np.array(coord).T,
                                          precision=precision)
