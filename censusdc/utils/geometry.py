@@ -75,11 +75,11 @@ def lon_lat_to_albers(lon, lat, precision=1.):
 
     # due to precision issues we need to multiply by 100, which
     # modifies the albers coordinate system, but preseves equal area
-    x = RHO * np.sin(THETA) * precision
-    y = RHO0 - (RHO * np.cos(THETA)) * precision
+    x = RHO * np.sin(THETA)
+    y = RHO0 - (RHO * np.cos(THETA))
 
-    # h, scale factor along meridians
-    # k, scale factor along parallels... 1/h
+    x *= precision
+    y *= precision
 
     return x, y
 

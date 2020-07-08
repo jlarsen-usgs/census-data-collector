@@ -6,7 +6,6 @@ import os
 import time
 import pickle
 import requests
-import numpy as np
 try:
     from simplejson.errors import JSONDecodeError
 except ImportError:
@@ -17,6 +16,13 @@ try:
 except:
     ray = None
 
+huc4_pita = ("042400020101", "041800000102", "041800000101",
+             "042400020102", "042600000101", "042600000102",
+             "041502000100", "041900000100", "040201050106",
+             "040101011504", "040700030306", "040601011002",
+             "040400010603", "041000010101", "040202010205",
+             "041800000200", "041900000200", "042400020200",
+             "042600000200", "041502000200")
 
 def load_pickle(f):
     """
@@ -62,12 +68,12 @@ def clean_restart_data(census_filter, features):
 
 if __name__ == "__main__":
     restart = True
+    change_chunk_size = 100000
     ws = os.path.abspath(os.path.dirname(__file__))
     if ray is not None:
         ray.init(address='auto')
 
-    strt = time.time()
-    allhuc2 = ["{:02d}".format(h) for h in range(22, 23)]
+    allhuc2 = ["{:02d}".format(h) for h in range(4, 23)]
     for huc2 in allhuc2:
         start_time = time.time()
 
@@ -84,10 +90,17 @@ if __name__ == "__main__":
 
         cfilter = create_filter(huc12_shapes, {"huc2" : [huc2]},
                                 'huc12')
-
+        
         chunksize = 25
         if huc2 == "04":
-            chunksize = 3
+            chunksize = 1
+            cfilter = list(cfilter)
+            for i in huc4_pita:
+                idx = cfilter.index(i)
+                cfilter.pop(idx)
+
+            cfilter = list(huc4_pita) + cfilter
+            change_chunk_size = len(huc4_pita)
 
         chunk0 = 0
 
@@ -98,6 +111,10 @@ if __name__ == "__main__":
             geofeats = {}
 
         while chunk0 < len(cfilter):
+            if huc2 == "04":
+                if chunk0 == change_chunk_size:
+                    chunksize = 10
+
             chunk1 = chunk0 + chunksize
             if chunk1 > len(cfilter):
                 nfilter = cfilter[chunk0:]
@@ -107,35 +124,31 @@ if __name__ == "__main__":
             chunk0 += chunksize
 
             ts = CensusTimeSeries(huc12_shapes, api_key, field="huc12", filter=nfilter)
-            # years = ts.available_years[0:2] + ts.available_years[8:]
-            years = (2015, )
+            years = ts.available_years[0:2] + ts.available_years[8:]
 
             for feature in nfilter:
-                df = ts.get_timeseries(feature, verbose=2, multithread=True,
-                                       thread_pool=16, multiproc=False,
-                                       years=years)
+                df = ts.get_timeseries(feature, verbose=2, multithread=False,
+                                       thread_pool=8, multiproc=True, years=years)
 
-                #df.to_csv(os.path.join(out_path, "{}_yearly.csv".format(feature)),
-                #          index=False)
-                if 'population' not in list(df):
-                    df['population'] = [np.nan] * len(df)
+                df.to_csv(os.path.join(out_path, "{}_yearly.csv".format(feature)),
+                          index=False)
+
                 temp = GeoFeatures.compiled_feature(2015, ts.get_shape(feature),
                                                     feature, df=df)
                 geofeats[feature] = temp
 
-                #try:
-                #    df2 = CensusTimeSeries.interpolate(df,
-                #                                       min_extrapolate=1989,
-                #                                       max_extrapolate=2021,
-                #                                       kind='slinear',
-                #                                       discretization='daily')
-                #    df2.to_csv(os.path.join(out_path, "{}.csv".format(feature)),
-                #               index=False)
-                #except:
-                #    pass
+                try:
+                    df2 = CensusTimeSeries.interpolate(df,
+                                                       min_extrapolate=1989,
+                                                       max_extrapolate=2021,
+                                                       kind='slinear',
+                                                       discretization='daily')
+                    df2.to_csv(os.path.join(out_path, "{}.csv".format(feature)),
+                               index=False)
+                except:
+                    pass
 
             if restart:
-                print("Writing huc{} Pickle object".format(huc2))
                 with open(pickle_file, "wb") as foo:
                     pickle.dump(geofeats, foo)
 
@@ -150,6 +163,3 @@ if __name__ == "__main__":
 
         end_time = time.time()
         print(end_time - start_time)
-
-    end_time = time.time()
-    print(end_time - strt)
