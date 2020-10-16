@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import threading
 from shapely.geometry import Polygon, MultiPolygon
+from shapely.geometry import shape as shapely_shape
 from shapely.strtree import STRtree
 from shapely.validation import explain_validity
 from . import thread_count
@@ -220,20 +221,13 @@ class GeoFeatures(object):
                 shape_type = shape.__geo_interface__['type']
                 coords = shape.points
                 if shape_type.lower() == "polygon":
-                    t.append(Polygon(coords),)
+                    t.append(shapely_shape(shape.__geo_interface__))
 
                 elif shape_type.lower() == "multipolygon":
-                    parts = list(shape.parts)
-                    for ix in range(1, len(parts)):
-                        i0 = parts[ix - 1]
-                        i1 = parts[ix]
-                        t.append(Polygon(coords[i0:i1]))
-
-                        if len(parts) == ix + 1:
-                            t.append(Polygon(coords[i1:]))
-
-                        else:
-                            pass
+                    tshp = shapely_shape(shape.__geo_interface__)
+                    tshp = list(tshp)
+                    for part in tshp:
+                        t.append(part)
 
                 else:
                     raise NotImplementedError(
