@@ -16,14 +16,6 @@ try:
 except:
     ray = None
 
-huc4_pita = ("042400020101", "041800000102", "041800000101",
-             "042400020102", "042600000101", "042600000102",
-             "041502000100", "041900000100", "040201050106",
-             "040101011504", "040700030306", "040601011002",
-             "040400010603", "041000010101", "040202010205",
-             "041800000200", "041900000200", "042400020200",
-             "042600000200", "041502000200")
-
 
 def load_pickle(f):
     """
@@ -74,35 +66,25 @@ if __name__ == "__main__":
     if ray is not None:
         ray.init(address='auto')
 
-    allhuc2 = ["{:02d}".format(h) for h in range(4, 5)]
+    allhuc2 = ["06", "09", "13", "14", "16", "17"]
     for huc2 in allhuc2:
         start_time = time.time()
 
-        huc12_shapes = os.path.join(ws, 'huc12_export', 'huc2_{}.shp'.format(huc2))
-        pickle_file = os.path.join(ws, "huc12_output_shapefiles",
+        wsa_shapes = os.path.join(ws, "WSA", "WSA_v2_1_alb83_attrib_proj.shp")
+        pickle_file = os.path.join(ws, "WSA_output_shapefiles",
                                    "huc{}.pickle".format(huc2))
-        out_shapes = os.path.join(ws, "huc12_output_shapefiles",
-                                  "huc{}_censusdc.shp".format(huc2))
-        out_path = os.path.join(ws, "huc12_output", 'huc{}'.format(huc2))
+        out_shapes = os.path.join(ws, "WSA_output_shapefiles",
+                                  "WSA_huc{}_censusdc.shp".format(huc2))
+        out_path = os.path.join(ws, "WSA_output", 'huc{}'.format(huc2))
 
         api_key = os.path.join(ws, 'api_key.dat')
         with open(api_key) as foo:
             api_key = foo.readline().strip()
 
-        cfilter = create_filter(huc12_shapes, {"huc2" : [huc2]},
-                                'huc12')
+        cfilter = create_filter(wsa_shapes, {"huc2" : [huc2]},
+                                'wsa_agidf')
         
         chunksize = 25
-        if huc2 == "04":
-            chunksize = 1
-            cfilter = list(cfilter)
-            for i in huc4_pita:
-                idx = cfilter.index(i)
-                cfilter.pop(idx)
-
-            cfilter = list(huc4_pita) + cfilter
-            change_chunk_size = len(huc4_pita)
-
         chunk0 = 0
 
         if restart and os.path.isfile(pickle_file):
@@ -112,10 +94,6 @@ if __name__ == "__main__":
             geofeats = {}
 
         while chunk0 < len(cfilter):
-            if huc2 == "04":
-                if chunk0 == change_chunk_size:
-                    chunksize = 10
-
             chunk1 = chunk0 + chunksize
             if chunk1 > len(cfilter):
                 nfilter = cfilter[chunk0:]
@@ -124,14 +102,14 @@ if __name__ == "__main__":
 
             chunk0 += chunksize
 
-            ts = CensusTimeSeries(huc12_shapes, api_key, field="huc12", filter=nfilter)
-            years = ts.available_years[0:2] + ts.available_years[8:]
+            ts = CensusTimeSeries(wsa_shapes, api_key, field="wsa_agidf", filter=nfilter)
+            years = ts.available_years[1:2] + ts.available_years[8:]
 
             for feature in nfilter:
                 df = ts.get_timeseries(feature, verbose=2, multithread=False,
-                                       thread_pool=12, multiproc=True, years=years)
+                                       thread_pool=8, multiproc=True, years=years)
 
-                df.to_csv(os.path.join(out_path, "cs_{}_yearly.csv".format(feature)),
+                df.to_csv(os.path.join(out_path, "cs_wsa_{}_yearly.csv".format(feature)),
                           index=False)
 
                 temp = GeoFeatures.compiled_feature(2015, ts.get_shape(feature),
@@ -140,11 +118,11 @@ if __name__ == "__main__":
 
                 try:
                     df2 = CensusTimeSeries.interpolate(df,
-                                                       min_extrapolate=1989,
+                                                       min_extrapolate=1999,
                                                        max_extrapolate=2021,
                                                        kind='slinear',
                                                        discretization='daily')
-                    df2.to_csv(os.path.join(out_path, "cs_{}.csv".format(feature)),
+                    df2.to_csv(os.path.join(out_path, "cs_wsa_{}.csv".format(feature)),
                                index=False)
                 except:
                     pass
