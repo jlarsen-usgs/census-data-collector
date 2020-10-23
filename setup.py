@@ -16,7 +16,7 @@ requirements = ["pandas",
                 "scipy"]
 
 if platform.system().lower() != "windows":
-    requirements.append("ray")
+    requirements.append("ray==0.8.6")
 
 
 setup_requirements = []

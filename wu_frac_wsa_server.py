@@ -64,9 +64,12 @@ if __name__ == "__main__":
     change_chunk_size = 100000
     ws = os.path.abspath(os.path.dirname(__file__))
     if ray is not None:
-        ray.init(address='auto')
+        ray.init()
+        # ray.init(address='auto')
+    allhuc2 = ["{:02d}".format(i) for i in range(1, 23)]
+    nothuc2 = ["06", "09", "13", "14", "16", "17"]
+    gethuc2 = [i for i in allhuc2 if i not in nothuc2]
 
-    allhuc2 = ["06", "09", "13", "14", "16", "17"]
     for huc2 in allhuc2:
         start_time = time.time()
 
