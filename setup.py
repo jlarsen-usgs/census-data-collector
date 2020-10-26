@@ -5,10 +5,12 @@ import platform
 if sys.version_info < (3, 0):
     raise EnvironmentError("Python 3 is needed for this package")
 
+# fix pyshp at 2.1.0 until organize polygon issue in
+# shapefile.Shape.__geo_interface__ is fixed
 requirements = ["pandas",
                 "numpy",
                 "beautifulsoup4",
-                "pyshp",
+                "pyshp==2.1.0",
                 "pycrs",
                 "geojson",
                 "shapely",
@@ -16,6 +18,8 @@ requirements = ["pandas",
                 "scipy"]
 
 if platform.system().lower() != "windows":
+    # fix ray at 0.8.6 until windows subsystem for linux issues solved
+    # above 0.8.6 windows firewall blocks the redis server connection
     requirements.append("ray==0.8.6")
 
 
