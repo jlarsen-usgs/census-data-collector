@@ -3,6 +3,7 @@ import copy
 import shapefile
 import calendar
 import pandas as pd
+import numpy as np
 import warnings
 warnings.simplefilter('always', UserWarning)
 
@@ -125,9 +126,9 @@ class CensusTimeSeries(object):
 
     def get_timeseries(self, feature_name, sf3_variables=(),
                        sf3_variables_1990=(), acs_variables=(), years=(),
-                       polygons='internal', hr_dict=None, retry=1000,
-                       verbose=1, multiproc=False, multithread=False,
-                       thread_pool=4):
+                       polygons='internal', hr_dict=None, level="tract",
+                       retry=1000, verbose=1, multiproc=False,
+                       multithread=False, thread_pool=4):
         """
         Method to get a time series from 1990 through 2018 of census
         data from available products
@@ -160,6 +161,8 @@ class CensusTimeSeries(object):
             human readable label dict, assists in aligning data. If hr_dict
             is None, defaults are used that cover AcsVariables and
             Sf3_Variables
+        level : str
+            census discretization levels. Defaults to tract
         retry : int
             number of retries for connection issues
         verbose : int or bool
@@ -227,7 +230,7 @@ class CensusTimeSeries(object):
                                     thread_pool=thread_pool,
                                     retry=retry)
                     else:
-                        tw.get_data(year, level="tract",
+                        tw.get_data(year, level=level,
                                     verbose=verb,
                                     multiproc=multiproc,
                                     multithread=multithread,
@@ -247,14 +250,14 @@ class CensusTimeSeries(object):
                     cen = CensusBase(tw.albers_features, year,
                                      self.__apikey, 'sf1')
                     if year == 1990:
-                        cen.get_data(level='tract',
+                        cen.get_data(level=level,
                                      variables=sf3_variables_1990,
                                      retry=retry, verbose=verb,
                                      multiproc=multiproc,
                                      multithread=multithread,
                                      thread_pool=thread_pool)
                     else:
-                        cen.get_data(level="tract", variables=sf3_variables,
+                        cen.get_data(level=level, variables=sf3_variables,
                                      retry=retry, verbose=verb,
                                      multiproc=multiproc,
                                      multithread=multithread,
@@ -269,7 +272,7 @@ class CensusTimeSeries(object):
                                  thread_pool=thread_pool)
                 else:
                     cen = Acs5(tw.albers_features, year, self.__apikey)
-                    cen.get_data(level='tract', variables=acs_variables,
+                    cen.get_data(level=level, variables=acs_variables,
                                  retry=retry, verbose=verb,
                                  multiproc=multiproc,
                                  multithread=multithread,
@@ -338,6 +341,27 @@ class CensusTimeSeries(object):
         return timeseries[feature_name]
 
     @staticmethod
+    def get_null_years(df, column):
+        """
+        Built in method to get null years before interpolation
+
+        Parameters
+        ----------
+        df : pd.dataframe
+        column : str
+            column to search for null values
+
+        Returns
+        -------
+        skip_years : tuple
+
+        """
+        df = df.replace(0, np.nan)
+        tdf = df[df[column].isnull()]
+        skip_years = tuple(tdf.year.values)
+        return skip_years
+
+    @staticmethod
     def interpolate(df, skip_years=(), drop=(), discretization='daily',
                     kind='linear', min_extrapolate=False,
                     max_extrapolate=False):
@@ -390,7 +414,10 @@ class CensusTimeSeries(object):
 
         if max_extrapolate and max_extrapolate > ymax:
             ymax = max_extrapolate
-        elif min_extrapolate and min_extrapolate < ymin:
+        else:
+            pass
+
+        if min_extrapolate and min_extrapolate < ymin:
             ymin = min_extrapolate
         else:
             pass
@@ -453,6 +480,8 @@ class CensusTimeSeries(object):
         for column in list(df.columns):
             if column in ("year", "dyear"):
                 continue
+
+
 
             f = interpolate.interp1d(dyear, df[column].values,
                                      kind=kind, fill_value='extrapolate')
