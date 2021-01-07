@@ -35,7 +35,7 @@ class AcsVariables(object):
     h_age_1950_1959 = "B25034_008E"
     h_age_1940_1949 = "B25034_009E"
     h_age_older_1939 = "B25034_010E"
-    median_h_year = "B25036_001E"
+    median_h_year = "B25035_001E"
 
 
 AcsHR = {v: k for k, v in AcsVariables.__dict__.items()
