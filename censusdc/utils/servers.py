@@ -133,7 +133,7 @@ class Sf3Server(object):
     levels = ("block_group", "block", "tract", "county", "state")
 
     __income = ["P0520{:02d}".format(i) for i in range(1, 18)]
-    __variables = "P001001," + ",".join(__income) + ",HCT012001", "H035001"
+    __variables = "P001001," + ",".join(__income) + ",HCT012001" + ",H035001"
 
     __income90 = ["P08000{:02d}".format(i) for i in range(1, 25)]
     __variables90 = "P0010001," + ",".join(__income90) + ",P080A001"
