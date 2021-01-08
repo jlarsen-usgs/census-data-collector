@@ -67,8 +67,6 @@ if __name__ == "__main__":
         ray.init()
         # ray.init(address='auto')
     allhuc2 = ["{:02d}".format(i) for i in range(1, 23)]
-    nothuc2 = ["06", "09", "13", "14", "16", "17"]
-    gethuc2 = [i for i in allhuc2 if i not in nothuc2]
 
     for huc2 in allhuc2:
         start_time = time.time()
@@ -86,7 +84,7 @@ if __name__ == "__main__":
 
         cfilter = create_filter(wsa_shapes, {"huc2" : [huc2]},
                                 'wsa_agidf')
-        
+
         chunksize = 25
         chunk0 = 0
 
@@ -120,11 +118,14 @@ if __name__ == "__main__":
                 geofeats[feature] = temp
 
                 try:
+                    skip_years = CensusTimeSeries.get_null_years(df,
+                                                                 'population')
                     df2 = CensusTimeSeries.interpolate(df,
                                                        min_extrapolate=1999,
                                                        max_extrapolate=2021,
                                                        kind='slinear',
-                                                       discretization='daily')
+                                                       discretization='daily',
+                                                       skip_years=skip_years)
                     df2.to_csv(os.path.join(out_path, "cs_wsa_{}.csv".format(feature)),
                                index=False)
                 except:

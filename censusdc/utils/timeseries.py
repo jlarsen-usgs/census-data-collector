@@ -246,9 +246,9 @@ class CensusTimeSeries(object):
 
                 if verbose:
                     print("Getting data for census year {}".format(year))
-                if year in (2000, ):
+                if year in (1990, 2000, 2020):
                     cen = CensusBase(tw.albers_features, year,
-                                     self.__apikey, 'sf1')
+                                     self.__apikey, 'sf3')
                     if year == 1990:
                         cen.get_data(level=level,
                                      variables=sf3_variables_1990,

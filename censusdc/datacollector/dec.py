@@ -32,6 +32,7 @@ class Sf3Variables(object):
     income_150k_200k = "P052016"
     income_gt_200k = "P052017"
     median_income = "HCT012001"
+    median_h_year = "H035001"
 
 
 class Sf3Variables1990(object):
