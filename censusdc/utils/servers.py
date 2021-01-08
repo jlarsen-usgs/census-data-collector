@@ -13,7 +13,11 @@ class TigerWebMapServer(object):
     __base = 'https://tigerweb.geo.census.gov/arcgis/rest/services/' + \
              'TIGERweb/Tracts_Blocks/MapServer'
     __2000 = 'https://tigerweb.geo.census.gov/arcgis/rest/services/' + \
-             'Census2010/tigerWMS_Census2000/MapServer'
+             'Census2020/tigerWMS_Census2000/MapServer'
+    __2010 = 'https://tigerweb.geo.census.gov/arcgis/rest/services/' + \
+             'Census2020/tigerWMS_Census2010/MapServer'
+    __2020 = 'https://tigerweb.geo.census.gov/arcgis/rest/services/' + \
+             'Census2020/Tracts_Blocks/MapServer'
 
     levels = ('block', 'block_group', 'tract', 'county_subdivision', 'county')
 
@@ -24,7 +28,7 @@ class TigerWebMapServer(object):
             2007: __acs1,
             2008: __acs1,
             2009: __acs1,
-            2010: __base,
+            2010: __2010,
             2011: __gacs.format(2015),
             2012: __gacs.format(2015),
             2013: __gacs.format(2015),
@@ -32,8 +36,9 @@ class TigerWebMapServer(object):
             2015: __gacs.format(2015),
             2016: __gacs.format(2016),
             2017: __gacs.format(2017),
-            2018: __gacs.format(2018)}
-            # 2019: __base}
+            2018: __gacs.format(2018),
+            2019: __gacs.format(2019),
+            2020: __2020}
 
     def lcdbase(acs1):
         return {i: acs1 for i in range(2005, 2019)}
@@ -82,15 +87,17 @@ class TigerWebMapServer(object):
              2017: {'mapserver': 3,
                     'outFields': __acs_tract},
              2018: {'mapserver': 3,
-                    'outFields': __acs_tract}}
-             # 2019: {'mapserver': 4,
-             #        'outFields': __acs_tract}}
+                    'outFields': __acs_tract},
+             2019: {'mapserver': 4,
+                    'outFields': __acs_tract},
+             2020: {'mapserver': 0,
+                    'outFields': __dec_tract}}
 
     __dec_blkgrp = 'GEOID,BLKGRP,STATE,COUNTY,TRACT,AREALAND,AREAWATER'
     __acs_blkgrp = 'GEOID,BLKGRP,STATE,COUNTY,TRACT,AREALAND,AREAWATER'
-    block_group = {2000: {'mapserver': 10,
+    block_group = {2000: {'mapserver': 8,
                           'outFields': __dec_blkgrp},
-                   2010: {'mapserver': 11,
+                   2010: {'mapserver': 12,
                           'outFields': __dec_blkgrp},
                    2013: {'mapserver': 4,
                           'outFields': __acs_blkgrp},
@@ -101,15 +108,19 @@ class TigerWebMapServer(object):
                    2017: {'mapserver': 4,
                           'outFields': __acs_blkgrp},
                    2018: {'mapserver': 4,
-                          'outFields': __acs_blkgrp}}
-                   # 2019: {'mapserver': 5,
-                   #        'outFields': __acs_blkgrp}}
+                          'outFields': __acs_blkgrp},
+                   2019: {'mapserver': 5,
+                          'outFields': __acs_blkgrp},
+                   2020: {'mapserver': 1,
+                          'outFields': __dec_blkgrp}}
 
     __dec_block = 'GEOID,BLOCK,BLKGRP,STATE,COUNTY,TRACT,' \
                   'AREALAND,AREAWATER'
     block = {2000: {'mapserver': 10,
                     'outFields': __dec_block},
-             2010: {'mapserver': 12,
+             2010: {'mapserver': 14,
+                    'outFields': __dec_block},
+             2020: {'mapserver': 2,
                     'outFields': __dec_block}}
 
 
@@ -202,24 +213,24 @@ class Acs5Server(object):
 
     def state(variables):
         return {i: {"fmt": "state:{}", "variables": variables}
-                for i in range(2009, 2019)}
+                for i in range(2009, 2020)}
     state = state(__variables)
 
     def county(variables):
         return {i: {"fmt": "county:{}&in=state:{}", "variables": variables}
-                for i in range(2009, 2019)}
+                for i in range(2009, 2020)}
     county = county(__variables)
 
     def tract(variables):
         return {i: {"fmt": "tract:{}&in=state:{}&in=county:{}",
-                    "variables": variables} for i in range(2009, 2019)}
+                    "variables": variables} for i in range(2009, 2020)}
     tract = tract(__variables)
 
     def block_group(variables):
         return {i: {"fmt":
                     'block%20group:{}&in=state:{}&in=county:{}&in=tract:{}',
                     "variables": variables}
-                for i in (2013, 2014, 2015, 2017, 2018,)}
+                for i in (2013, 2014, 2015, 2017, 2018, 2019)}
     block_group = block_group(__variables)
 
 
