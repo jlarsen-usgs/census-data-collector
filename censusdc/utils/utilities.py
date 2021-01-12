@@ -6,6 +6,26 @@ import pandas as pd
 import numpy as np
 import threading
 import datetime
+try:
+    from simplejson.errors import JSONDecodeError
+except ImportError:
+    from json import JSONDecodeError
+
+
+STATE_FIPS = ("01", "02", "04", "05", "06",
+              "08", "09", "10", "11", "12",
+              "13", "15", "16", "17", "18",
+              "19", "20", "21", "22", "23",
+              "24", "25", "26", "27", "28",
+              "29", "30", "31", "32", "33",
+              "34", "35", "36", "37", "38",
+              "39", "40", "41", "42", "44",
+              "45", "46", "47", "48", "49",
+              "50", "51", "53", "54", "55",
+              "56", "60", "66", "69", "70",
+              "72", "78", "99", "74", "81",
+              "84", "86", "67", "89", "71",
+              "76", "95", "79")
 
 
 def isnumeric(s):
@@ -28,6 +48,189 @@ def isbytes(s):
         return True
     else:
         return False
+
+
+def census_cache_builder(level='tract', apikey="",
+                         multithread=False, thread_pool=4):
+    """
+    Method to build out cache for all supported census years for a
+    specific census "level"
+
+    Parameters
+    ----------
+    level : str
+        census discretization
+    apikey : str
+        census api key
+    multithread : bool
+        flag to enable multithreaded cache building
+    thread_pool : int
+        number of threads to use for multithreading.
+
+    Returns
+    -------
+        None
+    """
+    level = level.lower()
+    years = ()
+    if level == "tract":
+        years = (2000, 2009, 2010, 2011,
+                 2012, 2013, 2014, 2015,
+                 2016, 2017, 2018, 2019)
+
+    if multithread:
+        container = threading.BoundedSemaphore(thread_pool)
+        thread_list = []
+        for year in years:
+            x = RestartableThread(target=_threaded_get_cache,
+                                  args=(year, level, apikey, True, 100,
+                                        True, container))
+            thread_list.append(x)
+
+        for thread in thread_list:
+            thread.start()
+        for thread in thread_list:
+            thread.join()
+
+    else:
+        for year in years:
+            get_cache(year, level=level, apikey=apikey, refresh=True,
+                      verbose=True)
+
+
+def _threaded_get_cache(year, level, apikey, refresh,
+                        retry, verbose, container):
+    """
+    Multithreaded method to build and load cache tables of census data to
+    improve performance
+
+    Parameters
+    ----------
+    year : int
+        census year
+    level : str
+        census discretization
+    apikey : str
+        census api key
+    refresh : boolean
+        option to refresh existing cache
+
+    Returns
+    -------
+        pd.DataFrame
+    """
+    container.acquire()
+    get_cache(year, level, apikey, refresh, retry, verbose)
+    container.release()
+
+
+def get_cache(year, level='tract', apikey="", refresh=False,
+              retry=100, verbose=False):
+    """
+    Method to build and load cache tables of census data to
+    improve performance
+
+    Parameters
+    ----------
+    year : int
+        census year
+    level : str
+        census discretization
+    apikey : str
+        census api key
+    refresh : boolean
+        option to refresh existing cache
+
+    Returns
+    -------
+        pd.DataFrame
+    """
+    if verbose:
+        print("Building census cache for {}, {}".format(year, level))
+    level = level.lower()
+    if level not in ("tract", ):
+        raise NotImplementedError()
+
+    utils_dir = os.path.dirname(os.path.abspath(__file__))
+    table_file = os.path.join(utils_dir, '..', 'cache',
+                              "{}_{}.dat".format(level, year))
+
+    if not os.path.isfile(table_file) or refresh:
+        from .servers import Acs5Server, Sf1Server
+
+        if year in (2000, 2010):
+            server = Sf1Server
+        else:
+            server = Acs5Server
+
+        url = server.base.format(year)
+        server_dict = {}
+        if level == "tract":
+            server_dict = server.cache_tract[year]
+
+        fmt = server_dict['fmt']
+        variables = server_dict['variables']
+
+        df = None
+        for state in STATE_FIPS:
+            if verbose:
+                print("building cache for {}, FIPS code {}".format(year,
+                                                                   state))
+            loc = fmt.format(state)
+            s = requests.session()
+            payload = {"get": "NAME," + variables,
+                       "for": loc,
+                       "key": apikey}
+
+            payload = "&".join(
+                '{}={}'.format(k, v) for k, v in payload.items())
+
+            n = 0
+            e = "Unknown connection error"
+            while n < retry:
+                try:
+                    r = s.get(url, params=payload)
+                    r.raise_for_status()
+                    break
+                except (requests.exceptions.HTTPError,
+                        requests.exceptions.ConnectionError,
+                        requests.exceptions.ChunkedEncodingError,
+                        requests.exceptions.ReadTimeout) as e:
+                    n += 1
+                    print("Connection Error: Retry number "
+                          "{}".format(n))
+
+            if n == retry:
+                raise requests.exceptions.HTTPError(e)
+
+            try:
+                data = r.json()
+            except JSONDecodeError:
+                data = []
+
+            if data:
+                tdf = pd.DataFrame(data[1:], columns=data[0])
+
+                if df is None:
+                    df = tdf
+                else:
+                    df = df.append(tdf, ignore_index=True)
+
+        df.to_csv(table_file, index=False)
+
+    if level == "tract":
+        fmter = "{:06d}"
+    else:
+        fmter = "{}"
+
+    df = pd.read_csv(table_file)
+
+    df[level] = [fmter.format(i) for i in df[level].values]
+    df['state'] = ["{:02d}".format(i) for i in df['state'].values]
+    df['county'] = ["{:03d}".format(i) for i in df['county'].values]
+    df['geoid'] = df['state'] + df['county'] + df[level]
+
+    return df
 
 
 def get_wkt_wkid_table(refresh=False):

@@ -101,7 +101,8 @@ class Sf3(CensusBase):
         super(Sf3, self).__init__(features, year, apikey, 'sf3')
 
     def get_data(self, level='finest', variables=(), retry=100, verbose=True,
-                 multiproc=False, multithread=False, thread_pool=4):
+                 multiproc=False, multithread=False, thread_pool=4,
+                 use_cache=False):
         """
         Method to get data from the Sf3 servers and set it to feature
         properties!
@@ -125,13 +126,17 @@ class Sf3(CensusBase):
             boolean flag to allow multithreading of data collection
         thread_pool : int
             number of CPU threads to use during multithread operations
+        use_cache : bool
+            method to prefer cached census api data over real time data
+            collection.
 
         """
         super(Sf3, self).get_data(level=level, variables=variables,
                                   retry=retry, verbose=verbose,
                                   multiproc=multiproc,
                                   multithread=multithread,
-                                  thread_pool=thread_pool)
+                                  thread_pool=thread_pool,
+                                  use_cache=False)
 
 
 class Sf1(CensusBase):
@@ -156,7 +161,8 @@ class Sf1(CensusBase):
         super(Sf1, self).__init__(features, year, apikey, 'sf1')
 
     def get_data(self, level='finest', variables=(), retry=100, verbose=True,
-                 multiproc=False, multithread=False, thread_pool=4):
+                 multiproc=False, multithread=False, thread_pool=4,
+                 use_cache=False):
         """
         Method to get data from the Sf3 servers and set it to feature
         properties!
@@ -180,7 +186,9 @@ class Sf1(CensusBase):
             boolean flag to allow multithreading of data collection
         thread_pool : int
             number of CPU threads to use during multithread operations
-
+        use_cache : bool
+            method to prefer cached census api data over real time data
+            collection.
         """
         super(Sf1, self).get_data(level=level, variables=variables,
                                   retry=retry, verbose=verbose,

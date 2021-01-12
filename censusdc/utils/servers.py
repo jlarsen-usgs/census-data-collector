@@ -27,7 +27,7 @@ class TigerWebMapServer(object):
             2006: __acs1,
             2007: __acs1,
             2008: __acs1,
-            2009: __acs1,
+            2009: __2000,
             2010: __2010,
             2011: __gacs.format(2015),
             2012: __gacs.format(2015),
@@ -153,9 +153,14 @@ class Sf3Server(object):
     def tract(variables):
         return {i: {"fmt": "tract:{}&in=state:{}&in=county:{}",
                     "variables": variables} for i in (1990, 2000)}
-
     tract = tract(__variables)
     tract[1990]["variables"] = __variables90
+
+    def cache_tract(variables):
+        return {i: {"fmt": "tract:*&in=state:{}",
+                    "variables": variables} for i in (1990, 2000)}
+    cache_tract = cache_tract(__variables)
+    cache_tract[1990]['variables'] = __variables90
 
     def block_group(variables):
         return {i: {"fmt":
@@ -187,8 +192,13 @@ class Sf1Server(object):
     def tract(variables):
         return {i: {"fmt": "tract:{}&in=state:{}&in=county:{}",
                     "variables": variables} for i in (2000, 2010)}
-
     tract = tract(__variables)
+
+    def cache_tract(variables):
+        return {i: {"fmt": "tract:*&in=state:{}",
+                    "variables": variables} for i in (2000, 2010)}
+    cache_tract = cache_tract(__variables)
+
 
     def block_group(variables):
         return {i: {"fmt":
@@ -225,6 +235,11 @@ class Acs5Server(object):
         return {i: {"fmt": "tract:{}&in=state:{}&in=county:{}",
                     "variables": variables} for i in range(2009, 2020)}
     tract = tract(__variables)
+
+    def cache_tract(variables):
+        return {i: {"fmt": "tract:*&in=state:{}",
+                    "variables": variables} for i in range(2009, 2020)}
+    cache_tract = cache_tract(__variables)
 
     def block_group(variables):
         return {i: {"fmt":

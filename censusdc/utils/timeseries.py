@@ -128,7 +128,7 @@ class CensusTimeSeries(object):
                        sf3_variables_1990=(), acs_variables=(), years=(),
                        polygons='internal', hr_dict=None, level="tract",
                        retry=1000, verbose=1, multiproc=False,
-                       multithread=False, thread_pool=4):
+                       multithread=False, thread_pool=4, use_cache=False):
         """
         Method to get a time series from 1990 through 2018 of census
         data from available products
@@ -174,14 +174,16 @@ class CensusTimeSeries(object):
             multithreaded operation flag
         thread_pool : int
             number of threads to run multithreading on
+        use_cache : bool
+            flag to prefer cached census data over collecting data from the
+            census api at run time.
 
         Returns
         -------
 
         """
-        from .. import TigerWeb, Acs1, Acs5, Sf3
+        from .. import TigerWeb, Acs1, Acs5, Sf3, Sf1
         from ..datacollector.dec import Sf3HR1990, Sf3HR, Sf1HR
-        from ..datacollector.cbase import CensusBase
         from ..datacollector.acs import AcsHR
         refresh = False
 
@@ -248,39 +250,43 @@ class CensusTimeSeries(object):
                     print("Getting data for census year {}".format(year))
                 if year in (1990, 2000, 2020):
                     if year == 2000:
-                        cen = CensusBase(tw.albers_features, year,
-                                         self.__apikey, 'sf1')
+                        cen = Sf1(tw.albers_features, year,
+                                  self.__apikey)
                     else:
-                        cen = CensusBase(tw.albers_features, year,
-                                         self.__apikey, 'sf3')
+                        cen = Sf3(tw.albers_features, year,
+                                  self.__apikey)
                     if year == 1990:
                         cen.get_data(level=level,
                                      variables=sf3_variables_1990,
                                      retry=retry, verbose=verb,
                                      multiproc=multiproc,
                                      multithread=multithread,
-                                     thread_pool=thread_pool)
+                                     thread_pool=thread_pool,
+                                     use_cache=use_cache)
                     else:
                         cen.get_data(level=level, variables=sf3_variables,
                                      retry=retry, verbose=verb,
                                      multiproc=multiproc,
                                      multithread=multithread,
-                                     thread_pool=thread_pool)
+                                     thread_pool=thread_pool,
+                                     use_cache=use_cache)
 
-                elif year in (2005, 2006, 2007, 2008, 2009):
+                elif year in (2005, 2006, 2007, 2008):
                     cen = Acs1(tw.albers_features, year, self.__apikey)
                     cen.get_data(level='county', variables=acs_variables,
                                  retry=retry, verbose=verb,
                                  multiproc=multiproc,
                                  multithread=multithread,
-                                 thread_pool=thread_pool)
+                                 thread_pool=thread_pool,
+                                 use_cache=use_cache)
                 else:
                     cen = Acs5(tw.albers_features, year, self.__apikey)
                     cen.get_data(level=level, variables=acs_variables,
                                  retry=retry, verbose=verb,
                                  multiproc=multiproc,
                                  multithread=multithread,
-                                 thread_pool=thread_pool)
+                                 thread_pool=thread_pool,
+                                 use_cache=use_cache)
 
                 censusobj[year] = cen
 

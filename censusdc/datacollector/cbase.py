@@ -1,7 +1,7 @@
 import requests
 from .tigerweb import TigerWebVariables
 from ..utils import Acs5Server, Acs1Server, Sf3Server, RestartableThread, \
-    thread_count, Sf1Server
+    thread_count, Sf1Server, get_cache
 import threading
 import platform
 import copy
@@ -191,7 +191,8 @@ class CensusBase(object):
             self._features_level = self.__level_dict[min(level)]
 
     def get_data(self, level='finest', variables=(), retry=100, verbose=True,
-                 multiproc=False, multithread=False, thread_pool=4):
+                 multiproc=False, multithread=False, thread_pool=4,
+                 use_cache=False):
         """
         Method to get data from the Acs5 servers and set it to feature
         properties!
@@ -215,6 +216,9 @@ class CensusBase(object):
             flag to use a multithreaded method of collecting census data
         thread_pool : int
             number of threads to perform data collection while multithreading
+        use_cache : bool
+            method to prefer cached census api data over real time data
+            collection.
         """
         url = self._server.base.format(self.year)
 
@@ -250,6 +254,11 @@ class CensusBase(object):
             raise KeyError("No {} server could be found for {} and {}"
                            .format(self._text, self.year, level))
 
+        cache = None
+        if use_cache and level in ("tract", ):
+            cache = get_cache(self.year, level, self.__apikey,
+                              verbose=verbose)
+
         if variables:
             if isinstance(variables, str):
                 variables = (variables,)
@@ -272,10 +281,17 @@ class CensusBase(object):
                    if not k.startswith("__")}
             for name in self.feature_names:
                 for featix, feature in enumerate(self.get_feature(name)):
+                    if cache is not None:
+                        geoid = feature.properties["GEOID"]
+                        record = cache.loc[cache['geoid'] == geoid]
+                        if len(record) != 1:
+                            record = None
+                    else:
+                        record = None
                     actor = multiproc_data_request.remote(
                         year, apikey, feature, featix,
                         name, level, fmt, variables, url,
-                        retry, verbose, twv)
+                        retry, verbose, record, twv)
 
                     actors.append(actor)
 
@@ -305,11 +321,18 @@ class CensusBase(object):
             thread_id = 0
             for name in self.feature_names:
                 for featix, feature in enumerate(self.get_feature(name)):
+                    if cache is not None:
+                        geoid = feature.properties["GEOID"]
+                        record = cache.loc[cache['geoid'] == geoid]
+                        if len(record) != 1:
+                            record = None
+                    else:
+                        record = None
                     x = RestartableThread(target=self.threaded_request_data,
                                           args=(feature, featix, name,
                                                 level, fmt, variables,
-                                                url, retry, verbose, thread_id,
-                                                container))
+                                                url, retry, verbose, record,
+                                                thread_id, container))
                     thread_list.append(x)
                     thread_id += 1
 
@@ -330,11 +353,18 @@ class CensusBase(object):
         else:
             for name in self.feature_names:
                 for featix, feature in enumerate(self.get_feature(name)):
+                    if cache is not None:
+                        geoid = feature.properties["GEOID"]
+                        record = cache.loc[cache['geoid'] == geoid]
+                        if len(record) != 1:
+                            record = None
+                    else:
+                        record = None
                     self.__request_data(feature, featix, name, level, fmt,
-                                        variables, url, retry, verbose)
+                                        variables, url, retry, verbose, record)
 
     def __request_data(self, feature, featix, name, level, fmt, variables,
-                       url, retry, verbose):
+                       url, retry, verbose, cache_record):
         """
         Request data method for serial and multithreaded applications
 
@@ -358,11 +388,27 @@ class CensusBase(object):
             number of retries based on connection error
         verbose : bool
             verbose operation flag
+        cache_record : pd.DataFrame or None
+            cached census data record
 
         Returns
         -------
 
         """
+        if cache_record is not None:
+            for column in list(cache_record):
+                if column in ("NAME", 'state', 'county',
+                              'tract', 'geoid'):
+                    continue
+                try:
+                    self._features[name][featix].properties[column] = \
+                        float(cache_record[column].values[0])
+                except (TypeError, ValueError):
+                    self._features[name][featix].properties[column] = \
+                        float('nan')
+
+                return
+
         loc = ""
         if level == "block_group":
             loc = fmt.format(
@@ -448,7 +494,8 @@ class CensusBase(object):
                             float('nan')
 
     def threaded_request_data(self, feature, featix, name, level, fmt, variables,
-                               url, retry, verbose, thread_id, container):
+                              url, retry, verbose, cache_record, thread_id,
+                              container):
         """
         Multithread method for requesting census data
 
@@ -472,23 +519,27 @@ class CensusBase(object):
             number of retries based on connection error
         verbose : bool
             verbose operation flag
+        cache : pd.DataFrame or None
+            dataframe of cached census data
         thread_id : int
             identifier for the thread
         container : BoundedSemaphore
             bound semaphore instance for thread pool management
+        cache_record : pd.DataFrame or None
+            cached census data record
 
         """
         container.acquire()
         self.__thread_fail[thread_id] = True
         self.__request_data(feature, featix, name, level, fmt, variables,
-                            url, retry, verbose)
+                            url, retry, verbose, cache_record)
         self.__thread_fail[thread_id] = False
         container.release()
 
 @ray.remote
 def multiproc_data_request(year, apikey, feature, featix, name,
                            level, fmt, variables, url, retry, verbose,
-                           TigerwebVariables):
+                           cache_record, TigerwebVariables):
     """
     Multithread method for requesting census data
 
@@ -516,7 +567,23 @@ def multiproc_data_request(year, apikey, feature, featix, name,
         number of retries based on connection error
     verbose : str
         verbose operation flag
+    cache_record : pd.Dataframe or None
+        a record of cached data from a pandas dataframe
     """
+    if cache_record is not None:
+        l0 = []
+        l1 = []
+        for column in list(cache_record):
+            if column in ('state', 'county',
+                          'tract', 'geoid',
+                          'blkgrp'):
+                continue
+            else:
+                l0.append(column)
+                l1.append(cache_record[column].values[0])
+        data = [l0, l1]
+        return name, featix, data
+
     loc = ""
     if level == "block_group":
         loc = fmt.format(
