@@ -13,6 +13,11 @@ from ..utils.geometry import calculate_circle
 from ..utils.geometry import lat_lon_geojson_to_albers_geojson
 import threading
 import platform
+try:
+    from simplejson.errors import JSONDecodeError
+except ImportError:
+    from json import JSONDecodeError
+
 
 if platform.system().lower() != "windows":
     import ray
@@ -649,8 +654,13 @@ class TigerWebBase(object):
                     continue
 
             # print(r.text)
-            counties = geojson.loads(r.text)
-            newfeats = counties.__geo_interface__['features']
+            try:
+                counties = geojson.loads(r.text)
+                newfeats = counties.__geo_interface__['features']
+            except JSONDecodeError:
+                # this is a trap for intermittent errors from TigerWeb REST
+                continue
+
             if newfeats:
                 features.extend(newfeats)
                 # crs = counties.__geo_interface__['crs']
@@ -772,8 +782,13 @@ def multiproc_request_data(key, base, mapserver, esri_json, geotype,
             else:
                 continue
 
-        counties = geojson.loads(r.text)
-        newfeats = counties.__geo_interface__['features']
+        try:
+            counties = geojson.loads(r.text)
+            newfeats = counties.__geo_interface__['features']
+        except JSONDecodeError:
+            # this is a trap for intermittent errors from TigerWeb REST
+            continue
+            
         if newfeats:
             features.extend(newfeats)
             # crs = counties.__geo_interface__['crs']
