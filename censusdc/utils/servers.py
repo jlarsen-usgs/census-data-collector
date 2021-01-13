@@ -88,7 +88,7 @@ class TigerWebMapServer(object):
                     'outFields': __acs_tract},
              2018: {'mapserver': 3,
                     'outFields': __acs_tract},
-             2019: {'mapserver': 4,
+             2019: {'mapserver': 3,
                     'outFields': __acs_tract},
              2020: {'mapserver': 0,
                     'outFields': __dec_tract}}
@@ -109,7 +109,7 @@ class TigerWebMapServer(object):
                           'outFields': __acs_blkgrp},
                    2018: {'mapserver': 4,
                           'outFields': __acs_blkgrp},
-                   2019: {'mapserver': 5,
+                   2019: {'mapserver': 4,
                           'outFields': __acs_blkgrp},
                    2020: {'mapserver': 1,
                           'outFields': __dec_blkgrp}}

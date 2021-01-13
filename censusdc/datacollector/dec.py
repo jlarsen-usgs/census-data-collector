@@ -194,4 +194,5 @@ class Sf1(CensusBase):
                                   retry=retry, verbose=verbose,
                                   multiproc=multiproc,
                                   multithread=multithread,
-                                  thread_pool=thread_pool)
+                                  thread_pool=thread_pool,
+                                  use_cache=use_cache)

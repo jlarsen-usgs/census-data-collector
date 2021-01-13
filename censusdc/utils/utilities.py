@@ -158,7 +158,7 @@ def get_cache(year, level='tract', apikey="", refresh=False,
     if not os.path.isfile(table_file) or refresh:
         from .servers import Acs5Server, Sf1Server
 
-        if year in (2000, 2010):
+        if year in (2000,):
             server = Sf1Server
         else:
             server = Acs5Server
