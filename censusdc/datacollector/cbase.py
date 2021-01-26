@@ -407,7 +407,7 @@ class CensusBase(object):
                     self._features[name][featix].properties[column] = \
                         float('nan')
 
-                return
+            return
 
         loc = ""
         if level == "block_group":

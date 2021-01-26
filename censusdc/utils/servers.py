@@ -169,6 +169,14 @@ class Sf3Server(object):
                 for i in (2000,)}
     block_group = block_group(__variables)
 
+    def cache_block_group(variables):
+        return {i: {"fmt":
+                    'block%20group:*&in=state:{}&in=county:{}&in=tract:{}',
+                    "fmt_co": "county:*&in=state:{}",
+                    "variables": variables}
+                for i in (2000,)}
+    cache_block_group = cache_block_group(__variables)
+
 
 class Sf1Server(object):
     """
@@ -207,6 +215,13 @@ class Sf1Server(object):
                 for i in (2000, 2010)}
     block_group = block_group(__variables)
 
+    def cache_block_group(variables):
+        return {i: {"fmt":
+                    'block%20group:*&in=state:{}&in=county:{}&in=tract:{}',
+                    "fmt_co": "county:*&in=state:{}",
+                    "variables": variables}
+                for i in (2000, 2010)}
+    cache_block_group = cache_block_group(__variables)
 
 class Acs5Server(object):
     """
@@ -219,7 +234,7 @@ class Acs5Server(object):
     __income = ["B19001_0{:02d}E".format(i) for i in range(1,18)]
     __house_age = ["B25034_0{:02d}E".format(i) for i in range(1, 11)]
     __variables = "B01003_001E," + ",".join(__income) + ",B19013_001E," + \
-                  ",".join(__house_age) + ",B25036_001E"
+                  ",".join(__house_age) + ",B25035_001E"
 
     def state(variables):
         return {i: {"fmt": "state:{}", "variables": variables}
@@ -247,6 +262,14 @@ class Acs5Server(object):
                     "variables": variables}
                 for i in (2013, 2014, 2015, 2017, 2018, 2019)}
     block_group = block_group(__variables)
+
+    def cache_block_group(variables):
+        return {i: {"fmt":
+                    'block%20group:*&in=state:{}&in=county:{}&in=tract:{}',
+                    "fmt_co": "county:*&in=state:{}",
+                    "variables": variables}
+                for i in (2013, 2014, 2015, 2017, 2018, 2019)}
+    cache_block_group = cache_block_group(__variables)
 
 
 class Acs1Server(object):

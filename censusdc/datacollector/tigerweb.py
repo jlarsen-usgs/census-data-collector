@@ -653,13 +653,8 @@ class TigerWebBase(object):
                 else:
                     continue
 
-            # print(r.text)
-            try:
-                counties = geojson.loads(r.text)
-                newfeats = counties.__geo_interface__['features']
-            except JSONDecodeError:
-                # this is a trap for intermittent errors from TigerWeb REST
-                continue
+            counties = geojson.loads(r.text)
+            newfeats = counties.__geo_interface__['features']
 
             if newfeats:
                 features.extend(newfeats)
@@ -782,13 +777,9 @@ def multiproc_request_data(key, base, mapserver, esri_json, geotype,
             else:
                 continue
 
-        try:
-            counties = geojson.loads(r.text)
-            newfeats = counties.__geo_interface__['features']
-        except JSONDecodeError:
-            # this is a trap for intermittent errors from TigerWeb REST
-            continue
-            
+        counties = geojson.loads(r.text)
+        newfeats = counties.__geo_interface__['features']
+
         if newfeats:
             features.extend(newfeats)
             # crs = counties.__geo_interface__['crs']

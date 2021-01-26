@@ -167,12 +167,16 @@ def get_cache(year, level='tract', apikey="", refresh=False,
         server_dict = {}
         if level == "tract":
             server_dict = server.cache_tract[year]
+        elif level == "block_group":
+            server_dict = server.cache_block_group[year]
 
         fmt = server_dict['fmt']
         variables = server_dict['variables']
 
         df = None
         for state in STATE_FIPS:
+            # todo: need to break out the request into a seperate function
+            #   to update this for block groups!
             if verbose:
                 print("building cache for {}, FIPS code {}".format(year,
                                                                    state))
@@ -209,7 +213,10 @@ def get_cache(year, level='tract', apikey="", refresh=False,
                 data = []
 
             if data:
-                tdf = pd.DataFrame(data[1:], columns=data[0])
+                try:
+                    tdf = pd.DataFrame(data[1:], columns=data[0])
+                except TypeError:
+                    continue
 
                 if df is None:
                     df = tdf
@@ -220,6 +227,8 @@ def get_cache(year, level='tract', apikey="", refresh=False,
 
     if level == "tract":
         fmter = "{:06d}"
+    elif level == "block_group":
+        fmter = "{:07d}"
     else:
         fmter = "{}"
 
