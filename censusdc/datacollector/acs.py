@@ -238,5 +238,4 @@ class Acs5Profile(CensusBase):
                                           multiproc=multiproc,
                                           multithread=multithread,
                                           thread_pool=thread_pool,
-                                          use_cache=use_cache,
-                                          profile=True)
+                                          use_cache=use_cache)

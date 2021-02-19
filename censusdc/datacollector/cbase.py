@@ -235,7 +235,7 @@ class CensusBase(object):
 
     def get_data(self, level='finest', variables=(), retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4,
-                 use_cache=False, profile=False):
+                 use_cache=False):
         """
         Method to get data from the Acs5 servers and set it to feature
         properties!
@@ -299,6 +299,9 @@ class CensusBase(object):
 
         cache = None
         if use_cache and level in ("tract", ):
+            profile = False
+            if 'profile' in self._text:
+                profile = True
             cache = get_cache(self.year, level, self.__apikey,
                               verbose=verbose, profile=profile)
 
