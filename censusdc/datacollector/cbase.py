@@ -1,7 +1,7 @@
 import requests
 from .tigerweb import TigerWebVariables
 from ..utils import Acs5Server, Acs1Server, Sf3Server, RestartableThread, \
-    thread_count, Sf1Server, get_cache
+    thread_count, Sf1Server, get_cache, Acs5ProfileServer
 import threading
 import platform
 import copy
@@ -55,13 +55,18 @@ class CensusBase(object):
                                  3: 'tract', 4: 'block_group'}
             self.__ilevel_dict = {"state": 1, "county": 2,
                                   "tract": 3, "block_group": 4}
+        elif server == 'acs5profile':
+            self._server = Acs5ProfileServer
+            self.__level_dict = {1: 'state', 2: 'county',
+                                 3: 'tract', 4: 'block_group'}
+            self.__ilevel_dict = {"state": 1, "county": 2,
+                                  "tract": 3, "block_group": 4}
         elif server == "sf3":
             self._server = Sf3Server
             self.__level_dict = {1: "state", 2: "county",
                                  3: 'tract', 4: 'block_group'}
             self.__ilevel_dict = {"state": 1, "county": 2,
                                   "tract": 3, "block_group": 4}
-
         elif server == "sf1":
             self._server = Sf1Server
             self.__level_dict = {1: "state", 2: "county",
@@ -104,6 +109,44 @@ class CensusBase(object):
 
         """
         return self._features_level
+
+    def join(self, cenobj):
+        """
+        Method to join two census data objects into a single object
+        with all varaibles.
+
+        Parameters
+        ----------
+        cenobj : CensusBase object
+            census object to join data from
+
+        Returns
+        -------
+            None
+        """
+        for name in self.feature_names:
+            new_features = []
+            if name in cenobj.feature_names:
+                features = self._features[name]
+                features2 = cenobj.get_feature(name)
+
+                for feat in features:
+                    geoid = feat['properties']['GEOID']
+                    for feat2 in features2:
+                        geoid2 = feat2['properties']['GEOID']
+                        if geoid != geoid2:
+                            continue
+
+                        for key, val in feat2['properties'].items():
+                            if key in feat['properties']:
+                                continue
+                            else:
+                                feat['properties'][key] = val
+
+                        new_features.append(feat)
+                        break
+
+            self._features[name] = new_features
 
     def get_feature(self, name):
         """
@@ -192,7 +235,7 @@ class CensusBase(object):
 
     def get_data(self, level='finest', variables=(), retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4,
-                 use_cache=False):
+                 use_cache=False, profile=False):
         """
         Method to get data from the Acs5 servers and set it to feature
         properties!
@@ -257,7 +300,7 @@ class CensusBase(object):
         cache = None
         if use_cache and level in ("tract", ):
             cache = get_cache(self.year, level, self.__apikey,
-                              verbose=verbose)
+                              verbose=verbose, profile=profile)
 
         if variables:
             if isinstance(variables, str):

@@ -37,6 +37,30 @@ class AcsVariables(object):
     h_age_older_1939 = "B25034_010E"
     median_h_year = "B25035_001E"
 
+    # acs profile data product variables are included below this line
+    n_employed = "DP03_0001E"
+    n_occupation = "DP03_0026E"
+    n_occ_management = "DP03_0027E"
+    n_occ_service = "DP03_0028E"
+    n_occ_sales_office = "DP03_0029E"
+    n_occ_farm_fish_forest = "DP03_0030E"
+    n_occ_const_maint_repair = "DP03_0031E"
+    n_occ_prod_trans_material = "DP03_0032E"
+    n_industry = "DP03_0033E"
+    n_ind_ag_forest_fish_mining = "DP03_0034E"
+    n_ind_construction = "DP03_0035E"
+    n_ind_manufacturing = "DP03_0036E"
+    n_ind_wholesale_trade = "DP03_0037E"
+    n_ind_retail_trade = "DP03_0038E"
+    n_ind_trans_warehouse_utilities = "DP03_0039E"
+    n_ind_information = "DP03_0040E"
+    n_ind_finance = "DP03_0041E"
+    n_ind_prof_sci_admin_waste = "DP03_0042E"
+    n_ind_education_healthcare = "DP03_0043E"
+    n_ind_arts_entertain_foodservice = "DP03_0044E"
+    n_ind_other = "DP03_0045E"
+    n_ind_publicadmin = "DP03_0046E"
+
 
 AcsHR = {v: k for k, v in AcsVariables.__dict__.items()
          if not k.startswith("__")}
@@ -156,3 +180,63 @@ class Acs5(CensusBase):
                                    multithread=multithread,
                                    thread_pool=thread_pool,
                                    use_cache=use_cache)
+
+
+class Acs5Profile(CensusBase):
+    """
+    Class to collect data from the Acs5 profile census using geojson features
+    from TigerWeb
+
+    Parameters
+    ----------
+    features: dict
+        features from TigerWeb data collections
+        {polygon_name: [geojson, geojson,...]}
+    year : int
+        census data year of the TigerWeb data
+    apikey : str
+        users specific census apikey (obtained from
+        https://api.census.gov/data/key_signup.html)
+
+    """
+    def __init__(self, features, year, apikey):
+        super(Acs5Profile, self).__init__(features, year,
+                                          apikey, 'acs5profile')
+
+    def get_data(self, level='finest', variables=(), retry=100, verbose=True,
+                 multiproc=False, multithread=False, thread_pool=4,
+                 use_cache=False):
+        """
+        Method to get data from the Acs5 servers and set it to feature
+        properties!
+
+        Parameters
+        ----------
+        level : str
+            determines the geographic level of data queried
+            default is 'finest' available based on census dataset and
+            the geoJSON feature information
+        variables : list, tuple
+            user specified Acs5 variables, default pulls variables from
+            the AcsVariables class
+        retry : int
+            number of retries for HTTP connection issues before failure
+        verbose : bool
+            verbose operation mode
+        multiproc : bool
+            multiprocessing support using ray, linux only!
+        multithread : bool
+            boolean flag to allow multithreading of data collection
+        thread_pool : int
+            number of CPU threads to use during multithread operations
+        use_cache : bool
+            method to prefer cached census api data over real time data
+            collection.
+        """
+        super(Acs5Profile, self).get_data(level=level, variables=variables,
+                                          retry=retry, verbose=verbose,
+                                          multiproc=multiproc,
+                                          multithread=multithread,
+                                          thread_pool=thread_pool,
+                                          use_cache=use_cache,
+                                          profile=True)

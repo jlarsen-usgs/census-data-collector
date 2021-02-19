@@ -128,7 +128,8 @@ class CensusTimeSeries(object):
                        sf3_variables_1990=(), acs_variables=(), years=(),
                        polygons='internal', hr_dict=None, level="tract",
                        retry=1000, verbose=1, multiproc=False,
-                       multithread=False, thread_pool=4, use_cache=False):
+                       multithread=False, thread_pool=4, use_cache=False,
+                       include_profile=False, acs_profile_variables=()):
         """
         Method to get a time series from 1990 through 2018 of census
         data from available products
@@ -177,12 +178,16 @@ class CensusTimeSeries(object):
         use_cache : bool
             flag to prefer cached census data over collecting data from the
             census api at run time.
+        include_profile : bool
+            flag to include ACS5 profile data when it is available
+        acs_profile_variables : tuple
+            optional list of Acs5 profile variables to query
 
         Returns
         -------
 
         """
-        from .. import TigerWeb, Acs1, Acs5, Sf3, Sf1
+        from .. import TigerWeb, Acs1, Acs5, Sf3, Sf1, Acs5Profile
         from ..datacollector.dec import Sf3HR1990, Sf3HR, Sf1HR
         from ..datacollector.acs import AcsHR
         refresh = False
@@ -287,6 +292,19 @@ class CensusTimeSeries(object):
                                  multithread=multithread,
                                  thread_pool=thread_pool,
                                  use_cache=use_cache)
+
+                    if include_profile:
+                        cen2 = Acs5Profile(tw.albers_features, year,
+                                           self.__apikey)
+                        cen2.get_data(level=level,
+                                      variables=acs_profile_variables,
+                                      retry=retry, verbose=verb,
+                                      multiproc=multiproc,
+                                      multithread=multithread,
+                                      thread_pool=thread_pool,
+                                      use_cache=use_cache)
+
+                        cen.join(cen2)
 
                 censusobj[year] = cen
 

@@ -223,6 +223,7 @@ class Sf1Server(object):
                 for i in (2000, 2010)}
     cache_block_group = cache_block_group(__variables)
 
+
 class Acs5Server(object):
     """
     Class to store map server information for ACS5 census data queries
@@ -271,6 +272,53 @@ class Acs5Server(object):
                 for i in (2013, 2014, 2015, 2017, 2018, 2019)}
     cache_block_group = cache_block_group(__variables)
 
+
+class Acs5ProfileServer(object):
+    base = "https://api.census.gov/data/{}/acs/acs5/profile?"
+
+    levels = ("block_group", "tract", "county", "state")
+
+    __employment = "DP03_0001E"
+    __occupation = ["DP03_00{}E".format(i) for i in range(26, 33)]
+    __industry = ["DP03_00{}E".format(i) for i in range(33, 47)]
+
+    __variables = __employment + "," + ",".join(__occupation) + \
+                  "," + ",".join(__industry)
+
+    def state(variables):
+        return {i: {"fmt": "state:{}", "variables": variables}
+                for i in range(2009, 2020)}
+    state = state(__variables)
+
+    def county(variables):
+        return {i: {"fmt": "county:{}&in=state:{}", "variables": variables}
+                for i in range(2009, 2020)}
+    county = county(__variables)
+
+    def tract(variables):
+        return {i: {"fmt": "tract:{}&in=state:{}&in=county:{}",
+                    "variables": variables} for i in range(2009, 2020)}
+    tract = tract(__variables)
+
+    def cache_tract(variables):
+        return {i: {"fmt": "tract:*&in=state:{}",
+                    "variables": variables} for i in range(2009, 2020)}
+    cache_tract = cache_tract(__variables)
+
+    def block_group(variables):
+        return {i: {"fmt":
+                    'block%20group:{}&in=state:{}&in=county:{}&in=tract:{}',
+                    "variables": variables}
+                for i in (2013, 2014, 2015, 2017, 2018, 2019)}
+    block_group = block_group(__variables)
+
+    def cache_block_group(variables):
+        return {i: {"fmt":
+                    'block%20group:*&in=state:{}&in=county:{}&in=tract:{}',
+                    "fmt_co": "county:*&in=state:{}",
+                    "variables": variables}
+                for i in (2013, 2014, 2015, 2017, 2018, 2019)}
+    cache_block_group = cache_block_group(__variables)
 
 class Acs1Server(object):
     """

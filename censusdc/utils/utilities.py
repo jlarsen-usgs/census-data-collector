@@ -51,7 +51,8 @@ def isbytes(s):
 
 
 def census_cache_builder(level='tract', apikey="",
-                         multithread=False, thread_pool=4):
+                         multithread=False, thread_pool=4,
+                         profile=False):
     """
     Method to build out cache for all supported census years for a
     specific census "level"
@@ -66,6 +67,9 @@ def census_cache_builder(level='tract', apikey="",
         flag to enable multithreaded cache building
     thread_pool : int
         number of threads to use for multithreading.
+    profile : bool
+        boolean flag to indicate that economic profile data is
+        being collected and cached
 
     Returns
     -------
@@ -84,7 +88,7 @@ def census_cache_builder(level='tract', apikey="",
         for year in years:
             x = RestartableThread(target=_threaded_get_cache,
                                   args=(year, level, apikey, True, 100,
-                                        True, container))
+                                        True, profile, container))
             thread_list.append(x)
 
         for thread in thread_list:
@@ -95,11 +99,11 @@ def census_cache_builder(level='tract', apikey="",
     else:
         for year in years:
             get_cache(year, level=level, apikey=apikey, refresh=True,
-                      verbose=True)
+                      verbose=True, profile=profile)
 
 
 def _threaded_get_cache(year, level, apikey, refresh,
-                        retry, verbose, container):
+                        retry, verbose, profile, container):
     """
     Multithreaded method to build and load cache tables of census data to
     improve performance
@@ -114,6 +118,8 @@ def _threaded_get_cache(year, level, apikey, refresh,
         census api key
     refresh : boolean
         option to refresh existing cache
+    profile : bool
+        option to collect economic data
 
     Returns
     -------
@@ -125,7 +131,7 @@ def _threaded_get_cache(year, level, apikey, refresh,
 
 
 def get_cache(year, level='tract', apikey="", refresh=False,
-              retry=100, verbose=False):
+              retry=100, verbose=False, profile=True):
     """
     Method to build and load cache tables of census data to
     improve performance
@@ -140,7 +146,8 @@ def get_cache(year, level='tract', apikey="", refresh=False,
         census api key
     refresh : boolean
         option to refresh existing cache
-
+    profile : bool
+        option to collect economic profile data
     Returns
     -------
         pd.DataFrame
@@ -152,16 +159,27 @@ def get_cache(year, level='tract', apikey="", refresh=False,
         raise NotImplementedError()
 
     utils_dir = os.path.dirname(os.path.abspath(__file__))
-    table_file = os.path.join(utils_dir, '..', 'cache',
-                              "{}_{}.dat".format(level, year))
+
+    if profile:
+        table_file = os.path.join(utils_dir, '..', 'cache',
+                                  "{}_{}profile.dat".format(level, year))
+    else:
+        table_file = os.path.join(utils_dir, '..', 'cache',
+                                  "{}_{}.dat".format(level, year))
 
     if not os.path.isfile(table_file) or refresh:
-        from .servers import Acs5Server, Sf1Server
+        from .servers import Acs5Server, Sf1Server, Acs5ProfileServer
 
-        if year in (2000,):
-            server = Sf1Server
+        if profile:
+            if year == 2000:
+                return
+            else:
+                server = Acs5ProfileServer
         else:
-            server = Acs5Server
+            if year in (2000,):
+                server = Sf1Server
+            else:
+                server = Acs5Server
 
         url = server.base.format(year)
         server_dict = {}
