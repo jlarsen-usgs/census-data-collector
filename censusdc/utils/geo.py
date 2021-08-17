@@ -27,6 +27,8 @@ def _IGNORE():
             TigerWebVariables.oid,
             TigerWebVariables.geoid,
             TigerWebVariables.state,
+            TigerWebVariables.place,
+            TigerWebVariables.place.lower,
             TigerWebVariables.county,
             TigerWebVariables.cousub,
             TigerWebVariables.tract,

@@ -1,7 +1,7 @@
 import requests
 from .tigerweb import TigerWebVariables
 from ..utils import Acs5Server, Acs1Server, Sf3Server, RestartableThread, \
-    thread_count, Sf1Server, get_cache, Acs5ProfileServer
+    thread_count, Sf1Server, get_cache, Acs5ProfileServer, Acs1ProfileServer
 import threading
 import platform
 import copy
@@ -45,33 +45,41 @@ class CensusBase(object):
 
         if server == 'acs1':
             self._server = Acs1Server
-            self.__level_dict = {1: 'state', 2: 'county',
+            self.__level_dict = {0: 'place', 1: 'state', 2: 'county',
                                  3: 'county_subdivision'}
-            self.__ilevel_dict = {'state': 1, 'county': 2,
+            self.__ilevel_dict = {'place': 0, 'state': 1, 'county': 2,
                                   'county_subdivision': 3}
+
+        elif server == 'acs1profile':
+            self._server = Acs1ProfileServer
+            self.__level_dict = {0: 'place', 1: 'state', 2: 'county',
+                                 3: 'county_subdivision'}
+            self.__ilevel_dict = {'place': 0, 'state': 1, 'county': 2,
+                                  'county_subdivision': 3}
+
         elif server == 'acs5':
             self._server = Acs5Server
-            self.__level_dict = {1: 'state', 2: 'county',
+            self.__level_dict = {0: 'place', 1: 'state', 2: 'county',
                                  3: 'tract', 4: 'block_group'}
-            self.__ilevel_dict = {"state": 1, "county": 2,
+            self.__ilevel_dict = {'place': 0, "state": 1, "county": 2,
                                   "tract": 3, "block_group": 4}
         elif server == 'acs5profile':
             self._server = Acs5ProfileServer
-            self.__level_dict = {1: 'state', 2: 'county',
+            self.__level_dict = {0: 'place', 1: 'state', 2: 'county',
                                  3: 'tract', 4: 'block_group'}
-            self.__ilevel_dict = {"state": 1, "county": 2,
+            self.__ilevel_dict = {'place': 0, "state": 1, "county": 2,
                                   "tract": 3, "block_group": 4}
         elif server == "sf3":
             self._server = Sf3Server
-            self.__level_dict = {1: "state", 2: "county",
+            self.__level_dict = {0: 'place', 1: "state", 2: "county",
                                  3: 'tract', 4: 'block_group'}
-            self.__ilevel_dict = {"state": 1, "county": 2,
+            self.__ilevel_dict = {'place': 0, "state": 1, "county": 2,
                                   "tract": 3, "block_group": 4}
         elif server == "sf1":
             self._server = Sf1Server
-            self.__level_dict = {1: "state", 2: "county",
+            self.__level_dict = {0: 'place', 1: "state", 2: "county",
                                  3: 'tract', 4: 'block_group'}
-            self.__ilevel_dict = {"state": 1, "county": 2,
+            self.__ilevel_dict = {'place': 0, "state": 1, "county": 2,
                                   "tract": 3, "block_group": 4}
         else:
             raise AssertionError("unknown server type")
@@ -185,6 +193,15 @@ class CensusBase(object):
                     else:
                         raise AssertionError("State number must be in "
                                              "properties dict")
+
+                if tmp == 1:
+                    for key in (TigerWebVariables.place,
+                                TigerWebVariables.state):
+                        if key in feature.properties:
+                            tmp = 0
+                        else:
+                            break
+
                 if tmp == 1:
                     for key in (TigerWebVariables.county,
                                 TigerWebVariables.state):
@@ -193,6 +210,7 @@ class CensusBase(object):
                         else:
                             tmp = 1
                             break
+
                 if tmp == 2:
                     if self._text == 'acs1':
                         for key in (TigerWebVariables.cousub,
@@ -298,7 +316,7 @@ class CensusBase(object):
                            .format(self._text, self.year, level))
 
         cache = None
-        if use_cache and level in ("tract", ):
+        if use_cache and level in ("tract", "place"):
             profile = False
             if 'profile' in self._text:
                 profile = True
@@ -444,7 +462,7 @@ class CensusBase(object):
         if cache_record is not None:
             for column in list(cache_record):
                 if column in ("NAME", 'state', 'county',
-                              'tract', 'geoid'):
+                              'tract', 'geoid', 'place'):
                     continue
                 try:
                     self._features[name][featix].properties[column] = \
@@ -467,6 +485,11 @@ class CensusBase(object):
                 feature.properties[TigerWebVariables.tract],
                 feature.properties[TigerWebVariables.state],
                 feature.properties[TigerWebVariables.county])
+        elif level == "place":
+            loc = fmt.format(
+                feature.properties[TigerWebVariables.place],
+                feature.properties[TigerWebVariables.state]
+            )
         elif level == "county_subdivision":
             loc = fmt.format(
                 feature.properties[TigerWebVariables.cousub],
@@ -622,7 +645,7 @@ def multiproc_data_request(year, apikey, feature, featix, name,
         for column in list(cache_record):
             if column in ('state', 'county',
                           'tract', 'geoid',
-                          'blkgrp'):
+                          'blkgrp', 'place'):
                 continue
             else:
                 l0.append(column)
@@ -647,6 +670,10 @@ def multiproc_data_request(year, apikey, feature, featix, name,
             feature.properties[TigerwebVariables['cousub']],
             feature.properties[TigerwebVariables['state']],
             feature.properties[TigerwebVariables['county']])
+    elif level == "place":
+        loc = fmt.format(
+            feature.properties[TigerWebVariables.place],
+            feature.properties[TigerWebVariables.state])
     elif level == "county":
         loc = fmt.format(
             feature.properties[TigerwebVariables['county']],

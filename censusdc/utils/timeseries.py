@@ -187,7 +187,7 @@ class CensusTimeSeries(object):
         -------
 
         """
-        from .. import TigerWeb, Acs1, Acs5, Sf3, Sf1, Acs5Profile
+        from .. import TigerWeb, Acs1, Acs5, Sf3, Sf1, Acs5Profile, Acs1Profile
         from ..datacollector.dec import Sf3HR1990, Sf3HR, Sf1HR
         from ..datacollector.acs import AcsHR
         refresh = False
@@ -230,12 +230,16 @@ class CensusTimeSeries(object):
                     tw = TigerWeb(self._shp, self._field, self._radius,
                                   self._filter)
                     if year in (2005, 2006, 2007, 2008, 2009):
-                        tw.get_data(year, level="county",
+                        tlevel = level
+                        if level not in ("place",):
+                            tlevel = "county"
+                        tw.get_data(year, level=tlevel,
                                     verbose=verb,
                                     multiproc=multiproc,
                                     multithread=multithread,
                                     thread_pool=thread_pool,
                                     retry=retry)
+
                     else:
                         tw.get_data(year, level=level,
                                     verbose=verb,
@@ -278,12 +282,28 @@ class CensusTimeSeries(object):
 
                 elif year in (2005, 2006, 2007, 2008):
                     cen = Acs1(tw.albers_features, year, self.__apikey)
-                    cen.get_data(level='county', variables=acs_variables,
+                    tlevel = level
+                    if level not in ('place',):
+                        tlevel = 'county'
+                    cen.get_data(level=tlevel, variables=acs_variables,
                                  retry=retry, verbose=verb,
                                  multiproc=multiproc,
                                  multithread=multithread,
                                  thread_pool=thread_pool,
                                  use_cache=use_cache)
+                    if include_profile:
+                        cen2 = Acs1Profile(tw.albers_features, year,
+                                           self.__apikey)
+                        cen.get_data(level=tlevel,
+                                     variables=acs_profile_variables,
+                                     retry=retry,
+                                     verbose=verb,
+                                     multiproc=multiproc,
+                                     multithread=multithread,
+                                     thread_pool=thread_pool,
+                                     use_cache=use_cache)
+                        cen.join(cen2)
+
                 else:
                     cen = Acs5(tw.albers_features, year, self.__apikey)
                     cen.get_data(level=level, variables=acs_variables,
@@ -509,13 +529,9 @@ class CensusTimeSeries(object):
             if column in ("year", "dyear"):
                 continue
 
-
-
             f = interpolate.interp1d(dyear, df[column].values,
                                      kind=kind, fill_value='extrapolate')
-
             cnew = f(x)
-
             d[column] = cnew
 
         return pd.DataFrame.from_dict(d)

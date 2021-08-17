@@ -6,6 +6,8 @@ class TigerWebMapServer(object):
     """
     __gacs = 'https://tigerweb.geo.census.gov/arcgis/rest/services/' + \
              'Generalized_ACS{}/Tracts_Blocks/MapServer'
+    __gacspl = 'https://tigerweb.geo.census.gov/arcgis/rest/services/' \
+               'Generalized_ACS{}/Places_CouSub_ConCity_SubMCD/MapServer'
     __acs1 = 'https://tigerweb.geo.census.gov/arcgis/rest/services/' + \
              'TIGERweb/Places_CouSub_ConCity_SubMCD/MapServer'
     __acs1co = "https://tigerweb.geo.census.gov/arcgis/rest/services/" + \
@@ -19,7 +21,8 @@ class TigerWebMapServer(object):
     __2020 = 'https://tigerweb.geo.census.gov/arcgis/rest/services/' + \
              'Census2020/Tracts_Blocks/MapServer'
 
-    levels = ('block', 'block_group', 'tract', 'county_subdivision', 'county')
+    levels = ('block', 'block_group', 'tract', 'place',
+              'county_subdivision', 'county')
 
     base = {1990: __2000,
             2000: __2000,
@@ -39,6 +42,24 @@ class TigerWebMapServer(object):
             2018: __gacs.format(2018),
             2019: __gacs.format(2019),
             2020: __2020}
+
+    place_base = {2000: __2000,
+                  2005: __acs1,
+                  2006: __acs1,
+                  2007: __acs1,
+                  2008: __acs1,
+                  2009: __acs1,
+                  2010: __2010,
+                  2011: __gacspl.format(2015),
+                  2012: __gacspl.format(2015),
+                  2013: __gacspl.format(2015),
+                  2014: __gacspl.format(2015),
+                  2015: __gacspl.format(2015),
+                  2016: __gacspl.format(2016),
+                  2017: __gacspl.format(2017),
+                  2018: __gacspl.format(2018),
+                  2019: __gacspl.format(2019),
+                  2020: __2020}
 
     def lcdbase(acs1):
         return {i: acs1 for i in range(2005, 2019)}
@@ -64,11 +85,45 @@ class TigerWebMapServer(object):
         return {i: acs1_server for i in range(2005, 2019)}
     county_subdivision = county_subdivision(__acs1_server)
 
+    __place = 'GEOID,STATE,PLACE,AREALAND,AREAWATER'
+    place = {2000: {'mapserver': 28,
+                    'outFields': __place},
+             2005: {'mapserver': 26,
+                    'outFields': __place},
+             2006: {'mapserver': 26,
+                    'outFields': __place},
+             2007: {'mapserver': 26,
+                    'outFields': __place},
+             2008: {'mapserver': 26,
+                    'outFields': __place},
+             2009: {'mapserver': 26,
+                    'outFields': __place},
+             2010: {'mapserver': 32,
+                    'outFields': __place},
+             2011: {'mapserver': 11,
+                    'outFields': __place},
+             2012: {'mapserver': 11,
+                    'outFields': __place},
+             2013: {'mapserver': 11,
+                    'outFields': __place},
+             2014: {'mapserver': 11,
+                    'outFields': __place},
+             2015: {'mapserver': 11,
+                    'outFields': __place},
+             2016: {'mapserver': 11,
+                    'outFields': __place},
+             2017: {'mapserver': 11,
+                    'outFields': __place},
+             2018: {'mapserver': 11,
+                    'outFields': __place},
+             2019: {'mapserver': 11,
+                    'outFields': __place},}
+
     __dec_tract = 'GEOID,STATE,COUNTY,TRACT,AREAWATER'
     __acs_tract = 'GEOID,STATE,COUNTY,TRACT,AREALAND'
     tract = {1990: {'mapserver': 6,
                     'outFields': __dec_tract},
-             2000: {'mapserver': 6,
+             2000: {'mapserver': 8,
                     'outFields': __dec_tract},
              2010: {'mapserver': 10,
                     'outFields': __dec_tract},
@@ -130,7 +185,7 @@ class Sf3Server(object):
     """
     base = "https://api.census.gov/data/{}/dec/sf3"
 
-    levels = ("block_group", "block", "tract", "county", "state")
+    levels = ("block_group", "block", "tract", "place", "county", "state")
 
     __income = ["P0520{:02d}".format(i) for i in range(1, 18)]
     __variables = "P001001," + ",".join(__income) + ",HCT012001" + ",H035001"
@@ -197,6 +252,16 @@ class Sf1Server(object):
                 for i in (2000, 2010)}
     county = county(__variables)
 
+    def place(variables):
+        return {i: {"fmt": "place:{}&in=state:{}", "variables": variables}
+                for i in (2000, 2010)}
+    place = place(__variables)
+
+    def cache_place(variables):
+        return {i: {"fmt": "place:*&in=state:{}", "variables": variables}
+                for i in (2000, 2010)}
+    cache_place = cache_place(__variables)
+
     def tract(variables):
         return {i: {"fmt": "tract:{}&in=state:{}&in=county:{}",
                     "variables": variables} for i in (2000, 2010)}
@@ -206,7 +271,6 @@ class Sf1Server(object):
         return {i: {"fmt": "tract:*&in=state:{}",
                     "variables": variables} for i in (2000, 2010)}
     cache_tract = cache_tract(__variables)
-
 
     def block_group(variables):
         return {i: {"fmt":
@@ -230,7 +294,7 @@ class Acs5Server(object):
     """
     base = "https://api.census.gov/data/{}/acs/acs5?"
 
-    levels = ("block_group", "tract", "county", "state")
+    levels = ("block_group", "tract", "place", "county", "state")
 
     __income = ["B19001_0{:02d}E".format(i) for i in range(1,18)]
     __house_age = ["B25034_0{:02d}E".format(i) for i in range(1, 11)]
@@ -257,6 +321,18 @@ class Acs5Server(object):
                     "variables": variables} for i in range(2009, 2020)}
     cache_tract = cache_tract(__variables)
 
+    def place(variables):
+        return {i: {"fmt": "place:{}&in=state:{}",
+                    "variables": variables} for i in range(2009, 2020)}
+
+    place = place(__variables)
+
+    def cache_place(variables):
+        return {i: {"fmt": "place:*&in=state:{}",
+                    "variables": variables} for i in range(2009, 2020)}
+
+    cache_place = cache_place(__variables)
+
     def block_group(variables):
         return {i: {"fmt":
                     'block%20group:{}&in=state:{}&in=county:{}&in=tract:{}',
@@ -276,7 +352,7 @@ class Acs5Server(object):
 class Acs5ProfileServer(object):
     base = "https://api.census.gov/data/{}/acs/acs5/profile?"
 
-    levels = ("block_group", "tract", "county", "state")
+    levels = ("block_group", "tract", "place", "county", "state")
 
     __employment = "DP03_0001E"
     __occupation = ["DP03_00{}E".format(i) for i in range(26, 33)]
@@ -305,6 +381,16 @@ class Acs5ProfileServer(object):
                     "variables": variables} for i in range(2009, 2020)}
     cache_tract = cache_tract(__variables)
 
+    def place(variables):
+        return {i: {"fmt": "place:{}&in=state:{}",
+                    "variables": variables} for i in range(2009, 2020)}
+    place = place(__variables)
+
+    def cache_place(variables):
+        return {i: {"fmt": "place:*&in=state:{}",
+                    "variables": variables} for i in range(2009, 2020)}
+    cache_place = cache_place(__variables)
+
     def block_group(variables):
         return {i: {"fmt":
                     'block%20group:{}&in=state:{}&in=county:{}&in=tract:{}',
@@ -320,16 +406,19 @@ class Acs5ProfileServer(object):
                 for i in (2013, 2014, 2015, 2017, 2018, 2019)}
     cache_block_group = cache_block_group(__variables)
 
+
 class Acs1Server(object):
     """
     Class to store map server information for ACS1 census data queries
     """
     base = "https://api.census.gov/data/{}/acs/acs1?"
 
-    levels = ("county_subdivision", "county", "state")
+    levels = ("county_subdivision", "place", "county", "state")
 
     __income = ["B19001_0{:02d}E".format(i) for i in range(1, 18)]
-    __variables = "B01003_001E," + ",".join(__income) + ",B19013_001E"
+    __house_age = ["B25034_0{:02d}E".format(i) for i in range(1, 11)]
+    __variables = "B01003_001E," + ",".join(__income) + ",B19013_001E," + \
+                  ",".join(__house_age) + ",B25035_001E"
 
     def state(variables):
         return {i: {"fmt": "state:{}", "variables": variables}
@@ -341,8 +430,80 @@ class Acs1Server(object):
                 for i in range(2005, 2019)}
     county = county(__variables)
 
+    def place(variables):
+        return {i: {"fmt": "place:{}&in=state:{}", "variables": variables}
+                for i in range(2005, 2019)}
+    place = place(__variables)
+
+    def cache_place(variables):
+        return {i: {"fmt": "place:*&in=state:{}", "variables": variables}
+                for i in range(2005, 2019)}
+    cache_place = cache_place(__variables)
+
     def county_subdivision(variables):
         return {i: {"fmt": "county%20subdivision:{}&in=state:{}&in=county:{}",
                     "variables": variables}
                 for i in range(2005, 2019)}
     county_subdivision = county_subdivision(__variables)
+
+
+class Acs1ProfileServer(object):
+    """
+    Class to store map server information for ACS1 census profile data queries
+    """
+    base = "https://api.census.gov/data/{}/acs/acs1/profile?"
+
+    levels = ("block_group", "tract", "place", "county", "state")
+
+    __employment = "DP03_0001E"
+    __occupation = ["DP03_00{}E".format(i) for i in range(26, 33)]
+    __industry = ["DP03_00{}E".format(i) for i in range(33, 47)]
+
+    __variables = __employment + "," + ",".join(__occupation) + \
+                  "," + ",".join(__industry)
+
+    def state(variables):
+        return {i: {"fmt": "state:{}", "variables": variables}
+                for i in range(2005, 2019)}
+
+    state = state(__variables)
+
+    def county(variables):
+        return {i: {"fmt": "county:{}&in=state:{}", "variables": variables}
+                for i in range(2005, 2019)}
+
+    county = county(__variables)
+
+    def place(variables):
+        return {i: {"fmt": "place:{}&in=state:{}", "variables": variables}
+                for i in range(2005, 2019)}
+
+    place = place(__variables)
+
+    def cache_place(variables):
+        return {i: {"fmt": "place:*&in=state:{}",
+                    "variables": variables}
+                for i in range(2005, 2019)}
+
+    cache_place = cache_place(__variables)
+
+    def tract(variables):
+        return {i: {"fmt": "tract:{}&in=state:{}&in=county:{}",
+                    "variables": variables} for i in range(2005, 2019)}
+
+    tract = tract(__variables)
+
+    def cache_tract(variables):
+        return {i: {"fmt": "tract:*&in=state:{}",
+                    "variables": variables} for i in range(2005, 2019)}
+
+    cache_tract = cache_tract(__variables)
+
+    def cache_block_group(variables):
+        return {i: {"fmt":
+                        'block%20group:*&in=state:{}&in=county:{}&in=tract:{}',
+                    "fmt_co": "county:*&in=state:{}",
+                    "variables": variables}
+                for i in (2013, 2014, 2015, 2017, 2018, 2019)}
+
+    cache_block_group = cache_block_group(__variables)

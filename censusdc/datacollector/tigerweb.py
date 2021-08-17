@@ -34,6 +34,7 @@ class TigerWebVariables(object):
     oid = 'OID'
     geoid = 'GEOID'
     state = 'STATE'
+    place = 'PLACE'
     county = 'COUNTY'
     cousub = 'COUSUB'
     tract = 'TRACT'
@@ -492,6 +493,8 @@ class TigerWebBase(object):
             base = TigerWebMapServer.lcdbase[year]
         elif level == "county":
             base = TigerWebMapServer.cobase[year]
+        elif level == "place":
+            base = TigerWebMapServer.place_base[year]
         else:
             base = TigerWebMapServer.base[year]
 

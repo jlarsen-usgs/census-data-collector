@@ -82,6 +82,9 @@ def census_cache_builder(level='tract', apikey="",
                  2012, 2013, 2014, 2015,
                  2016, 2017, 2018, 2019)
 
+    if level == "place":
+        years = (2000,) + tuple(range(2005, 2020))
+
     if multithread:
         container = threading.BoundedSemaphore(thread_pool)
         thread_list = []
@@ -155,11 +158,10 @@ def get_cache(year, level='tract', apikey="", refresh=False,
     if verbose:
         print("Building census cache for {}, {}".format(year, level))
     level = level.lower()
-    if level not in ("tract", ):
+    if level not in ("tract", "place"):
         raise NotImplementedError()
 
     utils_dir = os.path.dirname(os.path.abspath(__file__))
-
     if profile:
         table_file = os.path.join(utils_dir, '..', 'cache',
                                   "{}_{}profile.dat".format(level, year))
@@ -168,23 +170,43 @@ def get_cache(year, level='tract', apikey="", refresh=False,
                                   "{}_{}.dat".format(level, year))
 
     if not os.path.isfile(table_file) or refresh:
-        from .servers import Acs5Server, Sf1Server, Acs5ProfileServer
+        from .servers import Acs1Server, Acs5Server, Sf1Server, \
+            Acs5ProfileServer, Acs1ProfileServer
 
-        if profile:
-            if year == 2000:
-                return
+        if level == "place":
+            if profile:
+                if year in (2000,):
+                    return
+                elif year in range(2005, 2009):
+                    server = Acs1ProfileServer
+                else:
+                    server = Acs5ProfileServer
             else:
-                server = Acs5ProfileServer
+                if year in (2000,):
+                    server = Sf1Server
+                elif year in range(2005, 2009):
+                    server = Acs1Server
+                else:
+                    server = Acs5Server
+
         else:
-            if year in (2000,):
-                server = Sf1Server
+            if profile:
+                if year == 2000:
+                    return
+                else:
+                    server = Acs5ProfileServer
             else:
-                server = Acs5Server
+                if year in (2000,):
+                    server = Sf1Server
+                else:
+                    server = Acs5Server
 
         url = server.base.format(year)
         server_dict = {}
         if level == "tract":
             server_dict = server.cache_tract[year]
+        elif level == "place":
+            server_dict = server.cache_place[year]
         elif level == "block_group":
             server_dict = server.cache_block_group[year]
 
@@ -245,6 +267,8 @@ def get_cache(year, level='tract', apikey="", refresh=False,
 
     if level == "tract":
         fmter = "{:06d}"
+    elif level == "place":
+        fmter = "{:05d}"
     elif level == "block_group":
         fmter = "{:07d}"
     else:
@@ -254,8 +278,11 @@ def get_cache(year, level='tract', apikey="", refresh=False,
 
     df[level] = [fmter.format(i) for i in df[level].values]
     df['state'] = ["{:02d}".format(i) for i in df['state'].values]
-    df['county'] = ["{:03d}".format(i) for i in df['county'].values]
-    df['geoid'] = df['state'] + df['county'] + df[level]
+    if level == "tract":
+        df['county'] = ["{:03d}".format(i) for i in df['county'].values]
+        df['geoid'] = df['state'] + df['county'] + df[level]
+    else:
+        df['geoid'] = df['state'] + df[level]
 
     return df
 
@@ -315,11 +342,11 @@ class RestartableThread(threading.Thread):
     Restartable instance of a thread
     """
     def __init__(self, *args, **kwargs):
-        self._args, self._kwargs = args, kwargs
+        self.myargs, self.mykwargs = args, kwargs
         super().__init__(*args, **kwargs)
 
     def clone(self):
-        return RestartableThread(*self._args, **self._kwargs)
+        return RestartableThread(*self.myargs, **self.mykwargs)
 
 
 def create_filter(shp, criteria, return_field):
