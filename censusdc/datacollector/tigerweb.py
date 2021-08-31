@@ -797,7 +797,7 @@ def multiproc_request_data(key, base, mapserver, esri_json, geotype,
                 start += len(newfeats)
                 if verbose:
                     print("Received", len(newfeats), "entries,",
-                          start, "total")
+                          start, "total,", "from server", str(mps))
             else:
                 done = True
 
