@@ -85,7 +85,7 @@ class TigerWebMapServer(object):
         return {i: acs1_server for i in range(2005, 2019)}
     county_subdivision = county_subdivision(__acs1_server)
 
-    __place = 'GEOID,STATE,AREALAND,AREAWATER'
+    __place = 'GEOID,STATE,PLACE,AREALAND,AREAWATER'
     place = {2000: {'mapserver': [28, 26],
                     'outFields': __place},
              2005: {'mapserver': [26, 25],
