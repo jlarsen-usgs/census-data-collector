@@ -588,8 +588,8 @@ class TigerWebBase(object):
             feature identifier
         base : str
             base url
-        mapserver : int
-            map server number
+        mapserver : int, list
+            map server number, will be a list in the case of place
         esri_json : str
             json geography string
         geotype : str
@@ -605,69 +605,73 @@ class TigerWebBase(object):
         -------
 
         """
-        s = requests.session()
-        url = '/'.join([base, str(mapserver), "query?"])
-
-        s.params = {'where': '',
-                    'text': '',
-                    'objectIds': '',
-                    'geometry': esri_json,
-                    'geometryType': geotype,
-                    'inSR': '',
-                    'spatialRel': 'esriSpatialRelIntersects',
-                    'relationParam': '',
-                    'outFields': outfields,
-                    'returnGeometry': True,
-                    'returnTrueCurves': False,
-                    'maxAllowableOffset': '',
-                    'geometryPrecision': '',
-                    'outSR': '',
-                    'returnIdsOnly': False,
-                    'returnCountOnly': False,
-                    'orderByFields': '',
-                    'groupByFieldsForStatistics': '',
-                    'outStatistics': '',
-                    'returnZ': False,
-                    'returnM': False,
-                    'gdbVersion': '',
-                    'returnDistinctValues': False,
-                    'f': 'geojson',
-                    }
-        start = 0
-        done = False
         features = []
-        n = 0
+        s = requests.session()
+        if not isinstance(mapserver, (list, tuple)):
+            mapserver = [mapserver]
 
-        while not done:
-            try:
-                r = s.get(url, params={'resultOffset': start,
-                                       'resultRecordCount': 32})
-                r.raise_for_status()
-            except (requests.exceptions.HTTPError,
-                    requests.exceptions.ConnectionError,
-                    requests.exceptions.ChunkedEncodingError,
-                    requests.exceptions.ReadTimeout) as e:
-                n += 1
-                if verbose:
-                    print("ConnectionError: retry number {}".format(n))
+        for mps in mapserver:
+            url = '/'.join([base, str(mps), "query?"])
 
-                if n == retry:
-                    raise Exception(e)
+            s.params = {'where': '',
+                        'text': '',
+                        'objectIds': '',
+                        'geometry': esri_json,
+                        'geometryType': geotype,
+                        'inSR': '',
+                        'spatialRel': 'esriSpatialRelIntersects',
+                        'relationParam': '',
+                        'outFields': outfields,
+                        'returnGeometry': True,
+                        'returnTrueCurves': False,
+                        'maxAllowableOffset': '',
+                        'geometryPrecision': '',
+                        'outSR': '',
+                        'returnIdsOnly': False,
+                        'returnCountOnly': False,
+                        'orderByFields': '',
+                        'groupByFieldsForStatistics': '',
+                        'outStatistics': '',
+                        'returnZ': False,
+                        'returnM': False,
+                        'gdbVersion': '',
+                        'returnDistinctValues': False,
+                        'f': 'geojson',
+                        }
+            start = 0
+            done = False
+            n = 0
+
+            while not done:
+                try:
+                    r = s.get(url, params={'resultOffset': start,
+                                           'resultRecordCount': 32})
+                    r.raise_for_status()
+                except (requests.exceptions.HTTPError,
+                        requests.exceptions.ConnectionError,
+                        requests.exceptions.ChunkedEncodingError,
+                        requests.exceptions.ReadTimeout) as e:
+                    n += 1
+                    if verbose:
+                        print("ConnectionError: retry number {}".format(n))
+
+                    if n == retry:
+                        raise Exception(e)
+                    else:
+                        continue
+
+                counties = geojson.loads(r.text)
+                newfeats = counties.__geo_interface__['features']
+
+                if newfeats:
+                    features.extend(newfeats)
+                    # crs = counties.__geo_interface__['crs']
+                    start += len(newfeats)
+                    if verbose:
+                        print("Received", len(newfeats), "entries,",
+                              start, "total,", "from server", str(mps))
                 else:
-                    continue
-
-            counties = geojson.loads(r.text)
-            newfeats = counties.__geo_interface__['features']
-
-            if newfeats:
-                features.extend(newfeats)
-                # crs = counties.__geo_interface__['crs']
-                start += len(newfeats)
-                if verbose:
-                    print("Received", len(newfeats), "entries,",
-                          start, "total")
-            else:
-                done = True
+                    done = True
 
         self._features[key] = features
 
@@ -682,8 +686,8 @@ class TigerWebBase(object):
             feature identifier
         base : str
             base url
-        mapserver : int
-            map server number
+        mapserver : int, list
+            map server number, in case of place this will be a list
         esri_json : str
             json geography string
         geotype : str
@@ -715,8 +719,8 @@ def multiproc_request_data(key, base, mapserver, esri_json, geotype,
         feature identifier
     base : str
         base url
-    mapserver : int
-        map server number
+    mapserver : int, list
+        map server number, in case of place we use a list
     esri_json : str
         json geography string
     geotype : str
@@ -729,69 +733,73 @@ def multiproc_request_data(key, base, mapserver, esri_json, geotype,
         number of retries
 
     """
-    s = requests.session()
-    url = '/'.join([base, str(mapserver), "query?"])
-
-    s.params = {'where': '',
-                'text': '',
-                'objectIds': '',
-                'geometry': esri_json,
-                'geometryType': geotype,
-                'inSR': '',
-                'spatialRel': 'esriSpatialRelIntersects',
-                'relationParam': '',
-                'outFields': outfields,
-                'returnGeometry': True,
-                'returnTrueCurves': False,
-                'maxAllowableOffset': '',
-                'geometryPrecision': '',
-                'outSR': '',
-                'returnIdsOnly': False,
-                'returnCountOnly': False,
-                'orderByFields': '',
-                'groupByFieldsForStatistics': '',
-                'outStatistics': '',
-                'returnZ': False,
-                'returnM': False,
-                'gdbVersion': '',
-                'returnDistinctValues': False,
-                'f': 'geojson',
-                }
-    start = 0
-    done = False
     features = []
+    s = requests.session()
+    if not isinstance(mapserver, (list, tuple)):
+        mapserver = [mapserver]
 
-    n = 0
-    while not done:
-        try:
-            r = s.get(url, params={'resultOffset': start,
-                                   'resultRecordCount': 32})
-            r.raise_for_status()
-        except (requests.exceptions.HTTPError,
-                requests.exceptions.ConnectionError,
-                requests.exceptions.ChunkedEncodingError,
-                requests.exceptions.ReadTimeout) as e:
-            n += 1
-            if verbose:
-                print("ConnectionError: retry number {}".format(n))
+    for mps in mapserver:
+        url = '/'.join([base, str(mps), "query?"])
 
-            if n == retry:
-                raise Exception(e)
+        s.params = {'where': '',
+                    'text': '',
+                    'objectIds': '',
+                    'geometry': esri_json,
+                    'geometryType': geotype,
+                    'inSR': '',
+                    'spatialRel': 'esriSpatialRelIntersects',
+                    'relationParam': '',
+                    'outFields': outfields,
+                    'returnGeometry': True,
+                    'returnTrueCurves': False,
+                    'maxAllowableOffset': '',
+                    'geometryPrecision': '',
+                    'outSR': '',
+                    'returnIdsOnly': False,
+                    'returnCountOnly': False,
+                    'orderByFields': '',
+                    'groupByFieldsForStatistics': '',
+                    'outStatistics': '',
+                    'returnZ': False,
+                    'returnM': False,
+                    'gdbVersion': '',
+                    'returnDistinctValues': False,
+                    'f': 'geojson',
+                    }
+        start = 0
+        done = False
+
+        n = 0
+        while not done:
+            try:
+                r = s.get(url, params={'resultOffset': start,
+                                       'resultRecordCount': 32})
+                r.raise_for_status()
+            except (requests.exceptions.HTTPError,
+                    requests.exceptions.ConnectionError,
+                    requests.exceptions.ChunkedEncodingError,
+                    requests.exceptions.ReadTimeout) as e:
+                n += 1
+                if verbose:
+                    print("ConnectionError: retry number {}".format(n))
+
+                if n == retry:
+                    raise Exception(e)
+                else:
+                    continue
+
+            counties = geojson.loads(r.text)
+            newfeats = counties.__geo_interface__['features']
+
+            if newfeats:
+                features.extend(newfeats)
+                # crs = counties.__geo_interface__['crs']
+                start += len(newfeats)
+                if verbose:
+                    print("Received", len(newfeats), "entries,",
+                          start, "total")
             else:
-                continue
-
-        counties = geojson.loads(r.text)
-        newfeats = counties.__geo_interface__['features']
-
-        if newfeats:
-            features.extend(newfeats)
-            # crs = counties.__geo_interface__['crs']
-            start += len(newfeats)
-            if verbose:
-                print("Received", len(newfeats), "entries,",
-                      start, "total")
-        else:
-            done = True
+                done = True
 
     return key, features
 
