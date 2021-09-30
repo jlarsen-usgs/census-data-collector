@@ -240,12 +240,13 @@ def get_cache(year, level='tract', apikey="", refresh=False,
                         requests.exceptions.ConnectionError,
                         requests.exceptions.ChunkedEncodingError,
                         requests.exceptions.ReadTimeout) as e:
+                    excpt = e
                     n += 1
                     print("Connection Error: Retry number "
                           "{}".format(n))
 
             if n == retry:
-                raise requests.exceptions.HTTPError(e)
+                raise requests.exceptions.HTTPError(excpt)
 
             try:
                 data = r.json()

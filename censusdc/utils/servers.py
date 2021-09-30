@@ -357,9 +357,10 @@ class Acs5ProfileServer(object):
     __employment = "DP03_0001E"
     __occupation = ["DP03_00{}E".format(i) for i in range(26, 33)]
     __industry = ["DP03_00{}E".format(i) for i in range(33, 47)]
+    __ed_attain = ["DP02_00{}E".format(i) for i in range(58, 66)]
 
     __variables = __employment + "," + ",".join(__occupation) + \
-                  "," + ",".join(__industry)
+                  "," + ",".join(__industry) + "," + ",".join(__ed_attain)
 
     def state(variables):
         return {i: {"fmt": "state:{}", "variables": variables}

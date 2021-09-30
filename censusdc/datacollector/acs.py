@@ -60,6 +60,14 @@ class AcsVariables(object):
     n_ind_arts_entertain_foodservice = "DP03_0044E"
     n_ind_other = "DP03_0045E"
     n_ind_publicadmin = "DP03_0046E"
+    n_tot_ed_attain = "DP02_0058E"
+    n_lt_ninth_gr = "DP02_0059E"
+    n_ninth_to_twelth_gr = "DP02_0060E"
+    n_hs_grad = "DP02_0061E"
+    n_some_college = "DP02_0062E"
+    n_associates = "DP02_0063E"
+    n_bachelors = "DP02_0064E"
+    n_masters_phd = "DP02_0065E"
 
 
 AcsHR = {v: k for k, v in AcsVariables.__dict__.items()
