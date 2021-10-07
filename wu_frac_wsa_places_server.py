@@ -107,8 +107,8 @@ if __name__ == "__main__":
             years = ts.available_years[1:2] + ts.available_years[6:-1]
 
             for feature in nfilter:
-                df = ts.get_timeseries(feature, verbose=2, multithread=False, level='place',
-                                       thread_pool=12, multiproc=True, years=years,
+                df = ts.get_timeseries(feature, verbose=2, multithread=True, level='place',
+                                       thread_pool=12, multiproc=False, years=years,
                                        use_cache=True, include_profile=True)
 
                 if 'population' not in list(df):
