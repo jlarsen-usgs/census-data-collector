@@ -1,7 +1,8 @@
 import requests
 from .tigerweb import TigerWebVariables
 from ..utils import Acs5Server, Acs1Server, Sf3Server, RestartableThread, \
-    thread_count, Sf1Server, get_cache, Acs5ProfileServer, Acs1ProfileServer
+    thread_count, Sf1Server, get_cache, Acs5ProfileServer, Acs1ProfileServer, \
+    Acs5SummaryServer
 import threading
 import platform
 import copy
@@ -69,6 +70,14 @@ class CensusBase(object):
                                  3: 'tract', 4: 'block_group'}
             self.__ilevel_dict = {'place': 0, "state": 1, "county": 2,
                                   "tract": 3, "block_group": 4}
+
+        elif server == 'acs5summary':
+            self._server = Acs5SummaryServer
+            self.__level_dict = {0: 'place', 1: 'state', 2: 'county',
+                                 3: 'tract', 4: 'block_group'}
+            self.__ilevel_dict = {'place': 0, "state": 1, "county": 2,
+                                  "tract": 3, "block_group": 4}
+
         elif server == "sf3":
             self._server = Sf3Server
             self.__level_dict = {0: 'place', 1: "state", 2: "county",
@@ -320,8 +329,10 @@ class CensusBase(object):
             profile = False
             if 'profile' in self._text:
                 profile = True
+            elif 'summary' in self._text:
+                summary = True
             cache = get_cache(self.year, level, self.__apikey,
-                              verbose=verbose, profile=profile)
+                              verbose=verbose, profile=profile, summary=True)
 
         if variables:
             if isinstance(variables, str):

@@ -296,30 +296,45 @@ class Acs5Server(object):
 
     levels = ("block_group", "tract", "place", "county", "state")
 
+    _gini = "B19083_001E"
     __income = ["B19001_0{:02d}E".format(i) for i in range(1,18)]
     __house_age = ["B25034_0{:02d}E".format(i) for i in range(1, 11)]
     __variables = "B01003_001E," + ",".join(__income) + ",B19013_001E," + \
                   ",".join(__house_age) + ",B25035_001E"
+
+    __variables2 = __variables + "," + _gini
 
     def state(variables):
         return {i: {"fmt": "state:{}", "variables": variables}
                 for i in range(2009, 2020)}
     state = state(__variables)
 
+    for i in range(2010, 2020):
+        state[i]['variables'] = __variables2
+
     def county(variables):
         return {i: {"fmt": "county:{}&in=state:{}", "variables": variables}
                 for i in range(2009, 2020)}
     county = county(__variables)
+
+    for i in range(2010, 2020):
+        county[i]['variables'] = __variables2
 
     def tract(variables):
         return {i: {"fmt": "tract:{}&in=state:{}&in=county:{}",
                     "variables": variables} for i in range(2009, 2020)}
     tract = tract(__variables)
 
+    for i in range(2010, 2020):
+        tract[i]['variables'] = __variables2
+
     def cache_tract(variables):
         return {i: {"fmt": "tract:*&in=state:{}",
                     "variables": variables} for i in range(2009, 2020)}
     cache_tract = cache_tract(__variables)
+
+    for i in range(2010, 2020):
+        cache_tract[i]['variables'] = __variables2
 
     def place(variables):
         return {i: {"fmt": "place:{}&in=state:{}",
@@ -327,10 +342,77 @@ class Acs5Server(object):
 
     place = place(__variables)
 
+    for i in range(2010, 2020):
+        place[i]['variables'] = __variables2
+
     def cache_place(variables):
         return {i: {"fmt": "place:*&in=state:{}",
                     "variables": variables} for i in range(2009, 2020)}
 
+    cache_place = cache_place(__variables)
+
+    for i in range(2010, 2020):
+        cache_place[i]['variables'] = __variables2
+
+    def block_group(variables):
+        return {i: {"fmt":
+                    'block%20group:{}&in=state:{}&in=county:{}&in=tract:{}',
+                    "variables": variables}
+                for i in (2013, 2014, 2015, 2017, 2018, 2019)}
+    block_group = block_group(__variables)
+
+    for i in (2013, 2014, 2015, 2017, 2018, 2019):
+        block_group[i]['variables'] = __variables2
+
+    def cache_block_group(variables):
+        return {i: {"fmt":
+                    'block%20group:*&in=state:{}&in=county:{}&in=tract:{}',
+                    "fmt_co": "county:*&in=state:{}",
+                    "variables": variables}
+                for i in (2013, 2014, 2015, 2017, 2018, 2019)}
+    cache_block_group = cache_block_group(__variables)
+
+    for i in (2013, 2014, 2015, 2017, 2018, 2019):
+        cache_block_group[i]['variables'] = __variables2
+
+
+class Acs5SummaryServer(object):
+    base = "https://api.census.gov/data/{}/acs5?"
+
+    levels = ("block_group", "tract", "place", "county", "state")
+
+    _gini = "B19083_001E"
+
+    __variables = _gini
+
+    def state(variables):
+        return {i: {"fmt": "state:{}", "variables": variables}
+                for i in range(2009, 2010)}
+    state = state(__variables)
+
+    def county(variables):
+        return {i: {"fmt": "county:{}&in=state:{}", "variables": variables}
+                for i in range(2009, 2010)}
+    county = county(__variables)
+
+    def tract(variables):
+        return {i: {"fmt": "tract:{}&in=state:{}&in=county:{}",
+                    "variables": variables} for i in range(2009, 2010)}
+    tract = tract(__variables)
+
+    def cache_tract(variables):
+        return {i: {"fmt": "tract:*&in=state:{}",
+                    "variables": variables} for i in range(2009, 2010)}
+    cache_tract = cache_tract(__variables)
+
+    def place(variables):
+        return {i: {"fmt": "place:{}&in=state:{}",
+                    "variables": variables} for i in range(2009, 2010)}
+    place = place(__variables)
+
+    def cache_place(variables):
+        return {i: {"fmt": "place:*&in=state:{}",
+                    "variables": variables} for i in range(2009, 2010)}
     cache_place = cache_place(__variables)
 
     def block_group(variables):

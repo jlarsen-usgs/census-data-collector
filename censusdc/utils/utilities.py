@@ -52,7 +52,7 @@ def isbytes(s):
 
 def census_cache_builder(level='tract', apikey="",
                          multithread=False, thread_pool=4,
-                         profile=False):
+                         profile=False, summary=False, refresh=False):
     """
     Method to build out cache for all supported census years for a
     specific census "level"
@@ -70,6 +70,10 @@ def census_cache_builder(level='tract', apikey="",
     profile : bool
         boolean flag to indicate that economic profile data is
         being collected and cached
+    summary : bool
+        boolean flag to get data from census summary tables
+    refresh : bool
+        boolean flag to refresh the existing cached data
 
     Returns
     -------
@@ -91,7 +95,7 @@ def census_cache_builder(level='tract', apikey="",
         for year in years:
             x = RestartableThread(target=_threaded_get_cache,
                                   args=(year, level, apikey, True, 100,
-                                        True, profile, container))
+                                        True, profile, summary, container))
             thread_list.append(x)
 
         for thread in thread_list:
@@ -102,11 +106,11 @@ def census_cache_builder(level='tract', apikey="",
     else:
         for year in years:
             get_cache(year, level=level, apikey=apikey, refresh=True,
-                      verbose=True, profile=profile)
+                      verbose=True, profile=profile, summary=summary)
 
 
 def _threaded_get_cache(year, level, apikey, refresh,
-                        retry, verbose, profile, container):
+                        retry, verbose, profile, summary, container):
     """
     Multithreaded method to build and load cache tables of census data to
     improve performance
@@ -129,12 +133,12 @@ def _threaded_get_cache(year, level, apikey, refresh,
         pd.DataFrame
     """
     container.acquire()
-    get_cache(year, level, apikey, refresh, retry, verbose)
+    get_cache(year, level, apikey, refresh, retry, verbose, profile, summary)
     container.release()
 
 
 def get_cache(year, level='tract', apikey="", refresh=False,
-              retry=100, verbose=False, profile=True):
+              retry=100, verbose=False, profile=False, summary=False):
     """
     Method to build and load cache tables of census data to
     improve performance
@@ -165,13 +169,16 @@ def get_cache(year, level='tract', apikey="", refresh=False,
     if profile:
         table_file = os.path.join(utils_dir, '..', 'cache',
                                   "{}_{}profile.dat".format(level, year))
+    elif summary:
+        table_file = os.path.join(utils_dir, "..", "cache",
+                                  "{}_{}summary.dat".format(level, year))
     else:
         table_file = os.path.join(utils_dir, '..', 'cache',
                                   "{}_{}.dat".format(level, year))
 
     if not os.path.isfile(table_file) or refresh:
         from .servers import Acs1Server, Acs5Server, Sf1Server, \
-            Acs5ProfileServer, Acs1ProfileServer
+            Acs5ProfileServer, Acs1ProfileServer, Acs5SummaryServer
 
         if level == "place":
             if profile:
@@ -181,6 +188,15 @@ def get_cache(year, level='tract', apikey="", refresh=False,
                     server = Acs1ProfileServer
                 else:
                     server = Acs5ProfileServer
+            elif summary:
+                if year in (2000,):
+                    return
+                elif year in range(2005, 2009):
+                    return
+                elif year == 2009:
+                    server = Acs5SummaryServer
+                else:
+                    return
             else:
                 if year in (2000,):
                     server = Sf1Server
@@ -195,6 +211,13 @@ def get_cache(year, level='tract', apikey="", refresh=False,
                     return
                 else:
                     server = Acs5ProfileServer
+            elif summary:
+                if year == 2000:
+                    return
+                elif year == 2009:
+                    server = Acs5SummaryServer
+                else:
+                    return
             else:
                 if year in (2000,):
                     server = Sf1Server

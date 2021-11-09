@@ -85,7 +85,7 @@ if __name__ == "__main__":
         cfilter = create_filter(wsa_shapes, {"huc2" : [huc2]},
                                 'wsa_agidf')
 
-        chunksize = 25
+        chunksize = 10
         chunk0 = 0
 
         if restart and os.path.isfile(pickle_file):
@@ -109,7 +109,7 @@ if __name__ == "__main__":
             for feature in nfilter:
                 df = ts.get_timeseries(feature, verbose=2, multithread=True, level='place',
                                        thread_pool=12, multiproc=False, years=years,
-                                       use_cache=True, include_profile=True)
+                                       use_cache=True, include_profile=True, include_summary=True)
 
                 if 'population' not in list(df):
                     continue

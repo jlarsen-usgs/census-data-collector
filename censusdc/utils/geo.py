@@ -50,7 +50,8 @@ def _IGNORE():
             Sf3Variables1990.median_income,
             Sf3Variables.median_income,
             AcsVariables.median_h_year,
-            'pop_density')
+            'pop_density',
+            AcsVariables.gini)
 
 
 def _AVERAGE():
@@ -60,6 +61,7 @@ def _AVERAGE():
             Sf3Variables1990.median_income,
             Sf3Variables.median_income,
             AcsVariables.median_h_year,
+            AcsVariables.gini,
             'pop_density')
 
 
