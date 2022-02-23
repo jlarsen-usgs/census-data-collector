@@ -47,6 +47,7 @@ def _IGNORE():
             TigerWebVariables.objectid,
             TigerWebVariables.population,
             AcsVariables.median_income,
+            AcsVariables.median_p_owner_cost_to_income,
             Sf3Variables1990.median_income,
             Sf3Variables.median_income,
             AcsVariables.median_h_year,
@@ -58,6 +59,7 @@ def _AVERAGE():
     from ..datacollector.acs import AcsVariables
     from ..datacollector.dec import Sf3Variables, Sf3Variables1990
     return (AcsVariables.median_income,
+            AcsVariables.median_p_owner_cost_to_income,
             Sf3Variables1990.median_income,
             Sf3Variables.median_income,
             AcsVariables.median_h_year,

@@ -36,6 +36,7 @@ class AcsVariables(object):
     h_age_1940_1949 = "B25034_009E"
     h_age_older_1939 = "B25034_010E"
     median_h_year = "B25035_001E"
+    median_p_owner_cost_to_income = "B25092_001E"
 
     # acs profile data product variables are included below this line
     n_employed = "DP03_0001E"
