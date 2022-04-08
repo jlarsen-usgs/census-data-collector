@@ -9,7 +9,7 @@ class AcsVariables(object):
     households = 'B11001_001E'
     households2 = "B19001_001E"
     income_lt_10k = "B19001_002E"
-    income_10K_15k = "B19001_003E"
+    income_10k_15k = "B19001_003E"
     income_15k_20k = "B19001_004E"
     income_20k_25k = "B19001_005E"
     income_25k_30k = "B19001_006E"
