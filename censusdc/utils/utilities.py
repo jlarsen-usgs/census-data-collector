@@ -87,7 +87,7 @@ def census_cache_builder(level='tract', apikey="",
                  2016, 2017, 2018, 2019)
 
     if level == "place":
-        years = (2000,) + tuple(range(2005, 2020))
+        years = (2000,) + tuple(range(2005, 2021))
 
     if multithread:
         container = threading.BoundedSemaphore(thread_pool)
