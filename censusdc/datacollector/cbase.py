@@ -13,11 +13,14 @@ try:
 except ImportError:
     from json import JSONDecodeError
 
-if platform.system().lower() != "windows":
+try:
     import ray
-else:
+    ENABLE_MULTIPROC = True
+except ImportError:
     # fake ray wrapper function for windows
     from ..utils import ray
+
+    ENABLE_MULTIPROC = False
 
 
 class CensusBase(object):
@@ -343,7 +346,7 @@ class CensusBase(object):
 
         fmt = lut[self.year]['fmt']
 
-        if multiproc and platform.system().lower() == "windows":
+        if multiproc and not ENABLE_MULTIPROC:
             multiproc = False
             multithread = True
             thread_pool = thread_count() - 1

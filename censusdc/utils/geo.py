@@ -11,11 +11,13 @@ import geojson
 import shapefile
 import copy
 
-if platform.system().lower() != "windows":
+try:
     import ray
-else:
+    ENABLE_MULTIPROC = True
+except ImportError:
     # fake ray wrapper function for windows
     from ..utils import ray
+    ENABLE_MULTIPROC = False
 
 
 def _IGNORE():
@@ -322,7 +324,8 @@ class GeoFeatures(object):
 
         polygons = t
 
-        if multiproc and platform.system().lower() == "windows":
+
+        if multiproc and not ENABLE_MULTIPROC:
             multiproc = False
             multithread = True
             thread_pool = thread_count() - 1

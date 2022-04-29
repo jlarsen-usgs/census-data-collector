@@ -20,6 +20,8 @@ class TigerWebMapServer(object):
              'Census2020/tigerWMS_Census2010/MapServer'
     __2020 = 'https://tigerweb.geo.census.gov/arcgis/rest/services/' + \
              'Census2020/Tracts_Blocks/MapServer'
+    __2020pl = "https://tigerweb.geo.census.gov/arcgis/rest/services/" + \
+               "Census2020/Places_CouSub_ConCity_SubMCD/MapServer"
 
     levels = ('block', 'block_group', 'tract', 'place',
               'county_subdivision', 'county')
@@ -59,14 +61,14 @@ class TigerWebMapServer(object):
                   2017: __gacspl.format(2017),
                   2018: __gacspl.format(2018),
                   2019: __gacspl.format(2019),
-                  2020: __2020}
+                  2020: __2020pl}
 
     def lcdbase(acs1):
-        return {i: acs1 for i in range(2005, 2019)}
+        return {i: acs1 for i in range(2005, 2020)}
     lcdbase = lcdbase(__acs1)
 
     def cobase(acs1):
-        return {i: acs1 for i in range(2005, 2019)}
+        return {i: acs1 for i in range(2005, 2020)}
     cobase = cobase(__acs1co)
 
     __acs1_county = 'GEOID,STATE,COUNTY,AREALAND,AREAWATER'
@@ -74,7 +76,7 @@ class TigerWebMapServer(object):
                         'outFields': __acs1_county}
 
     def county(acs1_server):
-        return {i: acs1_server for i in range(2005, 2019)}
+        return {i: acs1_server for i in range(2005, 2020)}
     county = county(__acs1_co_server)
 
     __acs1_county_subdivision = 'GEOID,STATE,COUNTY,COUSUB,AREALAND,AREAWATER'
@@ -82,7 +84,7 @@ class TigerWebMapServer(object):
                      'outFields': __acs1_county_subdivision}
 
     def county_subdivision(acs1_server):
-        return {i: acs1_server for i in range(2005, 2019)}
+        return {i: acs1_server for i in range(2005, 2020)}
     county_subdivision = county_subdivision(__acs1_server)
 
     __place = 'GEOID,STATE,PLACE,AREALAND,AREAWATER'
@@ -117,7 +119,10 @@ class TigerWebMapServer(object):
              2018: {'mapserver': [11, 10],
                     'outFields': __place},
              2019: {'mapserver': [11, 10],
-                    'outFields': __place},}
+                    'outFields': __place},
+             2020: {'mapserver': [18, 17],
+                    'outFields': __place}
+        ,}
 
     __dec_tract = 'GEOID,STATE,COUNTY,TRACT,AREAWATER'
     __acs_tract = 'GEOID,STATE,COUNTY,TRACT,AREALAND'
@@ -306,15 +311,15 @@ class Acs5Server(object):
 
     def state(variables):
         return {i: {"fmt": "state:{}", "variables": variables}
-                for i in range(2009, 2020)}
+                for i in range(2009, 2021)}
     state = state(__variables)
 
-    for i in range(2010, 2020):
+    for i in range(2010, 2021):
         state[i]['variables'] = __variables2
 
     def county(variables):
         return {i: {"fmt": "county:{}&in=state:{}", "variables": variables}
-                for i in range(2009, 2020)}
+                for i in range(2009, 2021)}
     county = county(__variables)
 
     for i in range(2010, 2020):
@@ -322,7 +327,7 @@ class Acs5Server(object):
 
     def tract(variables):
         return {i: {"fmt": "tract:{}&in=state:{}&in=county:{}",
-                    "variables": variables} for i in range(2009, 2020)}
+                    "variables": variables} for i in range(2009, 2021)}
     tract = tract(__variables)
 
     for i in range(2010, 2020):
@@ -330,7 +335,7 @@ class Acs5Server(object):
 
     def cache_tract(variables):
         return {i: {"fmt": "tract:*&in=state:{}",
-                    "variables": variables} for i in range(2009, 2020)}
+                    "variables": variables} for i in range(2009, 2021)}
     cache_tract = cache_tract(__variables)
 
     for i in range(2010, 2020):
@@ -338,7 +343,7 @@ class Acs5Server(object):
 
     def place(variables):
         return {i: {"fmt": "place:{}&in=state:{}",
-                    "variables": variables} for i in range(2009, 2020)}
+                    "variables": variables} for i in range(2009, 2021)}
 
     place = place(__variables)
 
@@ -347,21 +352,21 @@ class Acs5Server(object):
 
     def cache_place(variables):
         return {i: {"fmt": "place:*&in=state:{}",
-                    "variables": variables} for i in range(2009, 2020)}
+                    "variables": variables} for i in range(2009, 2021)}
 
     cache_place = cache_place(__variables)
 
-    for i in range(2010, 2020):
+    for i in range(2010, 2021):
         cache_place[i]['variables'] = __variables2
 
     def block_group(variables):
         return {i: {"fmt":
                     'block%20group:{}&in=state:{}&in=county:{}&in=tract:{}',
                     "variables": variables}
-                for i in (2013, 2014, 2015, 2017, 2018, 2019)}
+                for i in (2013, 2014, 2015, 2017, 2018, 2019, 2020)}
     block_group = block_group(__variables)
 
-    for i in (2013, 2014, 2015, 2017, 2018, 2019):
+    for i in (2013, 2014, 2015, 2017, 2018, 2019, 2020):
         block_group[i]['variables'] = __variables2
 
     def cache_block_group(variables):
@@ -369,10 +374,10 @@ class Acs5Server(object):
                     'block%20group:*&in=state:{}&in=county:{}&in=tract:{}',
                     "fmt_co": "county:*&in=state:{}",
                     "variables": variables}
-                for i in (2013, 2014, 2015, 2017, 2018, 2019)}
+                for i in (2013, 2014, 2015, 2017, 2018, 2019, 2020)}
     cache_block_group = cache_block_group(__variables)
 
-    for i in (2013, 2014, 2015, 2017, 2018, 2019):
+    for i in (2013, 2014, 2015, 2017, 2018, 2019, 2020):
         cache_block_group[i]['variables'] = __variables2
 
 
@@ -419,7 +424,7 @@ class Acs5SummaryServer(object):
         return {i: {"fmt":
                     'block%20group:{}&in=state:{}&in=county:{}&in=tract:{}',
                     "variables": variables}
-                for i in (2013, 2014, 2015, 2017, 2018, 2019)}
+                for i in (2013, 2014, 2015, 2017, 2018, 2019, 2020)}
     block_group = block_group(__variables)
 
     def cache_block_group(variables):
@@ -427,7 +432,7 @@ class Acs5SummaryServer(object):
                     'block%20group:*&in=state:{}&in=county:{}&in=tract:{}',
                     "fmt_co": "county:*&in=state:{}",
                     "variables": variables}
-                for i in (2013, 2014, 2015, 2017, 2018, 2019)}
+                for i in (2013, 2014, 2015, 2017, 2018, 2019, 2020)}
     cache_block_group = cache_block_group(__variables)
 
 
@@ -446,39 +451,39 @@ class Acs5ProfileServer(object):
 
     def state(variables):
         return {i: {"fmt": "state:{}", "variables": variables}
-                for i in range(2009, 2020)}
+                for i in range(2009, 2021)}
     state = state(__variables)
 
     def county(variables):
         return {i: {"fmt": "county:{}&in=state:{}", "variables": variables}
-                for i in range(2009, 2020)}
+                for i in range(2009, 2021)}
     county = county(__variables)
 
     def tract(variables):
         return {i: {"fmt": "tract:{}&in=state:{}&in=county:{}",
-                    "variables": variables} for i in range(2009, 2020)}
+                    "variables": variables} for i in range(2009, 2021)}
     tract = tract(__variables)
 
     def cache_tract(variables):
         return {i: {"fmt": "tract:*&in=state:{}",
-                    "variables": variables} for i in range(2009, 2020)}
+                    "variables": variables} for i in range(2009, 2021)}
     cache_tract = cache_tract(__variables)
 
     def place(variables):
         return {i: {"fmt": "place:{}&in=state:{}",
-                    "variables": variables} for i in range(2009, 2020)}
+                    "variables": variables} for i in range(2009, 2021)}
     place = place(__variables)
 
     def cache_place(variables):
         return {i: {"fmt": "place:*&in=state:{}",
-                    "variables": variables} for i in range(2009, 2020)}
+                    "variables": variables} for i in range(2009, 2021)}
     cache_place = cache_place(__variables)
 
     def block_group(variables):
         return {i: {"fmt":
                     'block%20group:{}&in=state:{}&in=county:{}&in=tract:{}',
                     "variables": variables}
-                for i in (2013, 2014, 2015, 2017, 2018, 2019)}
+                for i in (2013, 2014, 2015, 2017, 2018, 2019, 2020)}
     block_group = block_group(__variables)
 
     def cache_block_group(variables):
@@ -486,7 +491,7 @@ class Acs5ProfileServer(object):
                     'block%20group:*&in=state:{}&in=county:{}&in=tract:{}',
                     "fmt_co": "county:*&in=state:{}",
                     "variables": variables}
-                for i in (2013, 2014, 2015, 2017, 2018, 2019)}
+                for i in (2013, 2014, 2015, 2017, 2018, 2019, 2020)}
     cache_block_group = cache_block_group(__variables)
 
 
