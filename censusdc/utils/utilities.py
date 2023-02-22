@@ -89,6 +89,9 @@ def census_cache_builder(level='tract', apikey="",
     if level == "place":
         years = (2000,) + tuple(range(2005, 2021))
 
+    elif level == "block_group":
+        years = (2000, 2010) + tuple(range(2013, 2022))
+
     if multithread:
         container = threading.BoundedSemaphore(thread_pool)
         thread_list = []
@@ -162,7 +165,7 @@ def get_cache(year, level='tract', apikey="", refresh=False,
     if verbose:
         print("Building census cache for {}, {}".format(year, level))
     level = level.lower()
-    if level not in ("tract", "place"):
+    if level not in ("tract", "place", "block_group"):
         raise NotImplementedError()
 
     utils_dir = os.path.dirname(os.path.abspath(__file__))
@@ -178,8 +181,10 @@ def get_cache(year, level='tract', apikey="", refresh=False,
 
     if not os.path.isfile(table_file) or refresh:
         from .servers import Acs1Server, Acs5Server, Sf1Server, \
-            Acs5ProfileServer, Acs1ProfileServer, Acs5SummaryServer
+            Acs5ProfileServer, Acs1ProfileServer, Acs5SummaryServer, \
+            Sf3Server
 
+        fips_co = None
         if level == "place":
             if profile:
                 if year in (2000,):
@@ -204,7 +209,15 @@ def get_cache(year, level='tract', apikey="", refresh=False,
                     server = Acs1Server
                 else:
                     server = Acs5Server
-
+        elif level == "block_group":
+            if year in (2000, 2010):
+                server = Sf3Server
+                fips_co = pd.read_csv(
+                    os.path.join(utils_dir, "fips_county_table.dat"),
+                    dtype=str
+                ).to_numpy()
+            else:
+                server = Acs5Server
         else:
             if profile:
                 if year == 2000:
@@ -236,14 +249,27 @@ def get_cache(year, level='tract', apikey="", refresh=False,
         fmt = server_dict['fmt']
         variables = server_dict['variables']
 
+
+        if fips_co is None:
+            iterator = STATE_FIPS
+        else:
+            iterator = fips_co
+
         df = None
-        for state in STATE_FIPS:
-            # todo: need to break out the request into a seperate function
-            #   to update this for block groups!
-            if verbose:
-                print("building cache for {}, FIPS code {}".format(year,
-                                                                   state))
-            loc = fmt.format(state)
+        for itr in iterator:
+            if fips_co is None:
+                state = iterator
+                loc = fmt.format(state)
+                if verbose:
+                    print("building cache for {}, FIPS code {}".format(year,
+                                                                       state))
+            else:
+                state, county = tuple(itr)
+                loc = fmt.format(state, county)
+                if verbose:
+                    print("building cache for {}, "
+                          "FIPS code {}, County {}".format(year, state, county))
+
             s = requests.session()
             payload = {"get": "NAME," + variables,
                        "for": loc,
@@ -294,17 +320,24 @@ def get_cache(year, level='tract', apikey="", refresh=False,
     elif level == "place":
         fmter = "{:05d}"
     elif level == "block_group":
-        fmter = "{:07d}"
+        fmter = "{:01d}"
     else:
         fmter = "{}"
 
     df = pd.read_csv(table_file)
-
-    df[level] = [fmter.format(i) for i in df[level].values]
+    if level == "block_group":
+        df[level] = [fmter.format(i) for i in df["block group"].values]
+    else:
+        df[level] = [fmter.format(i) for i in df[level].values]
     df['state'] = ["{:02d}".format(i) for i in df['state'].values]
     if level == "tract":
         df['county'] = ["{:03d}".format(i) for i in df['county'].values]
         df['geoid'] = df['state'] + df['county'] + df[level]
+    elif level == "block_group":
+        df['county'] = ["{:03d}".format(i) for i in df['county'].values]
+        df['tract'] = ["{:06d}".format(i) for i in df['tract'].values]
+        df["geoid"] = df["state"] + df["county"] + df["tract"] + df[level]
+        df.drop(columns=["block group"], inplace=True)
     else:
         df['geoid'] = df['state'] + df[level]
 
