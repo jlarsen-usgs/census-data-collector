@@ -108,7 +108,7 @@ def census_cache_builder(level='tract', apikey="",
 
     else:
         for year in years:
-            get_cache(year, level=level, apikey=apikey, refresh=True,
+            get_cache(year, level=level, apikey=apikey, refresh=refresh,
                       verbose=True, profile=profile, summary=summary)
 
 
@@ -210,12 +210,14 @@ def get_cache(year, level='tract', apikey="", refresh=False,
                 else:
                     server = Acs5Server
         elif level == "block_group":
-            if year in (2000, 2010):
+            if year in (2000,):
                 server = Sf3Server
                 fips_co = pd.read_csv(
                     os.path.join(utils_dir, "fips_county_table.dat"),
                     dtype=str
                 ).to_numpy()
+            elif year in (2010,):
+                server = Sf1Server
             else:
                 server = Acs5Server
         else:
@@ -258,7 +260,7 @@ def get_cache(year, level='tract', apikey="", refresh=False,
         df = None
         for itr in iterator:
             if fips_co is None:
-                state = iterator
+                state = itr
                 loc = fmt.format(state)
                 if verbose:
                     print("building cache for {}, FIPS code {}".format(year,
