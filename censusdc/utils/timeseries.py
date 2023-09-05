@@ -209,7 +209,7 @@ class CensusTimeSeries(object):
                 verb = True
 
         if not years:
-            years = [year for year in TigerWebMapServer.base.keys()]
+            years = [year for year in list(TigerWebMapServer.base.keys())[1:]]
 
         else:
             for year in years:
@@ -238,7 +238,10 @@ class CensusTimeSeries(object):
                     if year in (2005, 2006, 2007, 2008, 2009):
                         tlevel = level
                         if level not in ("place",):
-                            tlevel = "county"
+                            if year == 2009:
+                                tlevel = "place"
+                            else:
+                                tlevel = "county"
                         tw.get_data(year, level=tlevel,
                                     verbose=verb,
                                     multiproc=multiproc,
@@ -264,12 +267,12 @@ class CensusTimeSeries(object):
                 if verbose:
                     print("Getting data for census year {}".format(year))
                 if year in (1990, 2000):
-                    if year == 2000:
-                        cen = Sf1(tw.albers_features, year,
-                                  self.__apikey)
-                    else:
-                        cen = Sf3(tw.albers_features, year,
-                                  self.__apikey)
+                    # if year == 2000:
+                    #     cen = Sf1(tw.albers_features, year,
+                    #              self.__apikey)
+                    # else:
+                    cen = Sf3(tw.albers_features, year,
+                              self.__apikey)
                     if year == 1990:
                         cen.get_data(level=level,
                                      variables=sf3_variables_1990,
@@ -312,7 +315,10 @@ class CensusTimeSeries(object):
 
                 else:
                     cen = Acs5(tw.albers_features, year, self.__apikey)
-                    cen.get_data(level=level, variables=acs_variables,
+                    tlevel = level
+                    if year == 2009 and level == "tract":
+                        tlevel = "place"
+                    cen.get_data(level=tlevel, variables=acs_variables,
                                  retry=retry, verbose=verb,
                                  multiproc=multiproc,
                                  multithread=multithread,
@@ -355,9 +361,13 @@ class CensusTimeSeries(object):
         if isinstance(polygons, str):
             if polygons.lower() == "internal":
                 polygons = self.get_albers_shape(feature_name)
+                convert = False
 
             else:
                 polygons = shapefile.Reader(polygons)
+                convert = True
+        else:
+            convert = True
 
         if verbose:
             print("Performing intersections and building DataFrame")
@@ -371,7 +381,8 @@ class CensusTimeSeries(object):
             if polygons is not None:
                 gf.intersect(polygons, verbose=verb, multiproc=multiproc,
                              multithread=multithread,
-                             thread_pool=thread_pool)
+                             thread_pool=thread_pool,
+                             convert=convert)
                 features = gf.intersected_features
             else:
                 features = gf.features
@@ -399,7 +410,7 @@ class CensusTimeSeries(object):
                 timeseries[feature_name] = df
             else:
                 tsdf = timeseries[feature_name]
-                tsdf = tsdf.append(df, ignore_index=True, sort=False)
+                tsdf = pd.concat([tsdf, df], ignore_index=True, sort=False)
                 timeseries[feature_name] = tsdf
 
             if refresh:

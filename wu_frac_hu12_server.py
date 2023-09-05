@@ -74,11 +74,11 @@ if __name__ == "__main__":
     if ray is not None:
         ray.init(address='auto')
 
-    allhuc2 = ["{:02d}".format(h) for h in range(4, 5)]
+    allhuc2 = ["{:02d}".format(h) for h in range(1, 22)]
     for huc2 in allhuc2:
         start_time = time.time()
 
-        huc12_shapes = os.path.join(ws, 'huc12_export', 'huc2_{}.shp'.format(huc2))
+        huc12_shapes = os.path.join(ws, 'huc12_export', 'huc{}_censusdc.shp'.format(huc2))
         pickle_file = os.path.join(ws, "huc12_output_shapefiles",
                                    "huc{}.pickle".format(huc2))
         out_shapes = os.path.join(ws, "huc12_output_shapefiles",
@@ -89,9 +89,11 @@ if __name__ == "__main__":
         with open(api_key) as foo:
             api_key = foo.readline().strip()
 
-        cfilter = create_filter(huc12_shapes, {"huc2" : [huc2]},
-                                'huc12')
-        
+        #cfilter = create_filter(huc12_shapes, {"huc2" : [huc2]},
+        #                        'huc12')
+        with shapefile.Reader(huc12_shapes) as r:
+            cfilter = [record.feat_name for record in r.records()]
+
         chunksize = 25
         if huc2 == "04":
             chunksize = 1
@@ -137,7 +139,7 @@ if __name__ == "__main__":
                 temp = GeoFeatures.compiled_feature(2015, ts.get_shape(feature),
                                                     feature, df=df)
                 geofeats[feature] = temp
-
+                """
                 try:
                     df2 = CensusTimeSeries.interpolate(df,
                                                        min_extrapolate=1989,
@@ -148,7 +150,7 @@ if __name__ == "__main__":
                                index=False)
                 except:
                     pass
-
+                """
             if restart:
                 with open(pickle_file, "wb") as foo:
                     pickle.dump(geofeats, foo)

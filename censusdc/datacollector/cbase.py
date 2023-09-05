@@ -258,7 +258,7 @@ class CensusBase(object):
         if not level:
             # hack around canadian huc12's for now. print a warning in future
             msg = "Cannot determine census data level: setting to 'tract'"
-            warnings.warn(msg, UserWarning)
+            print(f"WARNING: {msg}")
             self._features_level = self.__level_dict[3]
         else:
             self._features_level = self.__level_dict[min(level)]
@@ -534,7 +534,7 @@ class CensusBase(object):
             '{}={}'.format(k, v) for k, v in payload.items())
 
         n = 0
-        e = "Unknown connection error"
+        err = "Unknown connection error"
         while n < retry:
             try:
                 r = s.get(url, params=payload)
@@ -545,11 +545,12 @@ class CensusBase(object):
                     requests.exceptions.ChunkedEncodingError,
                     requests.exceptions.ReadTimeout) as e:
                 n += 1
-                print("Connection Error: Retry number "
-                      "{}".format(n))
+                if verbose:
+                    print("Connection Error: Retry number "
+                          "{}".format(n))
 
         if n == retry:
-            raise requests.exceptions.HTTPError(e)
+            raise requests.exceptions.HTTPError(err)
 
         if verbose:
             print('Getting {} data for {} '
@@ -713,7 +714,7 @@ def multiproc_data_request(year, apikey, feature, featix, name,
         '{}={}'.format(k, v) for k, v in payload.items())
 
     n = 0
-    e = "Unknown connection error"
+    err = "Unknown connection error"
     while n < retry:
         try:
             r = s.get(url, params=payload)
@@ -724,10 +725,11 @@ def multiproc_data_request(year, apikey, feature, featix, name,
                 requests.exceptions.ChunkedEncodingError,
                 requests.exceptions.ReadTimeout) as e:
             n += 1
-            print("Connection Error: Retry number {}".format(n))
+            if verbose:
+                print("Connection Error: Retry number {}".format(n))
 
     if n == retry:
-        raise requests.exceptions.HTTPError(e)
+        raise requests.exceptions.HTTPError(err)
 
     if verbose:
         print('Getting {} data for {} feature # {}'.format(level,

@@ -663,7 +663,11 @@ class TigerWebBase(object):
                         continue
 
                 counties = geojson.loads(r.text)
-                newfeats = counties.__geo_interface__['features']
+
+                try:
+                    newfeats = counties.__geo_interface__['features']
+                except AttributeError:
+                    newfeats = {}
 
                 if newfeats:
                     features.extend(newfeats)

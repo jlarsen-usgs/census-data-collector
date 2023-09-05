@@ -6,6 +6,7 @@ from shapely.geometry import shape as shapely_shape
 from shapely.strtree import STRtree
 from shapely.validation import explain_validity
 from . import thread_count
+from .geometry import lon_lat_to_albers
 import platform
 import geojson
 import shapefile
@@ -93,7 +94,7 @@ class GeoFeatures(object):
 
         self.__name = name
         self._features = features
-        self._shapely_features = []
+        self._shapely_features = {}
         self._ifeatures = None
 
         self._create_shapely_geoms()
@@ -102,7 +103,7 @@ class GeoFeatures(object):
 
         self._strtree = None
         if len(self._shapely_features) > 100:
-            self._strtree = STRtree(self._shapely_features)
+            self._strtree = STRtree(list(self._shapely_features.values()))
 
     def _create_shapely_geoms(self):
         """
@@ -135,9 +136,9 @@ class GeoFeatures(object):
             if not poly.is_valid:
                 poly = poly.buffer(0)
 
-            poly.ix = ix
 
-            self._shapely_features.append(poly)
+
+            self._shapely_features[ix] = poly
 
     @property
     def name(self):
@@ -152,7 +153,7 @@ class GeoFeatures(object):
         return copy.deepcopy(self._ifeatures)
 
     def intersect(self, polygons, verbose=False, multiproc=False,
-                  multithread=False, thread_pool=4):
+                  multithread=False, thread_pool=4, convert=False):
         """
         Intersection method that creates a new dictionary of geoJSON
         features. input polygons must be provided in WGS84 (decimal lat lon.)
@@ -171,7 +172,8 @@ class GeoFeatures(object):
             flag to enable multithreaded operations
         thread_pool : int
             number of threads to use for multi-threaded operations
-
+        convert : bool
+            boolean flag to convert WGS84 to albers for intersection
         """
         self._ifeatures = None
 
@@ -231,7 +233,15 @@ class GeoFeatures(object):
                 shape_type = shape.__geo_interface__['type']
                 coords = shape.points
                 if shape_type.lower() == "polygon":
-                    t.append(shapely_shape(shape.__geo_interface__))
+                    geo_interface = shape.__geo_interface__
+                    if convert:
+                        alb_poly = []
+                        for coord in geo_interface["coordinates"]:
+                            lon, lat = list(zip(*coord))
+                            x, y = lon_lat_to_albers(lon, lat, precision=100)
+                            alb_poly.append(tuple(zip(x, y)))
+                        geo_interface["coordinates"] = tuple(alb_poly)
+                    t.append(shapely_shape(geo_interface))
 
                 elif shape_type.lower() == "multipolygon":
                     tshp = shapely_shape(shape.__geo_interface__)
@@ -338,14 +348,14 @@ class GeoFeatures(object):
             for polygon in polygons:
                 if self._strtree is not None:
                     t = self._strtree.query(polygon)
-                    ixs = sorted([i.ix for i in t])
-                    shapely_features = [self._shapely_features[i] for i in ixs]
+                    ixs = sorted(t)
+                    shapely_features = {i: self._shapely_features[i] for i in ixs}
 
-                for feature in shapely_features:
+                for ix, feature in shapely_features.item():
                     actor = multiproc_intersection.remote(self.IGNORE,
                                                           self.POPULATION,
                                                           fid, polygon,
-                                                          feature.ix,
+                                                          ix,
                                                           feature, n)
                     actors.append(actor)
                     n += 1
@@ -371,12 +381,12 @@ class GeoFeatures(object):
             for polygon in polygons:
                 if self._strtree is not None:
                     t = self._strtree.query(polygon)
-                    ixs = sorted([i.ix for i in t])
-                    shapely_features = [self._shapely_features[i] for i in ixs]
+                    ixs = sorted(t)
+                    shapely_features = {i: self._shapely_features[i] for i in ixs}
 
-                for feature in shapely_features:
+                for ix, feature in shapely_features.items():
                     x = threading.Thread(target=self.__threaded_intersection,
-                                         args=(polygon, feature.ix,
+                                         args=(polygon, ix,
                                                feature, n, container))
                     thread_list.append(x)
                     n += 1
@@ -392,11 +402,11 @@ class GeoFeatures(object):
             for polygon in polygons:
                 if self._strtree is not None:
                     t = self._strtree.query(polygon)
-                    ixs = sorted([i.ix for i in t])
-                    shapely_features = [self._shapely_features[i] for i in ixs]
+                    ixs = sorted(t)
+                    shapely_features = {i: self._shapely_features[i] for i in ixs}
 
-                for feature in shapely_features:
-                    self.__intersection(polygon, feature.ix, feature, n)
+                for ix, feature in shapely_features.items():
+                    self.__intersection(polygon, ix, feature, n)
                     n += 1
 
         if self._ifeatures is not None:
@@ -427,16 +437,16 @@ class GeoFeatures(object):
         a = polygon.intersection(feature)
 
         if a.geom_type == "MultiPolygon":
-            p = list(a)
+            p = list(a.geoms)
 
         elif a.geom_type == "GeometryCollection":
-            t = list(a)
+            t = list(a.geoms)
             p = []
             for shape in t:
                 if shape.geom_type == "Polygon":
                     p.append(shape)
                 elif shape.geom_type == "MultiPolygon":
-                    for sh in list(shape):
+                    for sh in list(shape.geoms):
                         p.append(sh)
 
                 else:
