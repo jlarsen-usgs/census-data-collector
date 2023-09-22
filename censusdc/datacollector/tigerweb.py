@@ -888,7 +888,21 @@ class TigerWebPoint(TigerWebBase):
             polygon = calculate_circle(points[0], points[1], radius)
             polygon = polygon.T
 
-            esri_json = self.polygon_to_esri_json(polygon)
+            if len(polygon) > 20:
+                # todo: create a bounding box...
+                xmin, xmax = np.min(polygon[:, 0]), np.max(polygon[:, 0])
+                ymin, ymax = np.min(polygon[:, 1]), np.max(polygon[:, 1])
+                bbox = [
+                    (xmin, ymin),
+                    (xmax, ymin),
+                    (xmax, ymax),
+                    (xmin, ymax),
+                    (xmin, ymin)
+                ]
+                esri_json = self.polygon_to_esri_json(bbox)
+
+            else:
+                esri_json = self.polygon_to_esri_json(polygon)
 
             if named:
                 rec = self.sf.record(ix)
