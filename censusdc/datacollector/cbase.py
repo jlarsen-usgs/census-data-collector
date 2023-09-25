@@ -544,13 +544,17 @@ class CensusBase(object):
                     requests.exceptions.ConnectionError,
                     requests.exceptions.ChunkedEncodingError,
                     requests.exceptions.ReadTimeout) as e:
+                err = e
                 n += 1
                 if verbose:
                     print("Connection Error: Retry number "
                           "{}".format(n))
 
         if n == retry:
-            raise requests.exceptions.HTTPError(err)
+            if "unknown/unsupported" in r.text:
+                return
+            else:
+                raise requests.exceptions.HTTPError(err)
 
         if verbose:
             print('Getting {} data for {} '
@@ -724,11 +728,14 @@ def multiproc_data_request(year, apikey, feature, featix, name,
                 requests.exceptions.ConnectionError,
                 requests.exceptions.ChunkedEncodingError,
                 requests.exceptions.ReadTimeout) as e:
+            err = e
             n += 1
             if verbose:
                 print("Connection Error: Retry number {}".format(n))
 
     if n == retry:
+        if "unknown/unsupported" in r.text:
+            return
         raise requests.exceptions.HTTPError(err)
 
     if verbose:
