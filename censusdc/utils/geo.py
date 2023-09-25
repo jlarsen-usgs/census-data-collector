@@ -245,7 +245,7 @@ class GeoFeatures(object):
 
                 elif shape_type.lower() == "multipolygon":
                     tshp = shapely_shape(shape.__geo_interface__)
-                    tshp = list(tshp)
+                    tshp = list(tshp.geoms)
                     for part in tshp:
                         t.append(part)
 
