@@ -1,93 +1,303 @@
-# census-data-collector
-
-
-
-## Getting started
-
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://code.usgs.gov/cawsc/census-data-collector.git
-git branch -M main
-git push -uf origin main
-```
-
-## Integrate with your tools
-
-* [Set up project integrations](https://code.usgs.gov/cawsc/census-data-collector/-/settings/integrations)
-
-## Collaborate with your team
-
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+# Census Data Collector  
+The census data collector is a geographic based tool to query census data from
+the TigerWeb REST services and the US Census API. Queryable census products
+ include:  
+* TigerWeb
+* Decenial Census data from Sf3
+* ACS 1-Year
+* ACS 5-Year
 
 ## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+_Method 1_: Download the census data collector from 
+https://github.com/jlarsen-usgs/census-data-collector navigate to the package 
+in either an anaconda prompt, terminal, or command prompt window and 
+ run:
+```shell script
+pip install .
+```
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+_Method 2_: Install directly from Github using"
+```shell script
+pip install https://github.com/jlarsen-usgs/census-data-collector/zipball/master
+```
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+## Basic usage
+The census data collector uses geographic information from shapefiles to query 
+data.
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+__Importing census data collector__
+```python
+import censusdc
+```
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+__Grabbing features from TigerWeb__  
+TigerWeb hosts feature layers that are tagged with geographic id information
+that can be used for creating census api data pulls. The `TigerWeb` class 
+accepts polygon and point shapefiles and can query a host of 
+geographic information for the census.  
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+*__Example 1__*:  
+_Sacramento neighborhood polygons:_  
+Two polygons have been drawn; one for the Tahoe Park and one for the La Riviera
+ neighborhood  
+<p align="center">
+  <img src="https://raw.githubusercontent.com/jlarsen-usgs/census-data-collector/master/data/Sacramento_neighborhoods.png" alt="Sacto"/>
+</p>
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+We will use this shapefile and these polygon features to query block
+information for the 2010 census
+```python
+from censusdc import TigerWeb
+from censusdc import TigerWebVariables as TWV
+import os
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+shp_file = os.path.join('data','Sacramento_neighborhoods.shp')
 
-## License
-For open source projects, say how it is licensed.
+# if the shapefile has a label field for polygons we can tag data 
+# using the field parameter
+tigweb = TigerWeb(shp_file, field="name")
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+# if you have only specific fields that you would like
+tigweb.get_data(2010, outfields=(TWV.geoid, TWV.state, TWV.county,
+                                 TWV.tract, TWV.blkgrp, TWV.block))
+
+# default method gets all relevant tigerweb attributes
+tigweb.get_data(2010)
+
+features = tigweb.features
+```
+The features parameter returns a dictionary of geoJSON objects that can be
+accessed and exported.  
+
+To get the features from a single polygon we can use
+```python
+# get all polygon names
+names = tigweb.feature_names
+
+# get all GeoJSON features associated with a single polygon
+feature = tigweb.get_feature("la_riviera")
+```
+ and we can visualize the geoJSON features using Descartes and matplotlib
+ ```python
+import matplotlib.pyplot as plt
+from descartes import PolygonPatch
+import numpy as np
+import utm
+
+fig = plt.figure()
+ax = fig.gca()
+for name in tigweb.feature_names:
+    for feature in tigweb.get_feature(name):
+        ax.add_patch(PolygonPatch(feature.geometry, alpha=0.5))
+    
+    # get the input polygon shapes and convert from UTM to WGS84
+    x, y = np.array(tigweb.get_shape(name)).T
+    y, x = utm.to_latlon(x, y, 11, zone_letter='N')
+    ax.plot(x, y, 'r-')
+
+ax.axis('scaled')
+plt.show()
+```
+<p align="center">
+  <img src="https://raw.githubusercontent.com/jlarsen-usgs/census-data-collector/master/data/Tigerweb_example.png" alt="TigerWeb"/>
+</p>
+
+*__Example 2__*:  
+_Sacramento neighborhood points:_  
+Point shapefiles can also be supplied to `TigerWeb`. Here we have on in the
+Tahoe Park neighborhood and one in the La Riviera neighborhood
+<p align="center">
+  <img src="https://raw.githubusercontent.com/jlarsen-usgs/census-data-collector/master/data/Sacramento_points.png" alt="Sacto_pts"/>
+</p>
+
+We can either use the points by themselves or define a radius around the 
+points to query data from. The `radius=` parameter accepts either a string
+which references an attribute column in the point shapefile or a float that
+applies a constant radius to all points.   
+```python
+from censusdc import TigerWeb
+from censusdc import TigerWebVariables as TWV
+import os
+
+shp_file = os.path.join('data','Sacramento_points.shp')
+
+# radius infromation must be in the same units as the shapefile projection!
+tigweb = TigerWeb(shp_file, field="name", radius="radius")
+tigweb.get_data(2013, level='tract')
+```
+and here we can visualize the census block group features within the 
+defined radius from our points
+```python
+import matplotlib.pyplot as plt
+from descartes import PolygonPatch
+import numpy as np
+import utm
+
+fig = plt.figure()
+    ax = fig.gca()
+    for name in tigweb.feature_names:
+        for feature in tigweb.get_feature(name):
+            ax.add_patch(PolygonPatch(feature.geometry, alpha=0.5))
+
+        x, y = np.array(tigweb.get_shape(name)).T
+        y, x = utm.to_latlon(x, y, 11, zone_letter='N')
+        px, py = np.array(tigweb.get_point(name))
+        py, px = utm.to_latlon(px, py, 11, zone_letter='N')
+        ax.plot(x, y, 'r-')
+        ax.plot(px, py, 'ro')
+
+    ax.axis('scaled')
+    plt.show()
+```
+<p align="center">
+  <img src="https://raw.githubusercontent.com/jlarsen-usgs/census-data-collector/master/data/Tigerweb_points_example.png" alt="TigerWeb_pts"/>
+</p>
+
+__*Using tigerweb features to grab census data*__
+
+After we get a feature set from tigerweb, we can grab data. In this example we 
+are getting data from the 2013 American Community Survey 5 year data set and 
+plot population of census block groups. Data from the Census data pull is 
+added to each GeoJSON feature to keep spatial correlation. Here is an example:
+
+```python
+from censusdc import TigerWeb, Acs5
+from descartes import PolygonPatch
+import matplotlib.pyplot as plt
+from matplotlib.collections import PatchCollection
+import numpy as np
+import os
+import utm
+
+# the user must have a census api key to pull data from the Acs5
+with open("api_key.dat") as api:
+    apikey = api.readline().strip()
+
+data = 'data'
+point_name = "Sacramento_points.shp"
+
+tigweb = TigerWeb(os.path.join(data, point_name), field='name',
+                  radius='radius')
+tigweb.get_data(2013, level='tract')
+
+# get ACS5 data
+acs = Acs5(tigweb.features, 2013, apikey)
+acs.get_data(retry=20)  # number of retries for connection issues
+
+fig = plt.figure()
+ax = fig.gca()
+population = []
+patches = []
+for name in acs.feature_names:
+    for feature in acs.get_feature(name):
+        patches.append(PolygonPatch(feature.geometry))
+        population.append(feature.properties["B01003_001E"])
+    x, y = np.array(tigweb.get_shape(name)).T
+    y, x = utm.to_latlon(x, y, 11, zone_letter='N')
+    px, py = np.array(tigweb.get_point(name))
+    py, px = utm.to_latlon(px, py, 11, zone_letter='N')
+    ax.plot(x, y, 'r-')
+    ax.plot(px, py, 'ro')
+
+p = PatchCollection(patches, cmap="viridis", alpha=0.75)
+p.set_array(np.array(population))
+ax.add_collection(p)
+ax.axis('scaled')
+plt.colorbar(p, shrink=0.7)
+plt.show()
+```
+<p align="center">
+  <img src="https://raw.githubusercontent.com/jlarsen-usgs/census-data-collector/master/data/Tigerweb_points_population.png" alt="Acs5_pop_2013"/>
+</p>
+
+__*Intersecting and area weight adjustment of geoJSON features*__
+
+The `GeoFeature` class allows the user to intersect census designated place 
+data with arbitrary polygons to create new area weighted features that 
+represent the user's area of interest. Input polygons can be supplied to 
+the `GeoFeature` class as a pyshp `shapefile.Reader` instance, a list
+`shapefile.Shape` instances, a list of `shapely.geometry.Polygon` or
+ `shapely.geometry.MultiPolygon` instances, or a list of x,y points that define
+ a closed polygon.
+ 
+ _Note: shapes must be supplied in the WGS84 projection to intersect with the 
+ TigerLine data, as this is the projection returned from TigerWeb_ 
+ 
+ Example:
+ ```python
+# building off of the previous example...
+
+from censusdc.utils import GeoFeatures
+import shapefile
+
+
+ishp_name = "multipolygon_test.shp"
+ishp = shapefile.Reader(os.path.join(data, ishp_name))
+gf = GeoFeatures(acs.get_feature(acs.feature_names[0]))
+gf.intersect(ishp)
+
+    fig = plt.figure()
+    ax = fig.gca()
+    population = []
+    patches = []
+    census_patches = []
+    for feature in acs.get_feature(acs.feature_names[0]):
+        census_patches.append(PolygonPatch(feature.geometry))
+
+    for feature in gf.intersected_features:
+        patches.append(PolygonPatch(feature.geometry))
+        population.append(feature.properties["B01003_001E"])
+
+    p = PatchCollection(patches, cmap="viridis", alpha=0.75)
+    cp = PatchCollection(census_patches, cmap='spring')
+    p.set_array(np.array(population))
+    ax.add_collection(cp)
+    ax.add_collection(p)
+    ax.axis('scaled')
+    plt.colorbar(p, shrink=0.7)
+    plt.show()
+```
+<p align="center">
+  <img src="https://raw.githubusercontent.com/jlarsen-usgs/census-data-collector/master/data/Tigerweb_points_intersection.png" alt="Acs5_intersect_2013"/>
+</p>
+
+__*Using the `CensusTimeSeries` class to get a pandas dataframe of timeseries data*__  
+
+Instead of requesting data year by year, the `CensusTimeSeries` class allows 
+the user to pull multiple timeseries of data from the US Census in a few simple
+calls. The default parameters the `CensusTimeSeries` class pulls are defined
+in the `AcsVariables`, `Sf3Variables`, and `Sf3Variables1990` classes. The 
+`CensusTimeSeries` object uses data caching methods to pull all census data
+within a shapefile defined region and allow the user to do multiple time
+series with that data.
+
+_Basic example_
+```python
+import os
+import shapefile
+from censusdc.utils import CensusTimeSeries
+
+ws = os.path.abspath(os.path.dirname(__file__))
+shp = os.path.join(ws, "data", "Sacramento_neighborhoods_WGS.shp")
+apikey = os.path.join(ws, "api_key.dat")
+
+with open(apikey) as api:
+    apikey = api.readline().strip()
+
+ts = CensusTimeSeries(shp, apikey, field="name")
+
+shp = shapefile.Reader(shp)
+polygon = shp.shape(0)
+df = ts.get_timeseries("la_riviera", polygons=polygon)
+
+polygon = shp.shape(1)
+df1 = ts.get_timeseries("tahoe_park", polygons=polygon)
+```
+## Example Jupyter Notebooks
+Fully functioning example notebooks can be found [here](https://github.com/jlarsen-usgs/census-data-collector/tree/master/examples)
+## Development
+This project is in active development and is in the pre-alpha stages. There 
+will be many updates and changes to the source code in the near future.
+
+## Authors
+Joshua Larsen
