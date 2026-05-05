@@ -75,6 +75,14 @@ class TigerWebBase(object):
 
     """
     def __init__(self, shp, field, geotype, filter):
+
+        # # TODO: start with loading shp as geopandas instance and converting it to the proper CRS
+        # gdf = gpd.read_file(shp)
+        # original_crs = gdf.crs
+        # gdf = gdf.to_crs(epsg=4326)
+        # self._gdf = gdf
+        # self._ocrs = original_crs
+
         if not os.path.isfile(shp):
             raise FileNotFoundError("{} not a valid file path".format(shp))
         prj = shp[:-4] + ".prj"
@@ -810,161 +818,161 @@ def multiproc_request_data(key, base, mapserver, esri_json, geotype,
     return key, features
 
 
-class TigerWebPoint(TigerWebBase):
-    """
-    Class to query data from TigerWeb by using shapefile point(s)
-
-    Parameters
-    ----------
-    shp : str
-        shapefile path
-    field : str
-        shapefile field to id multiple points
-    radius : str or value
-        shapefile radius field (in projection units) or a floating point value
-        to define the polygon to query
-    filter : tuple
-        tuple of names or polygon numbers to pull from
-        default is () which grabs all polygons
-    """
-    def __init__(self, shp, field=None, radius=0, filter=()):
-        if isinstance(radius, str) or radius > 0:
-            super(TigerWebPoint, self).__init__(shp, field, "polygon", filter)
-        else:
-            super(TigerWebPoint, self).__init__(shp, field, "point", filter)
-
-        self.radius = radius
-
-        if self._geotype == "polygon":
-            self._get_polygons()
-
-        else:
-            self._get_points()
-
-        self.sf.close()
-
-    def _get_polygons(self):
-        """
-        Method to build and store polygons from a shapefile for
-        latter processing
-
-        Returns
-        -------
-            None
-        """
-        if self.sf.shapeType not in (1, 11, 21):
-            raise TypeError('Shapetype: {}, is not a valid point'
-                            .format(self.sf.shapeTypeName))
-
-        named = False
-        fidx = 0
-        if self._field is None:
-            pass
-        else:
-            for ix, field in enumerate(self.sf.fields):
-                if field[0].lower() == self._field:
-                    named = True
-                    fidx = ix - 1
-                    break
-
-        ridx = 0
-        if not isinstance(self.radius, str):
-            pass
-        else:
-            for ix, field in enumerate(self.sf.fields):
-                if field[0].lower() == self.radius.lower():
-                    ridx = ix - 1
-                    break
-
-        name = -1
-        for ix, shape in enumerate(self.sf.shapes()):
-            points = shape.points[0]
-            rec = self.sf.record(ix)
-            if isinstance(self.radius, str):
-                radius = rec[ridx]
-            else:
-                radius = self.radius
-
-            polygon = calculate_circle(points[0], points[1], radius)
-            polygon = polygon.T
-
-            if len(polygon) > 20:
-                # todo: create a bounding box...
-                xmin, xmax = np.min(polygon[:, 0]), np.max(polygon[:, 0])
-                ymin, ymax = np.min(polygon[:, 1]), np.max(polygon[:, 1])
-                bbox = [
-                    (xmin, ymin),
-                    (xmax, ymin),
-                    (xmax, ymax),
-                    (xmin, ymax),
-                    (xmin, ymin)
-                ]
-                esri_json = self.polygon_to_esri_json(bbox)
-
-            else:
-                esri_json = self.polygon_to_esri_json(polygon)
-
-            if named:
-                rec = self.sf.record(ix)
-                name = rec[fidx]
-                if isinstance(name, str):
-                    name = name.lower()
-            else:
-                name += 1
-
-            if self._filter:
-                if name not in self._filter:
-                    continue
-
-            self._esri_json[name] = esri_json
-            self._points[name] = points
-            polygon = geojson.Polygon(points)
-            self._shapes[name] = geojson.Feature(geometry=polygon)
-
-    def _get_points(self):
-        """
-        Method to build and store point features from a shapefile
-        for later processing
-
-        Returns
-        -------
-
-        """
-        if self.sf.shapeType not in (1, 11, 21):
-            raise TypeError('Shapetype: {}, is not a valid point'
-                            .format(self.sf.shapeTypeName))
-
-        named = False
-        fidx = 0
-        if self._field is None:
-            pass
-        else:
-            for ix, field in enumerate(self.sf.fields):
-                if field[0].lower() == self._field:
-                    named = True
-                    fidx = ix - 1
-                    break
-
-        name = -1
-        for ix, shape in enumerate(self.sf.shapes()):
-            points = shape.points[0]
-            esri_json = self.point_to_esri_json(points)
-
-            if named:
-                rec = self.sf.record(ix)
-                name = rec[fidx]
-                if isinstance(name, str):
-                    name = name.lower()
-            else:
-                name += 1
-
-            if self._filter:
-                if name not in self._filter:
-                    continue
-
-            self._esri_json[name] = esri_json
-            self._points[name] = points
-            self._shapes[name] = points
+# class TigerWebPoint(TigerWebBase):
+#     """
+#     Class to query data from TigerWeb by using shapefile point(s)
+#
+#     Parameters
+#     ----------
+#     shp : str
+#         shapefile path
+#     field : str
+#         shapefile field to id multiple points
+#     radius : str or value
+#         shapefile radius field (in projection units) or a floating point value
+#         to define the polygon to query
+#     filter : tuple
+#         tuple of names or polygon numbers to pull from
+#         default is () which grabs all polygons
+#     """
+#     def __init__(self, shp, field=None, radius=0, filter=()):
+#         if isinstance(radius, str) or radius > 0:
+#             super(TigerWebPoint, self).__init__(shp, field, "polygon", filter)
+#         else:
+#             super(TigerWebPoint, self).__init__(shp, field, "point", filter)
+#
+#         self.radius = radius
+#
+#         if self._geotype == "polygon":
+#             self._get_polygons()
+#
+#         else:
+#             self._get_points()
+#
+#         self.sf.close()
+#
+#     def _get_polygons(self):
+#         """
+#         Method to build and store polygons from a shapefile for
+#         latter processing
+#
+#         Returns
+#         -------
+#             None
+#         """
+#         if self.sf.shapeType not in (1, 11, 21):
+#             raise TypeError('Shapetype: {}, is not a valid point'
+#                             .format(self.sf.shapeTypeName))
+#
+#         named = False
+#         fidx = 0
+#         if self._field is None:
+#             pass
+#         else:
+#             for ix, field in enumerate(self.sf.fields):
+#                 if field[0].lower() == self._field:
+#                     named = True
+#                     fidx = ix - 1
+#                     break
+#
+#         ridx = 0
+#         if not isinstance(self.radius, str):
+#             pass
+#         else:
+#             for ix, field in enumerate(self.sf.fields):
+#                 if field[0].lower() == self.radius.lower():
+#                     ridx = ix - 1
+#                     break
+#
+#         name = -1
+#         for ix, shape in enumerate(self.sf.shapes()):
+#             points = shape.points[0]
+#             rec = self.sf.record(ix)
+#             if isinstance(self.radius, str):
+#                 radius = rec[ridx]
+#             else:
+#                 radius = self.radius
+#
+#             polygon = calculate_circle(points[0], points[1], radius)
+#             polygon = polygon.T
+#
+#             if len(polygon) > 20:
+#                 # todo: create a bounding box...
+#                 xmin, xmax = np.min(polygon[:, 0]), np.max(polygon[:, 0])
+#                 ymin, ymax = np.min(polygon[:, 1]), np.max(polygon[:, 1])
+#                 bbox = [
+#                     (xmin, ymin),
+#                     (xmax, ymin),
+#                     (xmax, ymax),
+#                     (xmin, ymax),
+#                     (xmin, ymin)
+#                 ]
+#                 esri_json = self.polygon_to_esri_json(bbox)
+#
+#             else:
+#                 esri_json = self.polygon_to_esri_json(polygon)
+#
+#             if named:
+#                 rec = self.sf.record(ix)
+#                 name = rec[fidx]
+#                 if isinstance(name, str):
+#                     name = name.lower()
+#             else:
+#                 name += 1
+#
+#             if self._filter:
+#                 if name not in self._filter:
+#                     continue
+#
+#             self._esri_json[name] = esri_json
+#             self._points[name] = points
+#             polygon = geojson.Polygon(points)
+#             self._shapes[name] = geojson.Feature(geometry=polygon)
+#
+#     def _get_points(self):
+#         """
+#         Method to build and store point features from a shapefile
+#         for later processing
+#
+#         Returns
+#         -------
+#
+#         """
+#         if self.sf.shapeType not in (1, 11, 21):
+#             raise TypeError('Shapetype: {}, is not a valid point'
+#                             .format(self.sf.shapeTypeName))
+#
+#         named = False
+#         fidx = 0
+#         if self._field is None:
+#             pass
+#         else:
+#             for ix, field in enumerate(self.sf.fields):
+#                 if field[0].lower() == self._field:
+#                     named = True
+#                     fidx = ix - 1
+#                     break
+#
+#         name = -1
+#         for ix, shape in enumerate(self.sf.shapes()):
+#             points = shape.points[0]
+#             esri_json = self.point_to_esri_json(points)
+#
+#             if named:
+#                 rec = self.sf.record(ix)
+#                 name = rec[fidx]
+#                 if isinstance(name, str):
+#                     name = name.lower()
+#             else:
+#                 name += 1
+#
+#             if self._filter:
+#                 if name not in self._filter:
+#                     continue
+#
+#             self._esri_json[name] = esri_json
+#             self._points[name] = points
+#             self._shapes[name] = points
 
 
 class TigerWebPolygon(TigerWebBase):
