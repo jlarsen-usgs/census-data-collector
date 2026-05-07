@@ -1008,15 +1008,15 @@ class TigerWebPolygon(TigerWebBase):
         #self.sf.close()  # TODO: don't need this since we have geopandas, do we?
 
     def _get_polygons(self):
-        """
-        Method to read and store polygons from a shapefile for later
-        processing.
-
-        Returns
-        -------
-            None
-        """
-
+        # """
+        # Method to read and store polygons from a shapefile for later
+        # processing.
+        #
+        # Returns
+        # -------
+        #     None
+        # """
+        #
         # # #TODO: how to check shape type with geopandas?
         # # if self.sf.shapeType not in (5, 15, 25):
         # #     raise TypeError('Shapetype: {}, is not a valid polygon'
@@ -1097,6 +1097,7 @@ class TigerWebPolygon(TigerWebBase):
 
         def exterior_vertex_count(geom):
             """Count exterior vertices across Polygon/MultiPolygon."""
+
             if geom.geom_type == 'Polygon':
                 return len(list(geom.exterior.coords))
             elif geom.geom_type == 'MultiPolygon':
@@ -1104,7 +1105,9 @@ class TigerWebPolygon(TigerWebBase):
             return 0
 
         for idx, row in gdf.iterrows():
+
             geom = row.geometry
+
             # Skip invalid/empty geometry
             if geom is None or geom.is_empty:
                 continue
@@ -1114,16 +1117,17 @@ class TigerWebPolygon(TigerWebBase):
 
             # Determine feature name
             if field_col is not None:
-                name = row[field_col]  # TODO: this seems wrong?
-                if isinstance(name, str):  #TODO: what does this do?
+                name = row[field_col]
+                if isinstance(name, str):
                     name = name.lower()
             else:
                 name_counter += 1
                 name = name_counter
 
-            # Apply filter (self._filter is already normalized by TigerWebBase)
-            if self._filter and name not in self._filter:   #TODO: what does this do?
-                continue
+            # Check for filter
+            if self._filter:
+                if name not in self._filter:
+                    continue
 
             # Decide whether to use bbox or the actual ring (performance trade-off)
             vcount = exterior_vertex_count(geom)
@@ -1136,11 +1140,11 @@ class TigerWebPolygon(TigerWebBase):
             else:
                 # Use the exterior of the geometry (one ring, no holes)
                 if geom.geom_type == 'Polygon':
-                    ring = list(map(tuple, geom.exterior.coords))  # TODO: think through this
+                    ring = list(map(tuple, geom.exterior.coords))
                 else:  # MultiPolygon
                     # Pick the largest polygon by area for a single-ring query
-                    largest = max(geom.geoms, key=lambda p: p.area)    # TODO: think through this
-                    ring = list(map(tuple, largest.exterior.coords))   # TODO: think through this
+                    largest = max(geom.geoms, key=lambda p: p.area)
+                    ring = list(map(tuple, largest.exterior.coords))
 
             # Build ESRI JSON (single ring)
             esri_json = self.polygon_to_esri_json(ring)
@@ -1152,7 +1156,6 @@ class TigerWebPolygon(TigerWebBase):
                 gj_geom = geojson.Polygon(gi['coordinates'])
             else:  # multipolygon
                 gj_geom = geojson.MultiPolygon(gi['coordinates'])
-
             self._shapes[name] = geojson.Feature(geometry=gj_geom)
 
 
