@@ -13,6 +13,7 @@ from ..utils.geometry import calculate_circle
 from ..utils.geometry import lat_lon_geojson_to_albers_geojson
 import threading
 import platform
+import geopandas as gpd
 try:
     from simplejson.errors import JSONDecodeError
 except ImportError:
@@ -76,33 +77,39 @@ class TigerWebBase(object):
     """
     def __init__(self, shp, field, geotype, filter):
 
-        # # TODO: start with loading shp as geopandas instance and converting it to the proper CRS
-        # gdf = gpd.read_file(shp)
-        # original_crs = gdf.crs
-        # gdf = gdf.to_crs(epsg=4326)
-        # self._gdf = gdf
-        # self._ocrs = original_crs
-
         if not os.path.isfile(shp):
             raise FileNotFoundError("{} not a valid file path".format(shp))
-        prj = shp[:-4] + ".prj"
-        if not os.path.isfile(prj):
-            raise FileNotFoundError("{}: projection file not found"
-                                    .format(prj))
+        # prj = shp[:-4] + ".prj"
+        # if not os.path.isfile(prj):
+        #     raise FileNotFoundError("{}: projection file not found"
+        #                             .format(prj))
 
         self._geotype = geotype
         self._shpname = shp
-        self._prjname = prj
+        # self._prjname = prj
 
         if field is not None:
             self._field = field.lower()
         else:
             self._field = field
 
-        self.sf = shapefile.Reader(self._shpname)
-        self.prj = pycrs.load.from_file(self._prjname)
+        # self.sf = shapefile.Reader(self._shpname)
+        # self.prj = pycrs.load.from_file(self._prjname)
 
-        if self.prj.name != "GCS_WGS_1984":
+        # TODO: start with loading shp as geopandas instance and converting it to the proper CRS
+        gdf = gpd.read_file(shp)
+        original_crs = gdf.crs
+        gdf = gdf.to_crs(epsg=4326)  # TODO: should this be hard-coded or a user input to the function?
+        self.gdf = gdf
+        self._ocrs = original_crs
+        self.crs = gdf.crs.name
+
+
+        # if self.prj.name != "GCS_WGS_1984":
+        #     raise AssertionError("Census data Collector only supports "
+        #                          "GCS_WGS_1984 projection as input, please "
+        #                          "re-project your shapefile")
+        if self.crs != "WGS 84":
             raise AssertionError("Census data Collector only supports "
                                  "GCS_WGS_1984 projection as input, please "
                                  "re-project your shapefile")
@@ -134,8 +141,12 @@ class TigerWebBase(object):
         """
         if self._wkid is None:
             df = get_wkt_wkid_table()
+            if self.crs == 'WGS 84':  # TODO: how to get this automatically without having to specify what it is for other coordinate systems?
+                crs = 'gcs_wgs_1984' #'gcs_' + self.crs.lower().replace(" ", "_")
+            else:
+                crs = self.crs.lower().replace(" ", "_")
             iloc = df.index[
-                df['name'].str.lower() == self.prj.name.lower()].values
+                df['name'].str.lower() == crs].values
             if len(iloc) == 1:
                 wkid = df.loc[iloc, 'wkid'].values[0]
                 self._wkid = int(wkid)
@@ -994,7 +1005,7 @@ class TigerWebPolygon(TigerWebBase):
         super(TigerWebPolygon, self).__init__(shp, field, 'polygon', filter)
 
         self._get_polygons()
-        self.sf.close()
+        #self.sf.close()  # TODO: don't need this since we have geopandas, do we?
 
     def _get_polygons(self):
         """
@@ -1005,59 +1016,148 @@ class TigerWebPolygon(TigerWebBase):
         -------
             None
         """
-        if self.sf.shapeType not in (5, 15, 25):
-            raise TypeError('Shapetype: {}, is not a valid polygon'
-                            .format(self.sf.shapeTypeName))
 
-        named = False
-        fidx = 0
-        if self._field is None:
-            pass
-        else:
-            for ix, field in enumerate(self.sf.fields):
-                if field[0].lower() == self._field:
-                    named = True
-                    fidx = ix - 1
+        # # #TODO: how to check shape type with geopandas?
+        # # if self.sf.shapeType not in (5, 15, 25):
+        # #     raise TypeError('Shapetype: {}, is not a valid polygon'
+        # #                     .format(self.sf.shapeTypeName))
+        #
+        # named = False
+        # fidx = 0
+        # if self._field is None:
+        #     pass
+        # else:
+        #     for ix, field in enumerate(self.sf.fields):
+        #         if field[0].lower() == self._field:
+        #             named = True
+        #             fidx = ix - 1
+        #             break
+        #
+        # name = -1
+        # for ix, shape in enumerate(self.sf.shapes()):
+        #     shape = self.sf.shape(ix)
+        #     if len(shape.points) > 20:
+        #         # get the bbox to do the tigerweb data pull
+        #         bbox = shape.bbox
+        #         points = [(bbox[0], bbox[1]), (bbox[2], bbox[1]),
+        #                   (bbox[2], bbox[3]), (bbox[0], bbox[3]),
+        #                   (bbox[0], bbox[1])]
+        #         esri_json = self.polygon_to_esri_json(points)
+        #     else:
+        #         esri_json = self.polygon_to_esri_json(shape.points)
+        #     if named:
+        #         rec = self.sf.record(ix)
+        #         name = rec[fidx]
+        #         if isinstance(name, str):
+        #             name = name.lower()
+        #     else:
+        #         name += 1
+        #
+        #     if self._filter:
+        #         if name not in self._filter:
+        #             continue
+        #
+        #     self._esri_json[name] = esri_json
+        #
+        #     geofeat = shape.__geo_interface__
+        #     if geofeat['type'].lower() == "polygon":
+        #         poly = geojson.Polygon(geofeat['coordinates'])
+        #     else:
+        #         poly = geojson.MultiPolygon(geofeat['coordinates'])
+        #
+        #     geofeat = geojson.Feature(geometry=poly)
+        #
+        #     self._shapes[name] = geofeat
+
+        """
+        GeoPandas-based method to read and store polygons from self.gdf for
+        later TigerWeb processing. Populates:
+          - self._esri_json[name] : ESRI polygon geometry (single ring) JSON string
+          - self._shapes[name]    : GeoJSON Feature of the full input geometry
+
+        Behavior mirrors the original:
+          * If >20 exterior vertices, use the bounding box for the ESRI geometry
+          * Otherwise, use the exterior ring
+          * Name each feature from `field` (case-insensitive), else use a counter
+          * Apply `self._filter` if provided
+        """
+        gdf = self.gdf
+        if gdf is None or gdf.empty:
+            return  # nothing to do
+
+        # Resolve the name column (case-insensitive) if user provided `field`
+        field_col = None
+        if self._field is not None:
+            for col in gdf.columns:
+                if col.lower() == self._field:
+                    field_col = col
                     break
 
-        name = -1
-        for ix, shape in enumerate(self.sf.shapes()):
-            shape = self.sf.shape(ix)
-            if len(shape.points) > 20:
-                # get the bbox to do the tigerweb data pull
-                bbox = shape.bbox
-                points = [(bbox[0], bbox[1]), (bbox[2], bbox[1]),
-                          (bbox[2], bbox[3]), (bbox[0], bbox[3]),
-                          (bbox[0], bbox[1])]
-                esri_json = self.polygon_to_esri_json(points)
-            else:
-                esri_json = self.polygon_to_esri_json(shape.points)
-            if named:
-                rec = self.sf.record(ix)
-                name = rec[fidx]
-                if isinstance(name, str):
+        name_counter = -1
+
+        def exterior_vertex_count(geom):
+            """Count exterior vertices across Polygon/MultiPolygon."""
+            if geom.geom_type == 'Polygon':
+                return len(list(geom.exterior.coords))
+            elif geom.geom_type == 'MultiPolygon':
+                return sum(len(list(p.exterior.coords)) for p in geom.geoms)
+            return 0
+
+        for idx, row in gdf.iterrows():
+            geom = row.geometry
+            # Skip invalid/empty geometry
+            if geom is None or geom.is_empty:
+                continue
+            if geom.geom_type not in ("Polygon", "MultiPolygon"):
+                # Ignore non-polygon types in a polygon workflow
+                continue
+
+            # Determine feature name
+            if field_col is not None:
+                name = row[field_col]  # TODO: this seems wrong?
+                if isinstance(name, str):  #TODO: what does this do?
                     name = name.lower()
             else:
-                name += 1
+                name_counter += 1
+                name = name_counter
 
-            if self._filter:
-                if name not in self._filter:
-                    continue
+            # Apply filter (self._filter is already normalized by TigerWebBase)
+            if self._filter and name not in self._filter:   #TODO: what does this do?
+                continue
 
+            # Decide whether to use bbox or the actual ring (performance trade-off)
+            vcount = exterior_vertex_count(geom)
+            minx, miny, maxx, maxy = geom.bounds
+
+            if vcount > 20:
+                # Use bounding box to reduce request size / server complexity
+                ring = [(minx, miny), (maxx, miny), (maxx, maxy),
+                        (minx, maxy), (minx, miny)]
+            else:
+                # Use the exterior of the geometry (one ring, no holes)
+                if geom.geom_type == 'Polygon':
+                    ring = list(map(tuple, geom.exterior.coords))  # TODO: think through this
+                else:  # MultiPolygon
+                    # Pick the largest polygon by area for a single-ring query
+                    largest = max(geom.geoms, key=lambda p: p.area)    # TODO: think through this
+                    ring = list(map(tuple, largest.exterior.coords))   # TODO: think through this
+
+            # Build ESRI JSON (single ring)
+            esri_json = self.polygon_to_esri_json(ring)
             self._esri_json[name] = esri_json
 
-            geofeat = shape.__geo_interface__
-            if geofeat['type'].lower() == "polygon":
-                poly = geojson.Polygon(geofeat['coordinates'])
-            else:
-                poly = geojson.MultiPolygon(geofeat['coordinates'])
+            # Store the input geometry as a GeoJSON Feature (full geometry)
+            gi = geom.__geo_interface__
+            if gi['type'].lower() == 'polygon':
+                gj_geom = geojson.Polygon(gi['coordinates'])
+            else:  # multipolygon
+                gj_geom = geojson.MultiPolygon(gi['coordinates'])
 
-            geofeat = geojson.Feature(geometry=poly)
-
-            self._shapes[name] = geofeat
+            self._shapes[name] = geojson.Feature(geometry=gj_geom)
 
 
 class TigerWeb(object):
+    # TODO can we get rid of the TigerWeb class?
     """
     Method to query data from TigerWeb
 
@@ -1075,15 +1175,28 @@ class TigerWeb(object):
         default is () which grabs all polygons
 
     """
-    def __new__(cls, shp, field=None, radius=0, filter=()):
-        with shapefile.Reader(shp) as sf:
-            shapetype = sf.shapeType
-            shapename = sf.shapeTypeName
 
-        if shapetype in (1, 11, 21):
-            return TigerWebPoint(shp, field, radius, filter)
-        elif shapetype in (5, 15, 25):
-            return TigerWebPolygon(shp, field, filter)
-        else:
-            raise TypeError('Shapetype: {}, is not a valid point or polygon'
-                            .format(shapename))
+    def __new__(cls, shp, field=None, filter=()):  # note: removed from def: radius=0,
+
+        # # TODO: should this be replaced with geopandas?
+        # with shapefile.Reader(shp) as sf:
+        #     shapetype = sf.shapeType
+        #     shapename = sf.shapeTypeName
+        #
+        # # if shapetype in (1, 11, 21):
+        # #     return TigerWebPoint(shp, field, radius, filter)
+        # # elif shapetype in (5, 15, 25):
+        # #     return TigerWebPolygon(shp, field, filter)
+        # # else:
+        # #     raise TypeError('Shapetype: {}, is not a valid point or polygon'
+        # #                     .format(shapename))
+        #
+        # if shapetype in (5, 15, 25):
+        #     return TigerWebPolygon(shp, field, filter)
+        # else:
+        #     raise TypeError('Shapetype: {}, is not a valid polygon'
+        #                     .format(shapename))
+
+        # TODO: how to check shape type with geopandas?
+        return TigerWebPolygon(shp, field, filter)
+

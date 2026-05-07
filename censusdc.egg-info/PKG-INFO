@@ -1,0 +1,40 @@
+Metadata-Version: 2.4
+Name: censusdc
+Version: 0.2.0
+Summary: Python package to query census population data and provide
+Home-page: 
+Author: Joshua Larsen
+Author-email: jlarsen@usgs.gov
+License: MIT License
+Keywords: census
+Classifier: Development Status :: 2 Beta
+Classifier: Intended Audience :: Scientists
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.4
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Topic :: Scientific/Engineering :: GIS
+License-File: LICENSE
+Requires-Dist: pandas
+Requires-Dist: numpy
+Requires-Dist: beautifulsoup4
+Requires-Dist: pyshp==2.1.0
+Requires-Dist: pycrs
+Requires-Dist: geojson
+Requires-Dist: shapely
+Requires-Dist: requests
+Requires-Dist: scipy
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: keywords
+Dynamic: license
+Dynamic: license-file
+Dynamic: requires-dist
+Dynamic: summary
+
+Python package to query census population data and provide
+estimates of population from census data from arbitrary polygons
