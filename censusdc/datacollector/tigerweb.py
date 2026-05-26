@@ -105,7 +105,7 @@ class TigerWebBase(object):
         self.gdf = gdf
         self._ocrs = original_crs
         self.crs = gdf.crs.name
-
+        self.esri_wkid = TigerWebBase._esri_code
 
         # if self.prj.name != "GCS_WGS_1984":
         #     raise AssertionError("Census data Collector only supports "
@@ -160,17 +160,17 @@ class TigerWebBase(object):
     #
     #     return self._wkid
 
-    # TODO: delete
-    @property
-    def points(self):
-        """
-        Method to get the shapefile points for each shape
-
-        Returns
-        -------
-            dict : {name: point}
-        """
-        return self._points
+    # # TODO: delete
+    # @property
+    # def points(self):
+    #     """
+    #     Method to get the shapefile points for each shape
+    #
+    #     Returns
+    #     -------
+    #         dict : {name: point}
+    #     """
+    #     return self._points
 
     # TODO: may not need this - check - don't remove yet
     @property
@@ -184,20 +184,21 @@ class TigerWebBase(object):
         """
         return copy.deepcopy(self._shapes)
 
-    # @property
-    # def albers_shapes(self):
-    #     """
-    #     Method to get the geoJSON representation of albers projection
-    #     for each input shape
-    #
-    #     Returns
-    #     -------
-    #         dict : {name: [vertices]}
-    #     """
-    #     if not self._albers_shapes:
-    #         self.__geojson_to_albers_geojson('shapes')
-    #
-    #     return copy.deepcopy(self._albers_shapes)
+    #TODO: delete after also deleting albers_shapes from timeseries.py
+    @property
+    def albers_shapes(self):
+        """
+        Method to get the geoJSON representation of albers projection
+        for each input shape
+
+        Returns
+        -------
+            dict : {name: [vertices]}
+        """
+        if not self._albers_shapes:
+            self.__geojson_to_albers_geojson('shapes')
+
+        return copy.deepcopy(self._albers_shapes)
 
     @property
     def features(self):
@@ -214,20 +215,21 @@ class TigerWebBase(object):
 
         return copy.deepcopy(self._features)
 
-    # @property
-    # def albers_features(self):
-    #     """
-    #     Method to get all features in the feature dictionary in an
-    #     albers projection
-    #
-    #     Returns
-    #     -------
-    #         dict : {name: geoJSON objects}
-    #     """
-    #     if not self._albers_features:
-    #         self.__geojson_to_albers_geojson('features')
-    #
-    #     return copy.deepcopy(self._albers_features)
+    # TODO: delete after deleting from timeseries.py
+    @property
+    def albers_features(self):
+        """
+        Method to get all features in the feature dictionary in an
+        albers projection
+
+        Returns
+        -------
+            dict : {name: geoJSON objects}
+        """
+        if not self._albers_features:
+            self.__geojson_to_albers_geojson('features')
+
+        return copy.deepcopy(self._albers_features)
 
     @property
     def feature_names(self):
@@ -413,60 +415,60 @@ class TigerWebBase(object):
 
         d["rings"].append(ring)
 
-        if isinstance(self.esri_wkid, int):  # TODO: get rid of if else statement
-            d['spatialReference'] = {"wkid": self.esri_wkid}  # TODO: set self.esri_wkid to EPSG=4326 using TigerWebBase._esri_code
-        else:
-            raise TypeError("wkid must be a well known id number string")
+        # if isinstance(self.esri_wkid, int):  # TODO: get rid of if else statement
+        #     d['spatialReference'] = {"wkid": self.esri_wkid}  # TODO: set self.esri_wkid to EPSG=4326 using TigerWebBase._esri_code
+        # else:
+        #     raise TypeError("wkid must be a well known id number string")
 
         s = d.__str__()
         s = s.replace("'", '"')
         s = s.replace(" ", "")
         return s
 
-    # TODO: remove
-    # def __geojson_to_albers_geojson(self, which='features'):
-    #     """
-    #     Method to convert data in the features or shapes dict to
-    #     albers projection and set the albers_features or albers_shapes
-    #     dictionary
-    #
-    #     Parameters
-    #     ----------
-    #     which : str
-    #         <'features' or 'shapes'>
-    #
-    #     Returns
-    #     -------
-    #         None
-    #     """
-    #     if which == 'features':
-    #         data = self.features
-    #     elif which == "shapes":
-    #         data = self.shapes
-    #     else:
-    #         raise Exception("Not a valid selection")
-    #
-    #     alb_data = {}
-    #     for name, features in data.items():
-    #         if isinstance(features, list):
-    #             alb_features = []
-    #             for feature in features:
-    #                 geofeat = lat_lon_geojson_to_albers_geojson(feature,
-    #                                                             precision=100.)
-    #                 alb_features.append(geofeat)
-    #             alb_data[name] = alb_features
-    #
-    #         else:
-    #             geofeat = lat_lon_geojson_to_albers_geojson(features,
-    #                                                         precision=100.)
-    #             alb_data[name] = geofeat
-    #
-    #     if which == "features":
-    #         self._albers_features = alb_data
-    #     elif which == "shapes":
-    #         self._albers_shapes = alb_data
-    #     else:
-    #         raise Exception("Code shoudn't have made it here")
+    # TODO: delete after deleting in timeseries.py
+    def __geojson_to_albers_geojson(self, which='features'):
+        """
+        Method to convert data in the features or shapes dict to
+        albers projection and set the albers_features or albers_shapes
+        dictionary
+
+        Parameters
+        ----------
+        which : str
+            <'features' or 'shapes'>
+
+        Returns
+        -------
+            None
+        """
+        if which == 'features':
+            data = self.features
+        elif which == "shapes":
+            data = self.shapes
+        else:
+            raise Exception("Not a valid selection")
+
+        alb_data = {}
+        for name, features in data.items():
+            if isinstance(features, list):
+                alb_features = []
+                for feature in features:
+                    geofeat = lat_lon_geojson_to_albers_geojson(feature,
+                                                                precision=100.)
+                    alb_features.append(geofeat)
+                alb_data[name] = alb_features
+
+            else:
+                geofeat = lat_lon_geojson_to_albers_geojson(features,
+                                                            precision=100.)
+                alb_data[name] = geofeat
+
+        if which == "features":
+            self._albers_features = alb_data
+        elif which == "shapes":
+            self._albers_shapes = alb_data
+        else:
+            raise Exception("Code shoudn't have made it here")
 
     def get_data(self, year, level='finest', outfields=(), verbose=True,
                  multiproc=False, multithread=False, thread_pool=4, retry=100):
@@ -1192,7 +1194,7 @@ class TigerWeb(object):
 
     """
 
-    def __new__(cls, shp, field=None, filter=()):  # note: removed from def: radius=0,
+    def __new__(cls, shp, field=None, radius=0, filter=()):  # TODO: need to remove from def: radius=0, but also need to remove it from timeseries.py, and possibly other places
 
         # # TODO: should this be replaced with geopandas?
         # with shapefile.Reader(shp) as sf:
