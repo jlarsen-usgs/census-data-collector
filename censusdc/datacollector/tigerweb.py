@@ -4,8 +4,8 @@ Development code for TigerWeb REST data collection.
 import geojson
 import requests
 import os
-import shapefile
-import pycrs
+import shapefile  # TODO: delete?
+import pycrs  # TODO: delete?
 import copy
 import numpy as np
 from ..utils import get_wkt_wkid_table, TigerWebMapServer, thread_count
@@ -14,6 +14,7 @@ from ..utils.geometry import lat_lon_geojson_to_albers_geojson
 import threading
 import platform
 import geopandas as gpd
+from shapely.geometry import shape as shapely_shape
 try:
     from simplejson.errors import JSONDecodeError
 except ImportError:
@@ -82,22 +83,22 @@ class TigerWebBase(object):
 
         if not os.path.isfile(shp):
             raise FileNotFoundError("{} not a valid file path".format(shp))
-        # prj = shp[:-4] + ".prj"
-        # if not os.path.isfile(prj):
-        #     raise FileNotFoundError("{}: projection file not found"
-        #                             .format(prj))
+        # prj = shp[:-4] + ".prj"  # TODO: delete
+        # if not os.path.isfile(prj):  # TODO: delete
+        #     raise FileNotFoundError("{}: projection file not found"  # TODO: delete
+        #                             .format(prj))  # TODO: delete
 
         self._geotype = geotype
         self._shpname = shp
-        # self._prjname = prj
+        # self._prjname = prj  # TODO: delete
 
         if field is not None:
             self._field = field.lower()
         else:
             self._field = field
 
-        # self.sf = shapefile.Reader(self._shpname)
-        # self.prj = pycrs.load.from_file(self._prjname)
+        # self.sf = shapefile.Reader(self._shpname)  # TODO: delete
+        # self.prj = pycrs.load.from_file(self._prjname)   # TODO: delete
 
         gdf = gpd.read_file(shp)
         original_crs = gdf.crs
@@ -107,22 +108,18 @@ class TigerWebBase(object):
         self.crs = gdf.crs.name
         self.esri_wkid = TigerWebBase._esri_code
 
-        # if self.prj.name != "GCS_WGS_1984":
-        #     raise AssertionError("Census data Collector only supports "
-        #                          "GCS_WGS_1984 projection as input, please "
-        #                          "re-project your shapefile")
         if self.crs != "WGS 84":
             raise AssertionError("Census data Collector only supports "
                                  "GCS_WGS_1984 projection as input, please "
                                  "re-project your shapefile")
 
-        self._wkid = None
+        self._wkid = None  # TODO: delete?
         self._shapes = {}
-        self._albers_shapes = {}
-        self._points = {}
+        self._albers_shapes = {}  # TODO: delete
+        self._points = {}  # TODO: delete
         self._esri_json = {}
         self._features = {}
-        self._albers_features = {}
+        self._albers_features = {}  # TODO: delete
 
         if filter:
             if isinstance(filter, (int, str, float)):
@@ -131,46 +128,6 @@ class TigerWebBase(object):
                             i for i in filter])
 
         self._filter = filter
-
-    # TODO: delete
-    # @property
-    # def esri_wkid(self):
-    #     """
-    #     Method to grab the esri WKID from projection information
-    #
-    #     Returns
-    #     -------
-    #         wkid : int
-    #     """
-    #     if self._wkid is None:
-    #         df = get_wkt_wkid_table()
-    #         if self.crs == 'WGS 84':  # TODO: how to get this automatically without having to specify what it is for other coordinate systems?
-    #             crs = 'gcs_wgs_1984' #'gcs_' + self.crs.lower().replace(" ", "_")
-    #         else:
-    #             crs = self.crs.lower().replace(" ", "_")
-    #         iloc = df.index[
-    #             df['name'].str.lower() == crs].values
-    #         if len(iloc) == 1:
-    #             wkid = df.loc[iloc, 'wkid'].values[0]
-    #             self._wkid = int(wkid)
-    #
-    #         else:
-    #             raise Exception("Can't find a matching esri wkid "
-    #                             "for current projection")
-    #
-    #     return self._wkid
-
-    # # TODO: delete
-    # @property
-    # def points(self):
-    #     """
-    #     Method to get the shapefile points for each shape
-    #
-    #     Returns
-    #     -------
-    #         dict : {name: point}
-    #     """
-    #     return self._points
 
     # TODO: may not need this - check - don't remove yet
     @property
@@ -231,6 +188,7 @@ class TigerWebBase(object):
 
         return copy.deepcopy(self._albers_features)
 
+    # TODO: create new version that uses geodataframe
     @property
     def feature_names(self):
         """
@@ -242,8 +200,8 @@ class TigerWebBase(object):
         """
         return list(self._features.keys())
 
+    #TODO: create new version that uses geopandas instead of geojson - specifically change the _features
     def get_feature(self, name):
-        #TODO: change this to use geopandas instead of geojson - specifically change the _features
         """
         Method to get a single GeoJSON feature from the feature dict
 
@@ -264,30 +222,6 @@ class TigerWebBase(object):
         else:
             return copy.deepcopy(self._features[name])
 
-    # TODO: remove
-    # def get_albers_feature(self, name):
-    #     """
-    #     Method to get a single GeoJSON feature from the feature dict
-    #
-    #     Parameters
-    #     ----------
-    #     name : str or int
-    #         feature dictionary key
-    #
-    #     Returns
-    #     -------
-    #         geoJSON object
-    #     """
-    #     if not self._albers_features:
-    #         self.__geojson_to_albers_geojson('features')
-    #
-    #     if name not in self._albers_features:
-    #         name = str(name)
-    #
-    #     if name not in self._features:
-    #         raise KeyError("Name: {} not present in feature dict".format(name))
-    #     else:
-    #         return copy.deepcopy(self._features[name])
 
     def get_shape(self, name):
         """
@@ -307,75 +241,6 @@ class TigerWebBase(object):
         else:
             return self._shapes[name]
 
-    # TODO: get rid of this
-    # def get_albers_shape(self, name):
-    #     """
-    #     Method to get the albers projection of shapefile shapes from the
-    #     shapes dict
-    #
-    #     Parameters
-    #     ----------
-    #     name
-    #
-    #     Returns
-    #     -------
-    #         geoJSON feature
-    #     """
-    #     if not self.albers_shapes:
-    #         self.__geojson_to_albers_geojson('shapes')
-    #
-    #     if name not in self._shapes:
-    #         raise KeyError("Name: {} not present in shapes dict".format(name))
-    #     else:
-    #         return self._shapes[name]
-
-    # TODO: remove
-    # def get_point(self, name):
-    #     """
-    #     Method to get the shapefile point from the points dict
-    #
-    #     Parameters
-    #     ----------
-    #     name : str or int
-    #         feature dictionary key
-    #
-    #     Returns
-    #     -------
-    #         list
-    #     """
-    #     if name not in self._points:
-    #         raise KeyError("Name: {} not present in points dict".format(name))
-    #     else:
-    #         return self._points[name]
-
-    # TODO: remove
-    # def point_to_esri_json(self, point):
-    #     """
-    #     Method to create an esri json string for defining point geometry
-    #
-    #     Parameters
-    #     ----------
-    #     point : list
-    #         list of x, y coordinates
-    #
-    #     Returns
-    #     -------
-    #     str : json geometry string
-    #     """
-    #     d = {"geometryType": "esriGeometryPoint",
-    #          'x': point[0],
-    #          'y': point[1],
-    #          "spatialReference": {}}
-    #
-    #     if isinstance(self.esri_wkid, int):
-    #         d['spatialReference'] = {"wkid": self.esri_wkid}
-    #     else:
-    #         raise TypeError("wkid must be a well known id number string")
-    #
-    #     s = d.__str__()
-    #     s = s.replace("'", '"')
-    #     s = s.replace(" ", "")
-        return s
 
     def polygon_to_esri_json(self, polygon):
         """
@@ -415,10 +280,10 @@ class TigerWebBase(object):
 
         d["rings"].append(ring)
 
-        # if isinstance(self.esri_wkid, int):  # TODO: get rid of if else statement
-        #     d['spatialReference'] = {"wkid": self.esri_wkid}  # TODO: set self.esri_wkid to EPSG=4326 using TigerWebBase._esri_code
-        # else:
-        #     raise TypeError("wkid must be a well known id number string")
+        if isinstance(self.esri_wkid, int):
+            d['spatialReference'] = {"wkid": self.esri_wkid}
+        else:
+            raise TypeError("wkid must be a well known id number string")
 
         s = d.__str__()
         s = s.replace("'", '"')
@@ -470,6 +335,86 @@ class TigerWebBase(object):
         else:
             raise Exception("Code shoudn't have made it here")
 
+    # TODO: check to make sure this works
+    def _features_to_geodataframe(self, features_dict=None, crs_epsg=_esri_code, dedupe=True):
+        """
+        Convert the internal features dict to a GeoDataFrame.
+
+        Parameters
+        ----------
+        features_dict : dict or None
+            Dictionary {source_key: [features]} as stored in self._features.
+            If None, uses self._features.
+        crs_epsg : int
+            EPSG code for CRS of the returned GeoDataFrame.
+        dedupe : bool
+            If True, drop duplicate rows per (source_key, GEOID), keeping first.
+
+        Returns
+        -------
+        gpd.GeoDataFrame
+            One row per feature, Shapely geometry, CRS = EPSG:crs_epsg.
+        """
+        if features_dict is None:
+            features_dict = self._features
+
+        rows = []
+        for key, feats in (features_dict or {}).items():
+            if not feats:
+                continue
+
+            for feat in feats:
+                # Normalize access for dict vs geojson.Feature
+                if isinstance(feat, dict):
+                    props = feat.get('properties', {}) or {}
+                    geom_dict = feat.get('geometry', None)
+                else:
+                    # geojson.Feature: properties & geometry attributes
+                    props = getattr(feat, 'properties', {}) or {}
+                    geom_dict = getattr(feat, 'geometry', None)
+
+                if not geom_dict:
+                    # Skip features with missing geometry
+                    continue
+
+                try:
+                    geom = shapely_shape(geom_dict)
+                except Exception:
+                    # Skip malformed geometries
+                    continue
+
+                # Assemble a flat row
+                row = {**props}
+                row['source_key'] = key
+                row['geometry'] = geom
+                rows.append(row)
+
+        gdf = gpd.GeoDataFrame(rows, geometry='geometry', crs=f'EPSG:{crs_epsg}')
+
+        # Optional: ensure string columns are consistently cased
+        # gdf.columns = [c.upper() for c in gdf.columns]  # uncomment if desired
+
+        # Deduplicate per (source_key, GEOID), mirroring original behavior
+        if dedupe and 'GEOID' in gdf.columns:
+            gdf = (
+                gdf.sort_values(['source_key', 'GEOID'])
+                .drop_duplicates(subset=['source_key', 'GEOID'], keep='first')
+            )
+
+        return gdf
+
+    # convenience property to access the geodataframe
+    @property
+    def features_gdf(self):
+        """
+        Returns a copy of the features as a GeoDataFrame.
+        If not computed yet, builds it from current self._features.
+        """
+        if not hasattr(self, '_features_gdf') or self._features_gdf is None:
+            self._features_gdf = self._features_to_geodataframe(self._features, crs_epsg=4326, dedupe=True)
+        return self._features_gdf.copy()
+
+    # TODO: update this to use geodataframe --> make sure this is working properly
     def get_data(self, year, level='finest', outfields=(), verbose=True,
                  multiproc=False, multithread=False, thread_pool=4, retry=100):
         """
@@ -535,7 +480,7 @@ class TigerWebBase(object):
         mapserver = lut[year]['mapserver']
 
         if self._geotype == 'point':
-            geotype = 'esriGeometryPoint'
+            geotype = 'esriGeometryPoint'  # TODO: can this be deleted? (keeping only geotype = 'esriGeometryPolygon'), or maybe don't even need geotype anymore?
         else:
             geotype = 'esriGeometryPolygon'
 
@@ -595,24 +540,32 @@ class TigerWebBase(object):
                 self.__request_data(key, base, mapserver, esri_json, geotype,
                                     outfields, verbose, retry)
 
-        # cleanup duplicate features after query!
-        # TODO: make updates here to make this a geodataframe - each of the dictionaries in _features can be a row in a geopandas dataframe and then the key could be the feature name.
-        # TODO: might have to throw the coords into Shapely before placing in geodf
-        for key, features in self._features.items():
-            geocodes = []
-            poplist = []
-            for ix, feat in enumerate(features):
-                # properties = feat.properties
-                if feat.properties["GEOID"] in geocodes:
-                    poplist.insert(0, ix)
-                else:
-                    geocodes.append(feat.properties["GEOID"])
+        # # cleanup duplicate features after query!
+        # # TODO: make updates here to make this a geodataframe - each of the dictionaries in _features can be a row in a geopandas dataframe and then the key could be the feature name.
+        # # TODO: might have to throw the coords into Shapely before placing in geodf
+        # for key, features in self._features.items():
+        #     geocodes = []
+        #     poplist = []
+        #     for ix, feat in enumerate(features):
+        #         # properties = feat.properties
+        #         if feat.properties["GEOID"] in geocodes:
+        #             poplist.insert(0, ix)
+        #         else:
+        #             geocodes.append(feat.properties["GEOID"])
+        #
+        #     for p in poplist:
+        #         features.pop(p)
+        #
+        #     self._features[key] = features  # TODO: want this to be a geodataframe
 
-            for p in poplist:
-                features.pop(p)
+        # generate geodataframe and remove duplicates
+        self._features_gdf = self._features_to_geodataframe(
+            self._features, crs_epsg=4326, dedupe=True
+        )
 
-            self._features[key] = features  # TODO: want this to be a geodataframe
 
+
+    # TODO: update this to use geodataframes
     def __request_data(self, key, base, mapserver, esri_json, geotype,
                        outfields, verbose, retry):
         """
@@ -652,7 +605,7 @@ class TigerWebBase(object):
             s.params = {'where': '',
                         'text': '',
                         'objectIds': '',
-                        'geometry': esri_json,
+                        'geometry': esri_json,  # TODO: does this have the right info in it?
                         'geometryType': geotype,
                         'inSR': '',
                         'spatialRel': 'esriSpatialRelIntersects',
@@ -696,7 +649,7 @@ class TigerWebBase(object):
                     else:
                         continue
 
-                counties = geojson.loads(r.text)
+                counties = geojson.loads(r.text)   # TODO: why is features empty in this feature collection?
 
                 try:
                     newfeats = counties.__geo_interface__['features']
@@ -713,7 +666,7 @@ class TigerWebBase(object):
                 else:
                     done = True
 
-        self._features[key] = features
+        self._features[key] = features  # TODO: need to update this to be a geodataframe? or just do in get_data?
 
     def threaded_request_data(self, key, base, mapserver, esri_json, geotype,
                               outfields, verbose, retry, container):
@@ -844,164 +797,7 @@ def multiproc_request_data(key, base, mapserver, esri_json, geotype,
     return key, features
 
 
-# class TigerWebPoint(TigerWebBase):
-#     """
-#     Class to query data from TigerWeb by using shapefile point(s)
-#
-#     Parameters
-#     ----------
-#     shp : str
-#         shapefile path
-#     field : str
-#         shapefile field to id multiple points
-#     radius : str or value
-#         shapefile radius field (in projection units) or a floating point value
-#         to define the polygon to query
-#     filter : tuple
-#         tuple of names or polygon numbers to pull from
-#         default is () which grabs all polygons
-#     """
-#     def __init__(self, shp, field=None, radius=0, filter=()):
-#         if isinstance(radius, str) or radius > 0:
-#             super(TigerWebPoint, self).__init__(shp, field, "polygon", filter)
-#         else:
-#             super(TigerWebPoint, self).__init__(shp, field, "point", filter)
-#
-#         self.radius = radius
-#
-#         if self._geotype == "polygon":
-#             self._get_polygons()
-#
-#         else:
-#             self._get_points()
-#
-#         self.sf.close()
-#
-#     def _get_polygons(self):
-#         """
-#         Method to build and store polygons from a shapefile for
-#         latter processing
-#
-#         Returns
-#         -------
-#             None
-#         """
-#         if self.sf.shapeType not in (1, 11, 21):
-#             raise TypeError('Shapetype: {}, is not a valid point'
-#                             .format(self.sf.shapeTypeName))
-#
-#         named = False
-#         fidx = 0
-#         if self._field is None:
-#             pass
-#         else:
-#             for ix, field in enumerate(self.sf.fields):
-#                 if field[0].lower() == self._field:
-#                     named = True
-#                     fidx = ix - 1
-#                     break
-#
-#         ridx = 0
-#         if not isinstance(self.radius, str):
-#             pass
-#         else:
-#             for ix, field in enumerate(self.sf.fields):
-#                 if field[0].lower() == self.radius.lower():
-#                     ridx = ix - 1
-#                     break
-#
-#         name = -1
-#         for ix, shape in enumerate(self.sf.shapes()):
-#             points = shape.points[0]
-#             rec = self.sf.record(ix)
-#             if isinstance(self.radius, str):
-#                 radius = rec[ridx]
-#             else:
-#                 radius = self.radius
-#
-#             polygon = calculate_circle(points[0], points[1], radius)
-#             polygon = polygon.T
-#
-#             if len(polygon) > 20:
-#                 # todo: create a bounding box...
-#                 xmin, xmax = np.min(polygon[:, 0]), np.max(polygon[:, 0])
-#                 ymin, ymax = np.min(polygon[:, 1]), np.max(polygon[:, 1])
-#                 bbox = [
-#                     (xmin, ymin),
-#                     (xmax, ymin),
-#                     (xmax, ymax),
-#                     (xmin, ymax),
-#                     (xmin, ymin)
-#                 ]
-#                 esri_json = self.polygon_to_esri_json(bbox)
-#
-#             else:
-#                 esri_json = self.polygon_to_esri_json(polygon)
-#
-#             if named:
-#                 rec = self.sf.record(ix)
-#                 name = rec[fidx]
-#                 if isinstance(name, str):
-#                     name = name.lower()
-#             else:
-#                 name += 1
-#
-#             if self._filter:
-#                 if name not in self._filter:
-#                     continue
-#
-#             self._esri_json[name] = esri_json
-#             self._points[name] = points
-#             polygon = geojson.Polygon(points)
-#             self._shapes[name] = geojson.Feature(geometry=polygon)
-#
-#     def _get_points(self):
-#         """
-#         Method to build and store point features from a shapefile
-#         for later processing
-#
-#         Returns
-#         -------
-#
-#         """
-#         if self.sf.shapeType not in (1, 11, 21):
-#             raise TypeError('Shapetype: {}, is not a valid point'
-#                             .format(self.sf.shapeTypeName))
-#
-#         named = False
-#         fidx = 0
-#         if self._field is None:
-#             pass
-#         else:
-#             for ix, field in enumerate(self.sf.fields):
-#                 if field[0].lower() == self._field:
-#                     named = True
-#                     fidx = ix - 1
-#                     break
-#
-#         name = -1
-#         for ix, shape in enumerate(self.sf.shapes()):
-#             points = shape.points[0]
-#             esri_json = self.point_to_esri_json(points)
-#
-#             if named:
-#                 rec = self.sf.record(ix)
-#                 name = rec[fidx]
-#                 if isinstance(name, str):
-#                     name = name.lower()
-#             else:
-#                 name += 1
-#
-#             if self._filter:
-#                 if name not in self._filter:
-#                     continue
-#
-#             self._esri_json[name] = esri_json
-#             self._points[name] = points
-#             self._shapes[name] = points
-
-
-class TigerWebPolygon(TigerWebBase):
+class TigerWeb(TigerWebBase):
     """
     Class to query data from TigerWeb by using shapefile polygon(s)
 
@@ -1017,85 +813,19 @@ class TigerWebPolygon(TigerWebBase):
 
     """
     def __init__(self, shp, field=None, filter=()):
-        super(TigerWebPolygon, self).__init__(shp, field, 'polygon', filter)
+        super(TigerWeb, self).__init__(shp, field, 'polygon', filter)
 
         self._get_polygons()
-        #self.sf.close()  # TODO: don't need this since we have geopandas, do we?
 
     def _get_polygons(self):
-        # """
-        # Method to read and store polygons from a shapefile for later
-        # processing.
-        #
-        # Returns
-        # -------
-        #     None
-        # """
-        #
-        # # #TODO: how to check shape type with geopandas?
-        # # if self.sf.shapeType not in (5, 15, 25):
-        # #     raise TypeError('Shapetype: {}, is not a valid polygon'
-        # #                     .format(self.sf.shapeTypeName))
-        #
-        # named = False
-        # fidx = 0
-        # if self._field is None:
-        #     pass
-        # else:
-        #     for ix, field in enumerate(self.sf.fields):
-        #         if field[0].lower() == self._field:
-        #             named = True
-        #             fidx = ix - 1
-        #             break
-        #
-        # name = -1
-        # for ix, shape in enumerate(self.sf.shapes()):
-        #     shape = self.sf.shape(ix)
-        #     if len(shape.points) > 20:
-        #         # get the bbox to do the tigerweb data pull
-        #         bbox = shape.bbox
-        #         points = [(bbox[0], bbox[1]), (bbox[2], bbox[1]),
-        #                   (bbox[2], bbox[3]), (bbox[0], bbox[3]),
-        #                   (bbox[0], bbox[1])]
-        #         esri_json = self.polygon_to_esri_json(points)
-        #     else:
-        #         esri_json = self.polygon_to_esri_json(shape.points)
-        #     if named:
-        #         rec = self.sf.record(ix)
-        #         name = rec[fidx]
-        #         if isinstance(name, str):
-        #             name = name.lower()
-        #     else:
-        #         name += 1
-        #
-        #     if self._filter:
-        #         if name not in self._filter:
-        #             continue
-        #
-        #     self._esri_json[name] = esri_json
-        #
-        #     geofeat = shape.__geo_interface__
-        #     if geofeat['type'].lower() == "polygon":
-        #         poly = geojson.Polygon(geofeat['coordinates'])
-        #     else:
-        #         poly = geojson.MultiPolygon(geofeat['coordinates'])
-        #
-        #     geofeat = geojson.Feature(geometry=poly)
-        #
-        #     self._shapes[name] = geofeat
 
         """
         GeoPandas-based method to read and store polygons from self.gdf for
         later TigerWeb processing. Populates:
           - self._esri_json[name] : ESRI polygon geometry (single ring) JSON string
           - self._shapes[name]    : GeoJSON Feature of the full input geometry
-
-        Behavior mirrors the original:
-          * If >20 exterior vertices, use the bounding box for the ESRI geometry
-          * Otherwise, use the exterior ring
-          * Name each feature from `field` (case-insensitive), else use a counter
-          * Apply `self._filter` if provided
         """
+
         gdf = self.gdf
         if gdf is None or gdf.empty:
             return  # nothing to do
@@ -1144,7 +874,7 @@ class TigerWebPolygon(TigerWebBase):
                 if name not in self._filter:
                     continue
 
-            # Decide whether to use bbox or the actual ring (performance trade-off)
+            # Decide whether to use bbox or the actual ring
             vcount = exterior_vertex_count(geom)
             minx, miny, maxx, maxy = geom.bounds
 
@@ -1173,48 +903,4 @@ class TigerWebPolygon(TigerWebBase):
                 gj_geom = geojson.MultiPolygon(gi['coordinates'])
             self._shapes[name] = geojson.Feature(geometry=gj_geom)
 
-
-class TigerWeb(object):
-    # TODO can we get rid of the TigerWeb class?
-    """
-    Method to query data from TigerWeb
-
-    Parameters
-    ----------
-    shp : str
-        shapefile path
-    field : str
-        shapefile field to id multiple polygons
-    radius : float or str
-        radius around points to build a query, or shapefile field with
-        radius information
-    filter : tuple
-        tuple of names or polygon numbers to pull from
-        default is () which grabs all polygons
-
-    """
-
-    def __new__(cls, shp, field=None, radius=0, filter=()):  # TODO: need to remove from def: radius=0, but also need to remove it from timeseries.py, and possibly other places
-
-        # # TODO: should this be replaced with geopandas?
-        # with shapefile.Reader(shp) as sf:
-        #     shapetype = sf.shapeType
-        #     shapename = sf.shapeTypeName
-        #
-        # # if shapetype in (1, 11, 21):
-        # #     return TigerWebPoint(shp, field, radius, filter)
-        # # elif shapetype in (5, 15, 25):
-        # #     return TigerWebPolygon(shp, field, filter)
-        # # else:
-        # #     raise TypeError('Shapetype: {}, is not a valid point or polygon'
-        # #                     .format(shapename))
-        #
-        # if shapetype in (5, 15, 25):
-        #     return TigerWebPolygon(shp, field, filter)
-        # else:
-        #     raise TypeError('Shapetype: {}, is not a valid polygon'
-        #                     .format(shapename))
-
-        # TODO: how to check shape type with geopandas?
-        return TigerWebPolygon(shp, field, filter)
 

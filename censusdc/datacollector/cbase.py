@@ -40,8 +40,8 @@ class CensusBase(object):
 
     """
     def __init__(self, features, year, apikey, server):
-        if not isinstance(features, dict):
-            raise TypeError('features must be in a dictionary format')
+        # if not isinstance(features, dict):     # TODO: make sure that commenting this out doesn't break anything, maybe change dict to geodataframe?
+        #     raise TypeError('features must be in a dictionary format')
         self._features = features
         self._year = year
         self.__apikey = apikey
@@ -200,7 +200,7 @@ class CensusBase(object):
             for feature in self.get_feature(name):
                 tmp = 0
                 for key in (TigerWebVariables.state,):
-                    if key in feature.properties:
+                    if key in feature.properties:   # TODO: need to update because using geodataframe
                         tmp = 1
                     else:
                         raise AssertionError("State number must be in "
