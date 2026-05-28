@@ -102,7 +102,7 @@ class TigerWebBase(object):
 
         gdf = gpd.read_file(shp)
         original_crs = gdf.crs
-        gdf = gdf.to_crs(epsg=4326)
+        gdf = gdf.to_crs(epsg=4326)  # TODO: should be able to replace the hard-coded number here with TigerWebBase._esri_code
         self.gdf = gdf
         self._ocrs = original_crs
         self.crs = gdf.crs.name
@@ -188,7 +188,6 @@ class TigerWebBase(object):
 
         return copy.deepcopy(self._albers_features)
 
-    # TODO: create new version that uses geodataframe
     @property
     def feature_names(self):
         """
@@ -200,7 +199,17 @@ class TigerWebBase(object):
         """
         return list(self._features.keys())
 
-    #TODO: create new version that uses geopandas instead of geojson - specifically change the _features
+    @property
+    def feature_names_gdf(self):
+        """
+        Gets the unique feature names from the geodataframe
+
+        Returns
+        -------
+            list: unique feature names
+        """
+        return list(self._features_gdf['source_key'].unique())
+
     def get_feature(self, name):
         """
         Method to get a single GeoJSON feature from the feature dict
@@ -221,6 +230,27 @@ class TigerWebBase(object):
             raise KeyError("Name: {} not present in feature dict".format(name))
         else:
             return copy.deepcopy(self._features[name])
+
+    def get_feature_gdf(self, name):
+        """
+        Method to get all features associated with a single polygon from the geodataframe
+
+        Parameters
+        ----------
+        name : str or int
+            feature name
+
+        Returns
+        -------
+            geodataframe
+        """
+        if name not in list(self._features_gdf['source_key']):
+            name = str(name)
+
+        if name not in list(self._features_gdf['source_key']):
+            raise KeyError("Name: {} not present in geodataframe".format(name))
+        else:
+            return copy.deepcopy(self._features_gdf[self._features_gdf['source_key'] == name])  # TODO: why does this need to return a copy?
 
 
     def get_shape(self, name):
@@ -540,24 +570,6 @@ class TigerWebBase(object):
                 self.__request_data(key, base, mapserver, esri_json, geotype,
                                     outfields, verbose, retry)
 
-        # # cleanup duplicate features after query!
-        # # TODO: make updates here to make this a geodataframe - each of the dictionaries in _features can be a row in a geopandas dataframe and then the key could be the feature name.
-        # # TODO: might have to throw the coords into Shapely before placing in geodf
-        # for key, features in self._features.items():
-        #     geocodes = []
-        #     poplist = []
-        #     for ix, feat in enumerate(features):
-        #         # properties = feat.properties
-        #         if feat.properties["GEOID"] in geocodes:
-        #             poplist.insert(0, ix)
-        #         else:
-        #             geocodes.append(feat.properties["GEOID"])
-        #
-        #     for p in poplist:
-        #         features.pop(p)
-        #
-        #     self._features[key] = features  # TODO: want this to be a geodataframe
-
         # generate geodataframe and remove duplicates
         self._features_gdf = self._features_to_geodataframe(
             self._features, crs_epsg=4326, dedupe=True
@@ -565,7 +577,6 @@ class TigerWebBase(object):
 
 
 
-    # TODO: update this to use geodataframes
     def __request_data(self, key, base, mapserver, esri_json, geotype,
                        outfields, verbose, retry):
         """
@@ -649,7 +660,7 @@ class TigerWebBase(object):
                     else:
                         continue
 
-                counties = geojson.loads(r.text)   # TODO: why is features empty in this feature collection?
+                counties = geojson.loads(r.text)
 
                 try:
                     newfeats = counties.__geo_interface__['features']
@@ -666,7 +677,7 @@ class TigerWebBase(object):
                 else:
                     done = True
 
-        self._features[key] = features  # TODO: need to update this to be a geodataframe? or just do in get_data?
+        self._features[key] = features
 
     def threaded_request_data(self, key, base, mapserver, esri_json, geotype,
                               outfields, verbose, retry, container):
@@ -813,7 +824,7 @@ class TigerWeb(TigerWebBase):
 
     """
     def __init__(self, shp, field=None, filter=()):
-        super(TigerWeb, self).__init__(shp, field, 'polygon', filter)
+        super(TigerWeb, self).__init__(shp, field, 'polygon', filter)  # TODO: can we drop geotype since we now only have one geotype?
 
         self._get_polygons()
 
