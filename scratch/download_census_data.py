@@ -63,6 +63,29 @@ plt.show()
 #plt.savefig('example_1.png')
 
 
+
+
+#---- Using the CensusTimeSeries class to get a pandas dataframe of timeseries data -----------------------------####
+
+ws = os.path.abspath(os.path.dirname(__file__))
+shp = os.path.join(ws, '..', "data", "Sacramento_neighborhoods_WGS.shp")
+apikey = os.path.join(ws, "api_key.txt")
+
+with open(apikey) as api:
+    apikey = api.readline().strip()
+
+ts = CensusTimeSeries(shp, apikey, field="name")
+
+shp = shapefile.Reader(shp)
+polygon = shp.shape(0)
+df = ts.get_timeseries("la_riviera", polygons=polygon)
+
+polygon = shp.shape(1)
+df1 = ts.get_timeseries("tahoe_park", polygons=polygon)
+
+xx=1
+
+
 # #---- Example 2: Point shapefiles supplied to TigerWeb ---------------------####
 #
 # # set file path
@@ -164,22 +187,4 @@ plt.show()
 
 
 
-#---- Using the CensusTimeSeries class to get a pandas dataframe of timeseries data -----------------------------####
 
-ws = os.path.abspath(os.path.dirname(__file__))
-shp = os.path.join(ws, '..', "data", "Sacramento_neighborhoods_WGS.shp")
-apikey = os.path.join(ws, "api_key.txt")
-
-with open(apikey) as api:
-    apikey = api.readline().strip()
-
-ts = CensusTimeSeries(shp, apikey, field="name")
-
-shp = shapefile.Reader(shp)
-polygon = shp.shape(0)
-df = ts.get_timeseries("la_riviera", polygons=polygon)
-
-polygon = shp.shape(1)
-df1 = ts.get_timeseries("tahoe_park", polygons=polygon)
-
-xx=1

@@ -4,13 +4,10 @@ Development code for TigerWeb REST data collection.
 import geojson
 import requests
 import os
-import shapefile  # TODO: delete?
-import pycrs  # TODO: delete?
 import copy
 import numpy as np
 from ..utils import get_wkt_wkid_table, TigerWebMapServer, thread_count
-from ..utils.geometry import calculate_circle
-from ..utils.geometry import lat_lon_geojson_to_albers_geojson
+from ..utils.geometry import lat_lon_geojson_to_albers_geojson  # TODO: delete after making sure it doesn't break anything
 import threading
 import platform
 import geopandas as gpd
@@ -83,26 +80,18 @@ class TigerWebBase(object):
 
         if not os.path.isfile(shp):
             raise FileNotFoundError("{} not a valid file path".format(shp))
-        # prj = shp[:-4] + ".prj"  # TODO: delete
-        # if not os.path.isfile(prj):  # TODO: delete
-        #     raise FileNotFoundError("{}: projection file not found"  # TODO: delete
-        #                             .format(prj))  # TODO: delete
 
         self._geotype = geotype
         self._shpname = shp
-        # self._prjname = prj  # TODO: delete
 
         if field is not None:
             self._field = field.lower()
         else:
             self._field = field
 
-        # self.sf = shapefile.Reader(self._shpname)  # TODO: delete
-        # self.prj = pycrs.load.from_file(self._prjname)   # TODO: delete
-
         gdf = gpd.read_file(shp)
         original_crs = gdf.crs
-        gdf = gdf.to_crs(epsg=4326)  # TODO: should be able to replace the hard-coded number here with TigerWebBase._esri_code
+        gdf = gdf.to_crs(epsg=TigerWebBase._esri_code)
         self.gdf = gdf
         self._ocrs = original_crs
         self.crs = gdf.crs.name
@@ -115,11 +104,11 @@ class TigerWebBase(object):
 
         self._wkid = None  # TODO: delete?
         self._shapes = {}
-        self._albers_shapes = {}  # TODO: delete
-        self._points = {}  # TODO: delete
+        self._albers_shapes = {}  # TODO: delete after making sure it doesn't break anything
+        self._points = {}  # TODO: delete after making sure it doesn't break anything
         self._esri_json = {}
         self._features = {}
-        self._albers_features = {}  # TODO: delete
+        self._albers_features = {}  # TODO: delete after making sure it doesn't break anything
 
         if filter:
             if isinstance(filter, (int, str, float)):
@@ -141,7 +130,7 @@ class TigerWebBase(object):
         """
         return copy.deepcopy(self._shapes)
 
-    #TODO: delete after also deleting albers_shapes from timeseries.py
+    #TODO: delete after also deleting albers_shapes from timeseries.py and/or cbase.py
     @property
     def albers_shapes(self):
         """
@@ -157,6 +146,7 @@ class TigerWebBase(object):
 
         return copy.deepcopy(self._albers_shapes)
 
+    # TODO: delete?
     @property
     def features(self):
         """
@@ -172,7 +162,17 @@ class TigerWebBase(object):
 
         return copy.deepcopy(self._features)
 
-    # TODO: delete after deleting from timeseries.py
+    @property
+    def features_gdf(self):
+        """
+        Returns a copy of the features as a GeoDataFrame.
+        If not computed yet, builds it from current self._features.
+        """
+        if not hasattr(self, '_features_gdf') or self._features_gdf is None:
+            self._features_gdf = self._features_to_geodataframe(self._features, crs_epsg=4326, dedupe=True)
+        return self._features_gdf.copy()
+
+    # TODO: delete after deleting from timeseries.py and/or cbase.py
     @property
     def albers_features(self):
         """
@@ -188,6 +188,7 @@ class TigerWebBase(object):
 
         return copy.deepcopy(self._albers_features)
 
+    # TODO: delete?
     @property
     def feature_names(self):
         """
@@ -210,6 +211,7 @@ class TigerWebBase(object):
         """
         return list(self._features_gdf['source_key'].unique())
 
+    # TODO: delete?
     def get_feature(self, name):
         """
         Method to get a single GeoJSON feature from the feature dict
@@ -252,7 +254,7 @@ class TigerWebBase(object):
         else:
             return copy.deepcopy(self._features_gdf[self._features_gdf['source_key'] == name])  # TODO: why does this need to return a copy?
 
-
+    # TODO: delete?
     def get_shape(self, name):
         """
         Method to get the shapefile shapes from the shapes dict
@@ -320,7 +322,7 @@ class TigerWebBase(object):
         s = s.replace(" ", "")
         return s
 
-    # TODO: delete after deleting in timeseries.py
+    # TODO: delete after deleting in timeseries.py and/or cbase.py
     def __geojson_to_albers_geojson(self, which='features'):
         """
         Method to convert data in the features or shapes dict to
@@ -365,7 +367,7 @@ class TigerWebBase(object):
         else:
             raise Exception("Code shoudn't have made it here")
 
-    # TODO: check to make sure this works
+
     def _features_to_geodataframe(self, features_dict=None, crs_epsg=_esri_code, dedupe=True):
         """
         Convert the internal features dict to a GeoDataFrame.
@@ -433,18 +435,7 @@ class TigerWebBase(object):
 
         return gdf
 
-    # convenience property to access the geodataframe
-    @property
-    def features_gdf(self):
-        """
-        Returns a copy of the features as a GeoDataFrame.
-        If not computed yet, builds it from current self._features.
-        """
-        if not hasattr(self, '_features_gdf') or self._features_gdf is None:
-            self._features_gdf = self._features_to_geodataframe(self._features, crs_epsg=4326, dedupe=True)
-        return self._features_gdf.copy()
 
-    # TODO: update this to use geodataframe --> make sure this is working properly
     def get_data(self, year, level='finest', outfields=(), verbose=True,
                  multiproc=False, multithread=False, thread_pool=4, retry=100):
         """
@@ -616,7 +607,7 @@ class TigerWebBase(object):
             s.params = {'where': '',
                         'text': '',
                         'objectIds': '',
-                        'geometry': esri_json,  # TODO: does this have the right info in it?
+                        'geometry': esri_json,
                         'geometryType': geotype,
                         'inSR': '',
                         'spatialRel': 'esriSpatialRelIntersects',

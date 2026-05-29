@@ -366,7 +366,7 @@ class CensusTimeSeries(object):
                 convert = False
 
             else:
-                polygons = shapefile.Reader(polygons)
+                polygons = shapefile.Reader(polygons)  # TODO: need to replace with gdf?
                 convert = True
         else:
             convert = True
@@ -379,7 +379,7 @@ class CensusTimeSeries(object):
             if verbose > 1:
                 print("performing intersections {}, {}".format(year,
                                                                feature_name))
-            gf = GeoFeatures(cen.get_feature(feature_name), feature_name)
+            gf = GeoFeatures(cen.get_feature(feature_name), feature_name)   # TODO: need to replace?
             if polygons is not None:
                 gf.intersect(polygons, verbose=verb, multiproc=multiproc,
                              multithread=multithread,
@@ -407,7 +407,7 @@ class CensusTimeSeries(object):
                 else:
                     hr_dict = AcsHR
 
-            df = GeoFeatures.features_to_dataframe(year, features, hr_dict)
+            df = GeoFeatures.features_to_dataframe(year, features, hr_dict)  # TODO: need to replace?
             if feature_name not in timeseries:
                 timeseries[feature_name] = df
             else:
