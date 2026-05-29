@@ -36,7 +36,7 @@ class CensusTimeSeries(object):
         self._radius = radius
         self._censusobj = None
         self._shapes = {}
-        #self._albers_shapes = {}  # TODO: delete
+        self._albers_shapes = {}  # TODO: delete
 
     @property
     def shapes(self):
@@ -50,16 +50,16 @@ class CensusTimeSeries(object):
         return self._shapes
 
     # TODO: delete
-    # @property
-    # def albers_shapes(self):
-    #     """
-    #     Method to get the albers geoJSON feature for each shape
-    #
-    #     Returns
-    #     -------
-    #         dict : {name: geojson.Feature}
-    #     """
-    #     return self._albers_shapes
+    @property
+    def albers_shapes(self):
+        """
+        Method to get the albers geoJSON feature for each shape
+
+        Returns
+        -------
+            dict : {name: geojson.Feature}
+        """
+        return self._albers_shapes
 
     @property
     def available_years(self):
@@ -109,22 +109,22 @@ class CensusTimeSeries(object):
             return self._shapes[name]
 
     # TODO: delete
-    # def get_albers_shape(self, name):
-    #     """
-    #     Method to get the albers projection of the shapefile shapes form the
-    #     shapes dict
-    #
-    #     name : str or int
-    #         feature dictionary key
-    #
-    #     Returns
-    #     -------
-    #         geojson.Feature
-    #     """
-    #     if name not in self._albers_shapes:
-    #         raise KeyError("Name: {} not present in shapes dict".format(name))
-    #     else:
-    #         return self._albers_shapes[name]
+    def get_albers_shape(self, name):
+        """
+        Method to get the albers projection of the shapefile shapes form the
+        shapes dict
+
+        name : str or int
+            feature dictionary key
+
+        Returns
+        -------
+            geojson.Feature
+        """
+        if name not in self._albers_shapes:
+            raise KeyError("Name: {} not present in shapes dict".format(name))
+        else:
+            return self._albers_shapes[name]
 
     def get_timeseries(self, feature_name, sf3_variables=(),
                        sf3_variables_1990=(), acs_variables=(), years=(),
@@ -261,7 +261,7 @@ class CensusTimeSeries(object):
 
                     if not self.shapes:
                         self._shapes = tw.shapes
-                        #self._albers_shapes = tw.albers_shapes  # TODO: delete
+                        self._albers_shapes = tw.albers_shapes  # TODO: delete
 
                 url0 = url
                 year0 = year
@@ -273,7 +273,7 @@ class CensusTimeSeries(object):
                     #     cen = Sf1(tw.albers_features, year,
                     #              self.__apikey)
                     # else:
-                    cen = Sf3(tw.gdf, year,  # TODO: make sure that replacement of tw.albers_features with tw.gdf doesn't break anything --> it made line 203 in cbase.py not work ("if key in feature.properties") --> attribute error: 'int' object has no attribute 'properties'
+                    cen = Sf3(tw.albers_features, year,  # TODO: make sure that replacement of tw.albers_features with tw.gdf doesn't break anything --> it made line 203 in cbase.py not work ("if key in feature.properties") --> attribute error: 'int' object has no attribute 'properties'
                               self.__apikey)
                     if year == 1990:
                         cen.get_data(level=level,
@@ -292,7 +292,7 @@ class CensusTimeSeries(object):
                                      use_cache=use_cache)
 
                 elif year in (2005, 2006, 2007, 2008):
-                    cen = Acs1(tw.gdf, year, self.__apikey)  # TODO: make sure that replacement of tw.albers_features with tw.gdf doesn't break anything --> it made line 203 in cbase.py not work ("if key in feature.properties") --> attribute error: 'int' object has no attribute 'properties'
+                    cen = Acs1(tw.albers_features, year, self.__apikey)  # TODO: make sure that replacement of tw.albers_features with tw.gdf doesn't break anything --> it made line 203 in cbase.py not work ("if key in feature.properties") --> attribute error: 'int' object has no attribute 'properties'
                     tlevel = level
                     if level not in ('place',):
                         tlevel = 'county'
@@ -303,7 +303,7 @@ class CensusTimeSeries(object):
                                  thread_pool=thread_pool,
                                  use_cache=use_cache)
                     if include_profile:
-                        cen2 = Acs1Profile(tw.gdf, year,  # TODO: make sure that replacement of tw.albers_features with tw.gdf doesn't break anything --> it made line 203 in cbase.py not work ("if key in feature.properties") --> attribute error: 'int' object has no attribute 'properties'
+                        cen2 = Acs1Profile(tw.albers_features, year,  # TODO: make sure that replacement of tw.albers_features with tw.gdf doesn't break anything --> it made line 203 in cbase.py not work ("if key in feature.properties") --> attribute error: 'int' object has no attribute 'properties'
                                            self.__apikey)
                         cen.get_data(level=tlevel,
                                      variables=acs_profile_variables,
@@ -316,7 +316,7 @@ class CensusTimeSeries(object):
                         cen.join(cen2)
 
                 else:
-                    cen = Acs5(tw.gdf, year, self.__apikey)  # TODO: make sure that replacement of tw.albers_features with tw.gdf doesn't break anything --> it made line 203 in cbase.py not work ("if key in feature.properties") --> attribute error: 'int' object has no attribute 'properties'
+                    cen = Acs5(tw.albers_features, year, self.__apikey)  # TODO: make sure that replacement of tw.albers_features with tw.gdf doesn't break anything --> it made line 203 in cbase.py not work ("if key in feature.properties") --> attribute error: 'int' object has no attribute 'properties'
                     tlevel = level
                     if year == 2009 and level == "tract":
                         tlevel = "place"
@@ -328,7 +328,7 @@ class CensusTimeSeries(object):
                                  use_cache=use_cache)
 
                     if include_profile:
-                        cen2 = Acs5Profile(tw.gdf, year,  # TODO: make sure that replacement of tw.albers_features with tw.gdf doesn't break anything --> it made line 203 in cbase.py not work ("if key in feature.properties") --> attribute error: 'int' object has no attribute 'properties'
+                        cen2 = Acs5Profile(tw.albers_features, year,  # TODO: make sure that replacement of tw.albers_features with tw.gdf doesn't break anything --> it made line 203 in cbase.py not work ("if key in feature.properties") --> attribute error: 'int' object has no attribute 'properties'
                                            self.__apikey)
                         cen2.get_data(level=level,
                                       variables=acs_profile_variables,
@@ -341,7 +341,7 @@ class CensusTimeSeries(object):
                         cen.join(cen2)
 
                     if include_summary and year == 2009:
-                        cen3 = Acs5Summary(tw.gdf, year,  # TODO: make sure that replacement of tw.albers_features with tw.gdf doesn't break anything --> it made line 203 in cbase.py not work ("if key in feature.properties") --> attribute error: 'int' object has no attribute 'properties'
+                        cen3 = Acs5Summary(tw.albers_features, year,  # TODO: make sure that replacement of tw.albers_features with tw.gdf doesn't break anything --> it made line 203 in cbase.py not work ("if key in feature.properties") --> attribute error: 'int' object has no attribute 'properties'
                                            self.__apikey)
                         cen3.get_data(level=level,
                                       variables=acs_profile_variables,
