@@ -3,7 +3,7 @@ Development code for TigerWeb REST data collection.
 """
 import geojson
 import requests
-import os
+import pandas as pd
 import copy
 from ..utils import TigerWebMapServer, thread_count
 from ..utils.geometry import lat_lon_geojson_to_albers_geojson  # TODO: delete after making sure it doesn't break anything
@@ -504,6 +504,7 @@ class TigerWebBase(object):
                     continue
                 else:
                     key, features = out
+                    features[self._field] = key
                     self._features[key] = features
 
         elif multithread:
@@ -528,6 +529,7 @@ class TigerWebBase(object):
                 self.__request_data(key, base, mapserver, esri_json, geotype,
                                     outfields, verbose, retry)
 
+        # todo: update this structure....
         # generate geodataframe and remove duplicates
         self._features_gdf = self._features_to_geodataframe(
             self._features, dedupe=True
@@ -616,22 +618,30 @@ class TigerWebBase(object):
                     else:
                         continue
 
-                counties = geojson.loads(r.text)
+                collection = geojson.loads(r.text)
 
                 try:
-                    newfeats = counties.__geo_interface__['features']
-                except AttributeError:
-                    newfeats = {}
+                    newdf =  gpd.GeoDataFrame.from_features(collection["features"])
+                    newdf[self._field] = key
+                    # newfeats = collection.__geo_interface__['features']
+                except (KeyError, AttributeError):
+                    newdf = []
+                    # newfeats = []
 
-                if newfeats:
-                    features.extend(newfeats)
-                    # crs = counties.__geo_interface__['crs']
-                    start += len(newfeats)
+                if newdf:
+                    features.append(newdf)
+                    # crs = collection.__geo_interface__['crs']
+                    start += len(newdf)
                     if verbose:
-                        print("Received", len(newfeats), "entries,",
+                        print("Received", len(newdf), "entries,",
                               start, "total,", "from server", str(mps))
                 else:
                     done = True
+
+        if len(features) > 1:
+            features = pd.concat(features, ignore_index=True)
+        else:
+            features = features[0]
 
         self._features[key] = features
 
@@ -748,18 +758,24 @@ def multiproc_request_data(key, base, mapserver, esri_json, geotype,
                 else:
                     continue
 
-            counties = geojson.loads(r.text)
-            newfeats = counties.__geo_interface__['features']
+            collection = geojson.loads(r.text)
+            newdf = gpd.GeoDataFrame.from_features(collection["features"])
+            newfeats = collection.__geo_interface__['features']
 
-            if newfeats:
-                features.extend(newfeats)
-                # crs = counties.__geo_interface__['crs']
-                start += len(newfeats)
+            if newdf:
+                features.append(newdf)
+                # crs = collection.__geo_interface__['crs']
+                start += len(newdf)
                 if verbose:
-                    print("Received", len(newfeats), "entries,",
+                    print("Received", len(newdf), "entries,",
                           start, "total,", "from server", str(mps))
             else:
                 done = True
+
+    if len(features) > 1:
+        features = pd.concat(features, ignore_index=True)
+    else:
+        features = features[0]
 
     return key, features
 
@@ -836,11 +852,6 @@ class TigerWeb(TigerWebBase):
             else:
                 name_counter += 1
                 name = name_counter
-
-            # Check for filter
-            if self._filter:
-                if name not in self._filter:
-                    continue
 
             # Decide whether to use bbox or the actual ring
             vcount = exterior_vertex_count(geom)
