@@ -9,12 +9,22 @@ from matplotlib.collections import PatchCollection
 import utm
 import shapefile
 from descartes import PolygonPatch
+import geopandas as gpd
 import censusdc
 from censusdc import TigerWeb, Acs5
 from censusdc import TigerWebVariables as TWV
 from censusdc.utils import GeoFeatures
 from censusdc.utils import CensusTimeSeries
 
+
+
+#---- test -----------------------####
+
+shp_file = os.path.join('..', 'data','Sacramento_neighborhoods_WGS.shp')
+gdf = gpd.read_file(shp_file)
+tigweb = TigerWeb(gdf, field="name")
+tigweb.get_data(2010)
+feature = tigweb.get_feature("La_riviera")
 
 
 
@@ -36,15 +46,15 @@ tigweb.get_data(2010)
 
 # # get features
 # features = tigweb.features
-features = tigweb.features_gdf
+#features = tigweb.features_gdf
 #
 # # get all polygon names
 # names = tigweb.feature_names
-names = tigweb.feature_names_gdf
+# names = tigweb.feature_names_gdf
 #
 # # get all GeoJSON features associated with a single polygon
-# feature = tigweb.get_feature("la_riviera")
-feature = tigweb.get_feature_gdf("la_riviera")
+feature = tigweb.get_feature("la_riviera")
+#feature = tigweb.get_feature_gdf("la_riviera")
 
 # visualize
 fig = plt.figure()
