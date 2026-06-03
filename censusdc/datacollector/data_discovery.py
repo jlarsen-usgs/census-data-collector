@@ -19,7 +19,7 @@ def get_supported_products():
     n = 0
     while n < 100:
         try:
-            r = s.get("https://api.census.gov/data.json")
+            r = s.get("https://api.census.gov/data")
             r.raise_for_status()
             break
 
@@ -33,6 +33,9 @@ def get_supported_products():
     try:
         data = r.json()
     except JSONDecodeError:
-        raise("Cannot connect to U.S. Census API")
+        raise Exception("Cannot connect to U.S. Census API")
 
+    print('break')
 
+if __name__ == "__main__":
+    get_supported_products()

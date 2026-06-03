@@ -4,7 +4,8 @@ from ..utils import Acs5Server, Acs1Server, Sf3Server, RestartableThread, \
     thread_count, Sf1Server, get_cache, Acs5ProfileServer, Acs1ProfileServer, \
     Acs5SummaryServer
 import threading
-import platform
+import geopandas as gpd
+import pandas as pd
 import copy
 import warnings
 warnings.simplefilter('always', UserWarning)
@@ -29,9 +30,8 @@ class CensusBase(object):
 
     Parameters
     ----------
-    features: dict
+    features: GeoDataFrame
         features from TigerWeb data collections
-        {polygon_name: [geojson, geojson,...]}
     year : int
         census data year of the TigerWeb data
     apikey : str
@@ -40,10 +40,9 @@ class CensusBase(object):
 
     """
     def __init__(self, features, year, apikey, server):
-        # if not isinstance(features, dict):     # TODO: make sure that commenting this out doesn't break anything, maybe change dict to geodataframe?
-        #     raise TypeError('features must be in a dictionary format')
+        if not isinstance(features, gpd.GeoDataFrame):
+            raise TypeError("Features must be supplied as a geodataframe")
         self._features = features
-        self._features["pull_id"] = range(len(self._features))
         self._year = year
         self.__apikey = apikey
         self._text = server
@@ -114,14 +113,11 @@ class CensusBase(object):
         """
         Method to return the feature dictionary
         """
-        return copy.deepcopy(self._features)
-
-    @property
-    def feature_names(self):
-        """
-        Method to return the feature names
-        """
-        return list(self._features.keys())
+        if isinstance(self._census_features, pd.DataFrame):
+            df = pd.merge(self._features, self._census_features, on="GEOID", how="left")
+            return df
+        else:
+            raise AssertionError("Please run get_data() prior to grabbing features")
 
     @property
     def features_level(self):
@@ -146,50 +142,11 @@ class CensusBase(object):
         -------
             None
         """
-        for name in self.feature_names:
-            new_features = []
-            if name in cenobj.feature_names:
-                features = self._features[name]
-                features2 = cenobj.get_feature(name)
+        cen_feats = self._census_features
+        other = cenobj._census_features
 
-                for feat in features:
-                    geoid = feat['properties']['GEOID']
-                    for feat2 in features2:
-                        geoid2 = feat2['properties']['GEOID']
-                        if geoid != geoid2:
-                            continue
-
-                        for key, val in feat2['properties'].items():
-                            if key in feat['properties']:
-                                continue
-                            else:
-                                feat['properties'][key] = val
-
-                        new_features.append(feat)
-                        break
-
-            self._features[name] = new_features
-
-    def get_feature(self, name):
-        """
-        Method to get a set of features
-
-        Parameters
-        ----------
-        name : str
-            feature set name
-
-        Returns
-        -------
-            list of geoJSON features
-        """
-        if name not in self._features:
-            name = str(name)
-
-        if name not in self._features:
-            raise KeyError("Name: {} not present in feature dict".format(name))
-        else:
-            return copy.deepcopy(self._features[name])
+        new_cen_feats = pd.merge(cen_feats, other, how="left", on="GEOID")
+        self._census_features = new_cen_feats
 
     def __set_features_level(self):
         """
@@ -361,21 +318,21 @@ class CensusBase(object):
             actors = []
             twv = {k: v for k, v in TigerWebVariables.__dict__.items()
                    if not k.startswith("__")}
-            for name in self.feature_names:
-                for featix, feature in enumerate(self.get_feature(name)):
-                    if cache is not None:
-                        geoid = feature.properties["GEOID"]
-                        record = cache.loc[cache['geoid'] == geoid]
-                        if len(record) != 1:
-                            record = None
-                    else:
+            for feature in self._features.itertuples():
+                feature = feature._asdict()
+                if cache is not None:
+                    geoid = feature["GEOID"]
+                    record = cache.loc[cache['geoid'] == geoid]
+                    if len(record) != 1:
                         record = None
-                    actor = multiproc_data_request.remote(
-                        year, apikey, feature, featix,
-                        name, level, fmt, variables, url,
-                        retry, verbose, record, twv)
+                else:
+                    record = None
+                actor = multiproc_data_request.remote(
+                    year, apikey, feature, level,
+                    fmt, variables, url,
+                    retry, verbose, record, twv)
 
-                    actors.append(actor)
+                actors.append(actor)
 
             output = ray.get(actors)
 
@@ -383,7 +340,8 @@ class CensusBase(object):
                 if out is None:
                     continue
                 else:
-                    name, featix, data = out
+                    geoid, data = out
+                    self._census_features["GEOID"].append(geoid)
                     for dix, header in enumerate(data[0]):
                         if header == "NAME":
                             continue
@@ -391,11 +349,13 @@ class CensusBase(object):
                             continue
                         else:
                             try:
-                                self._features[name][featix].properties[header] = \
-                                    float(data[1][dix])
+                                value = float(data[1][dix])
+                                if value < 0:
+                                    value = float("nan")
+
+                                self._census_features[header].append(value)
                             except (TypeError, ValueError):
-                                self._features[name][featix].properties[header] = \
-                                    float('nan')
+                                self._census_features[header].append(float('nan'))
 
         elif multithread:
             container = threading.BoundedSemaphore(thread_pool)
@@ -411,10 +371,8 @@ class CensusBase(object):
                 else:
                     record = None
 
-                name = feature["pull_id"]
                 x = RestartableThread(target=self.threaded_request_data,
-                                      args=(feature, 0, name,
-                                            level, fmt, variables,
+                                      args=(feature, level, fmt, variables,
                                             url, retry, verbose, record,
                                             thread_id, container))
                 thread_list.append(x)
@@ -444,11 +402,14 @@ class CensusBase(object):
                         record = None
                 else:
                     record = None
-                name = feature["GEOID"]
-                self.__request_data(feature, feature["pull_id"], name, level, fmt,
-                                    variables, url, retry, verbose, record)
 
-    def __request_data(self, feature, featix, name, level, fmt, variables,
+                self.__request_data(
+                    feature, level, fmt, variables, url, retry, verbose, record
+                )
+
+        self._census_features = pd.DataFrame.from_dict(self._census_features)
+
+    def __request_data(self, feature, level, fmt, variables,
                        url, retry, verbose, cache_record):
         """
         Request data method for serial and multithreaded applications
@@ -457,10 +418,6 @@ class CensusBase(object):
         ----------
         feature : dict
             dictionary of geopandas record
-        featix : int
-            feature index (in an enumeration)
-        name : str
-            feature name
         level : str
             census data level
         fmt : str
@@ -565,15 +522,13 @@ class CensusBase(object):
                 raise requests.exceptions.HTTPError(err)
 
         if verbose:
-            print('Getting {} data for {} '
-                  'feature # {}'.format(level, name, featix))
+            print(f'Getting {level} data for GEOID {feature["GEOID"]}')
         try:
             data = r.json()
         except JSONDecodeError:
             data = []
             if verbose:
-                print('Error getting {} data for {} '
-                      'feature # {}'.format(level, name, featix))
+                print(f'Error getting {level} data for GEOID {feature["GEOID"]}')
 
         if len(data) == 2:
             self._census_features["GEOID"].append(feature["GEOID"])
@@ -590,9 +545,9 @@ class CensusBase(object):
 
                         self._census_features[header].append(value)
                     except (TypeError, ValueError):
-                        self._census_features[header] = float('nan')
+                        self._census_features[header].append(float('nan'))
 
-    def threaded_request_data(self, feature, featix, name, level, fmt, variables,
+    def threaded_request_data(self, feature, level, fmt, variables,
                               url, retry, verbose, cache_record, thread_id,
                               container):
         """
@@ -602,10 +557,6 @@ class CensusBase(object):
         ----------
         feature : geoJSON
             geoJSON feature
-        featix : int
-            feature index (in an enumeration)
-        name : str
-            feature name
         level : str
             census data level
         fmt : str
@@ -630,13 +581,15 @@ class CensusBase(object):
         """
         container.acquire()
         self.__thread_fail[thread_id] = True
-        self.__request_data(feature, featix, name, level, fmt, variables,
-                            url, retry, verbose, cache_record)
+        self.__request_data(
+            feature, level, fmt, variables, url, retry, verbose, cache_record
+        )
         self.__thread_fail[thread_id] = False
         container.release()
 
+
 @ray.remote
-def multiproc_data_request(year, apikey, feature, featix, name,
+def multiproc_data_request(year, apikey, feature,
                            level, fmt, variables, url, retry, verbose,
                            cache_record, TigerwebVariables):
     """
@@ -650,10 +603,6 @@ def multiproc_data_request(year, apikey, feature, featix, name,
         census apikey string
     feature : geoJSON
         geoJSON feature
-    featix : int
-        feature index (in an enumeration)
-    name : str
-        feature name
     level : str
         census data level
     fmt : str
@@ -681,7 +630,7 @@ def multiproc_data_request(year, apikey, feature, featix, name,
                 l0.append(column)
                 l1.append(cache_record[column].values[0])
         data = [l0, l1]
-        return name, featix, data
+        return feature["GEOID"], data
 
     loc = ""
     if level == "block_group":
@@ -750,17 +699,14 @@ def multiproc_data_request(year, apikey, feature, featix, name,
         raise requests.exceptions.HTTPError(err)
 
     if verbose:
-        print('Getting {} data for {} feature # {}'.format(level,
-                                                           name,
-                                                           featix))
+        print(f'Getting {level} data for {feature["GEOID"]}')
     try:
         data = r.json()
     except JSONDecodeError:
         data = []
         if verbose:
-            print('Error getting {} data for {} feature # {}'.format(
-                  level, name, featix))
+            print(f'Error getting {level} data for {feature["GEOID"]}')
     if len(data) == 2:
-        return name, featix, data
+        return feature["GEOID"], data
     else:
         return None
