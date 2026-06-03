@@ -5,11 +5,9 @@ import geojson
 import requests
 import os
 import copy
-import numpy as np
-from ..utils import get_wkt_wkid_table, TigerWebMapServer, thread_count
+from ..utils import TigerWebMapServer, thread_count
 from ..utils.geometry import lat_lon_geojson_to_albers_geojson  # TODO: delete after making sure it doesn't break anything
 import threading
-import platform
 import geopandas as gpd
 from shapely.geometry import shape as shapely_shape
 try:
@@ -62,45 +60,25 @@ class TigerWebBase(object):
 
     Parameters
     ----------
-    shp : str
-        shapefile path
+    gdf : geopandas GeoDataFrame
+        geo dataframe
     field : str
-        shapefile tag reference field
-    geotype : str
-        shapefile geometry type
-    filter : tuple
-        tuple of names or polygon numbers to pull from
-        default is () which grabs all polygons
+        geo dataframe attribute column to join census data
 
     """
 
-    _esri_code = 4326
+    _ESRI_CODE = 4326
 
-    def __init__(self, shp, field, geotype, filter):
+    def __init__(self, gdf, field):
 
-        if not os.path.isfile(shp):
-            raise FileNotFoundError("{} not a valid file path".format(shp))
+        self._field = field
 
-        self._geotype = geotype
-        self._shpname = shp
-
-        if field is not None:
-            self._field = field.lower()
-        else:
-            self._field = field
-
-        gdf = gpd.read_file(shp)
         original_crs = gdf.crs
-        gdf = gdf.to_crs(epsg=TigerWebBase._esri_code)
+        gdf = gdf.to_crs(epsg=TigerWebBase._ESRI_CODE)
         self.gdf = gdf
         self._ocrs = original_crs
         self.crs = gdf.crs.name
-        self.esri_wkid = TigerWebBase._esri_code
-
-        if self.crs != "WGS 84":
-            raise AssertionError("Census data Collector only supports "
-                                 "GCS_WGS_1984 projection as input, please "
-                                 "re-project your shapefile")
+        self.esri_wkid = TigerWebBase._ESRI_CODE
 
         self._wkid = None  # TODO: delete?
         self._shapes = {}
@@ -109,14 +87,6 @@ class TigerWebBase(object):
         self._esri_json = {}
         self._features = {}
         self._albers_features = {}  # TODO: delete after making sure it doesn't break anything
-
-        if filter:
-            if isinstance(filter, (int, str, float)):
-                filter = (filter,)
-            filter = tuple([i.lower() if isinstance(i, str) else
-                            i for i in filter])
-
-        self._filter = filter
 
     # TODO: may not need this - check - don't remove yet
     @property
@@ -368,7 +338,7 @@ class TigerWebBase(object):
             raise Exception("Code shoudn't have made it here")
 
 
-    def _features_to_geodataframe(self, features_dict=None, crs_epsg=_esri_code, dedupe=True):
+    def _features_to_geodataframe(self, features_dict=None, dedupe=True):
         """
         Convert the internal features dict to a GeoDataFrame.
 
@@ -377,8 +347,6 @@ class TigerWebBase(object):
         features_dict : dict or None
             Dictionary {source_key: [features]} as stored in self._features.
             If None, uses self._features.
-        crs_epsg : int
-            EPSG code for CRS of the returned GeoDataFrame.
         dedupe : bool
             If True, drop duplicate rows per (source_key, GEOID), keeping first.
 
@@ -421,7 +389,8 @@ class TigerWebBase(object):
                 row['geometry'] = geom
                 rows.append(row)
 
-        gdf = gpd.GeoDataFrame(rows, geometry='geometry', crs=f'EPSG:{crs_epsg}')
+        gdf = gpd.GeoDataFrame(rows, geometry='geometry', crs=f'EPSG:{self._ESRI_CODE}')
+        gdf = gdf.to_crs(self._ocrs)
 
         # Optional: ensure string columns are consistently cased
         # gdf.columns = [c.upper() for c in gdf.columns]  # uncomment if desired
@@ -500,10 +469,8 @@ class TigerWebBase(object):
 
         mapserver = lut[year]['mapserver']
 
-        if self._geotype == 'point':
-            geotype = 'esriGeometryPoint'  # TODO: can this be deleted? (keeping only geotype = 'esriGeometryPolygon'), or maybe don't even need geotype anymore?
-        else:
-            geotype = 'esriGeometryPolygon'
+
+        geotype = 'esriGeometryPolygon'
 
         if outfields:
             if isinstance(outfields, str):
@@ -563,10 +530,8 @@ class TigerWebBase(object):
 
         # generate geodataframe and remove duplicates
         self._features_gdf = self._features_to_geodataframe(
-            self._features, crs_epsg=4326, dedupe=True
+            self._features, dedupe=True
         )
-
-
 
     def __request_data(self, key, base, mapserver, esri_json, geotype,
                        outfields, verbose, retry):
@@ -814,9 +779,10 @@ class TigerWeb(TigerWebBase):
         default is () which grabs all polygons
 
     """
-    def __init__(self, shp, field=None, filter=()):
-        super(TigerWeb, self).__init__(shp, field, 'polygon', filter)  # TODO: can we drop geotype since we now only have one geotype?
+    def __init__(self, gdf, field=None):
+        super(TigerWeb, self).__init__(gdf, field,)
 
+        # todo: I think we can clean this up a little
         self._get_polygons()
 
     def _get_polygons(self):
