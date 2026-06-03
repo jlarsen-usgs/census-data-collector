@@ -4,12 +4,9 @@ Development code for TigerWeb REST data collection.
 import geojson
 import requests
 import pandas as pd
-import copy
 from ..utils import TigerWebMapServer, thread_count
-from ..utils.geometry import lat_lon_geojson_to_albers_geojson  # TODO: delete after making sure it doesn't break anything
 import threading
 import geopandas as gpd
-from shapely.geometry import shape as shapely_shape
 try:
     from simplejson.errors import JSONDecodeError
 except ImportError:
@@ -79,16 +76,10 @@ class TigerWeb(object):
         gdf["geometry"] = gdf["geometry"].buffer(0)
         self.gdf = gdf
         self._ocrs = original_crs
-        self.crs = gdf.crs.name
         self.esri_wkid = TigerWeb._ESRI_CODE
 
-        self._wkid = None  # TODO: delete?
-        self._shapes = {}
-        self._albers_shapes = {}  # TODO: delete after making sure it doesn't break anything
-        self._points = {}  # TODO: delete after making sure it doesn't break anything
         self._esri_json = []
         self._features = {}
-        self._albers_features = {}  # TODO: may not need this - check - don't remove yet
         self._get_polygons()
 
     def _get_polygons(self):
@@ -96,7 +87,6 @@ class TigerWeb(object):
         GeoPandas-based method to read and store polygons from self.gdf for
         later TigerWeb processing. Populates:
           - self._esri_json[name] : ESRI polygon geometry (single ring) JSON string
-          - self._shapes[name]    : GeoJSON Feature of the full input geometry
         """
 
         gdf = self.gdf
@@ -115,8 +105,6 @@ class TigerWeb(object):
             field_col = "uid"
             self._field_col = field_col
             gdf[field_col] = range(len(gdf))
-
-        name_counter = -1
 
         def exterior_vertex_count(geom):
             """Count exterior vertices across Polygon/MultiPolygon."""
@@ -153,43 +141,7 @@ class TigerWeb(object):
             esri_json = self.polygon_to_esri_json(ring)
             self._esri_json.append((name, esri_json))
 
-            # todo: remove this at some point. Do not need to maintain self._shapes
-            # Store the input geometry as a GeoJSON Feature (full geometry)
-            gi = geom.__geo_interface__
-            if gi['type'].lower() == 'polygon':
-                gj_geom = geojson.Polygon(gi['coordinates'])
-            else:  # multipolygon
-                gj_geom = geojson.MultiPolygon(gi['coordinates'])
-            self._shapes[name] = geojson.Feature(geometry=gj_geom)
 
-    @property
-    def shapes(self):
-        """
-        Method to get the shape vertices for each shape
-
-        Returns
-        -------
-            dict : {name: [vertices]}
-        """
-        return copy.deepcopy(self._shapes)
-
-    #TODO: delete after also deleting albers_shapes from timeseries.py and/or cbase.py
-    @property
-    def albers_shapes(self):
-        """
-        Method to get the geoJSON representation of albers projection
-        for each input shape
-
-        Returns
-        -------
-            dict : {name: [vertices]}
-        """
-        if not self._albers_shapes:
-            self.__geojson_to_albers_geojson('shapes')
-
-        return copy.deepcopy(self._albers_shapes)
-
-    # TODO: delete?
     @property
     def features(self):
         """
@@ -208,80 +160,10 @@ class TigerWeb(object):
         features = features.to_crs(self._ocrs)
         return features
 
-    @property
-    def features_gdf(self):
-        """
-        Returns a copy of the features as a GeoDataFrame.
-        If not computed yet, builds it from current self._features.
-        """
-        if not hasattr(self, '_features_gdf') or self._features_gdf is None:
-            self._features_gdf = self._features_to_geodataframe(self._features, crs_epsg=4326, dedupe=True)
-        return self._features_gdf.copy()
 
-    # TODO: delete after deleting from timeseries.py and/or cbase.py
-    @property
-    def albers_features(self):
-        """
-        Method to get all features in the feature dictionary in an
-        albers projection
-
-        Returns
-        -------
-            dict : {name: geoJSON objects}
-        """
-        if not self._albers_features:
-            self.__geojson_to_albers_geojson('features')
-
-        return copy.deepcopy(self._albers_features)
-
-    # TODO: delete?
-    @property
-    def feature_names(self):
-        """
-        Gets the feature names from the feature dict
-
-        Returns
-        -------
-            list: feature names
-        """
-        return list(self._features.keys())
-
-    @property
-    def feature_names_gdf(self):
-        """
-        Gets the unique feature names from the geodataframe
-
-        Returns
-        -------
-            list: unique feature names
-        """
-        return list(self._features_gdf['source_key'].unique())
-
-    # TODO: delete?
     def get_feature(self, name):
         """
         Method to get a single GeoJSON feature from the feature dict
-
-        Parameters
-        ----------
-        name : str or int
-            feature dictionary key
-
-        Returns
-        -------
-            geoJSON object
-        """
-        if name not in self._features:
-            name = str(name)
-
-        if name not in self._features:
-            raise KeyError("Name: {} not present in feature dict".format(name))
-        else:
-            return self._features[name].to_crs(self._ocrs)
-
-    def get_feature_gdf(self, name):
-        """
-        Method to get all features associated with a single polygon from the geodataframe
 
         Parameters
         ----------
@@ -292,32 +174,13 @@ class TigerWeb(object):
         -------
             geodataframe
         """
-        if name not in list(self._features_gdf['source_key']):
+        if name not in self._features:
             name = str(name)
 
-        if name not in list(self._features_gdf['source_key']):
-            raise KeyError("Name: {} not present in geodataframe".format(name))
+        if name not in self._features:
+            raise KeyError("Name: {} not present in feature dict".format(name))
         else:
-            return copy.deepcopy(self._features_gdf[self._features_gdf['source_key'] == name])  # TODO: why does this need to return a copy?
-
-    # TODO: delete?
-    def get_shape(self, name):
-        """
-        Method to get the shapefile shapes from the shapes dict
-
-        Parameters
-        ----------
-        name : str or int
-            feature dictionary key
-
-        Returns
-        -------
-            geoJSON feature
-        """
-        if name not in self._shapes:
-            raise KeyError("Name: {} not present in shapes dict".format(name))
-        else:
-            return self._shapes[name]
+            return self._features[name].to_crs(self._ocrs)
 
 
     def polygon_to_esri_json(self, polygon):
@@ -367,118 +230,6 @@ class TigerWeb(object):
         s = s.replace("'", '"')
         s = s.replace(" ", "")
         return s
-
-    # TODO: delete after deleting in timeseries.py and/or cbase.py
-    def __geojson_to_albers_geojson(self, which='features'):
-        """
-        Method to convert data in the features or shapes dict to
-        albers projection and set the albers_features or albers_shapes
-        dictionary
-
-        Parameters
-        ----------
-        which : str
-            <'features' or 'shapes'>
-
-        Returns
-        -------
-            None
-        """
-        if which == 'features':
-            data = self.features
-        elif which == "shapes":
-            data = self.shapes
-        else:
-            raise Exception("Not a valid selection")
-
-        alb_data = {}
-        for name, features in data.items():
-            if isinstance(features, list):
-                alb_features = []
-                for feature in features:
-                    geofeat = lat_lon_geojson_to_albers_geojson(feature,
-                                                                precision=100.)
-                    alb_features.append(geofeat)
-                alb_data[name] = alb_features
-
-            else:
-                geofeat = lat_lon_geojson_to_albers_geojson(features,
-                                                            precision=100.)
-                alb_data[name] = geofeat
-
-        if which == "features":
-            self._albers_features = alb_data
-        elif which == "shapes":
-            self._albers_shapes = alb_data
-        else:
-            raise Exception("Code shoudn't have made it here")
-
-
-    def _features_to_geodataframe(self, features_dict=None, dedupe=True):
-        """
-        Convert the internal features dict to a GeoDataFrame.
-
-        Parameters
-        ----------
-        features_dict : dict or None
-            Dictionary {source_key: [features]} as stored in self._features.
-            If None, uses self._features.
-        dedupe : bool
-            If True, drop duplicate rows per (source_key, GEOID), keeping first.
-
-        Returns
-        -------
-        gpd.GeoDataFrame
-            One row per feature, Shapely geometry, CRS = EPSG:crs_epsg.
-        """
-        if features_dict is None:
-            features_dict = self._features
-
-        rows = []
-        for key, feats in (features_dict or {}).items():
-            if len(feats) == 0:
-                continue
-
-            for feat in feats:
-                # Normalize access for dict vs geojson.Feature
-                if isinstance(feat, dict):
-                    props = feat.get('properties', {}) or {}
-                    geom_dict = feat.get('geometry', None)
-                else:
-                    # geojson.Feature: properties & geometry attributes
-                    props = getattr(feat, 'properties', {}) or {}
-                    geom_dict = getattr(feat, 'geometry', None)
-
-                if not geom_dict:
-                    # Skip features with missing geometry
-                    continue
-
-                try:
-                    geom = shapely_shape(geom_dict)
-                except Exception:
-                    # Skip malformed geometries
-                    continue
-
-                # Assemble a flat row
-                row = {**props}
-                row['source_key'] = key
-                row['geometry'] = geom
-                rows.append(row)
-
-        gdf = gpd.GeoDataFrame(rows, geometry='geometry', crs=f'EPSG:{self._ESRI_CODE}')
-        gdf = gdf.to_crs(self._ocrs)
-
-        # Optional: ensure string columns are consistently cased
-        # gdf.columns = [c.upper() for c in gdf.columns]  # uncomment if desired
-
-        # Deduplicate per (source_key, GEOID), mirroring original behavior
-        if dedupe and 'GEOID' in gdf.columns:
-            gdf = (
-                gdf.sort_values(['source_key', 'GEOID'])
-                .drop_duplicates(subset=['source_key', 'GEOID'], keep='first')
-            )
-
-        return gdf
 
 
     def get_data(self, year, level='finest', outfields=(), verbose=True,
