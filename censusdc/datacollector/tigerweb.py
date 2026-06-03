@@ -529,6 +529,7 @@ class TigerWebBase(object):
                 self.__request_data(key, base, mapserver, esri_json, geotype,
                                     outfields, verbose, retry)
 
+        print('break')
         # todo: update this structure....
         # generate geodataframe and remove duplicates
         self._features_gdf = self._features_to_geodataframe(
@@ -623,14 +624,12 @@ class TigerWebBase(object):
                 try:
                     newdf =  gpd.GeoDataFrame.from_features(collection["features"])
                     newdf[self._field] = key
-                    # newfeats = collection.__geo_interface__['features']
                 except (KeyError, AttributeError):
                     newdf = []
-                    # newfeats = []
 
-                if newdf:
+                if len(newdf) > 0:
                     features.append(newdf)
-                    # crs = collection.__geo_interface__['crs']
+
                     start += len(newdf)
                     if verbose:
                         print("Received", len(newdf), "entries,",
@@ -760,11 +759,10 @@ def multiproc_request_data(key, base, mapserver, esri_json, geotype,
 
             collection = geojson.loads(r.text)
             newdf = gpd.GeoDataFrame.from_features(collection["features"])
-            newfeats = collection.__geo_interface__['features']
 
-            if newdf:
+            if len(newdf) > 0:
                 features.append(newdf)
-                # crs = collection.__geo_interface__['crs']
+
                 start += len(newdf)
                 if verbose:
                     print("Received", len(newdf), "entries,",
@@ -780,6 +778,7 @@ def multiproc_request_data(key, base, mapserver, esri_json, geotype,
     return key, features
 
 
+# todo: merge this with TigerWebBase. No need for parent/child classes here
 class TigerWeb(TigerWebBase):
     """
     Class to query data from TigerWeb by using shapefile polygon(s)
@@ -862,10 +861,14 @@ class TigerWeb(TigerWebBase):
                 ring = [(minx, miny), (maxx, miny), (maxx, maxy),
                         (minx, maxy), (minx, miny)]
             else:
+                # todo: I think we need to explode multipolygons or use geom.bounds
                 # Use the exterior of the geometry (one ring, no holes)
                 if geom.geom_type == 'Polygon':
                     ring = list(map(tuple, geom.exterior.coords))
                 else:  # MultiPolygon
+                    # todo: geom.bounds probably makes the most sense in the current structure
+                    #  however we could change to tuple based storage (name, esri_json) from
+                    #  dict based storage
                     # Pick the largest polygon by area for a single-ring query
                     largest = max(geom.geoms, key=lambda p: p.area)
                     ring = list(map(tuple, largest.exterior.coords))
