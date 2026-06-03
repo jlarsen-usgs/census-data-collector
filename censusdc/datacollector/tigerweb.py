@@ -54,7 +54,7 @@ class TigerWebVariables(object):
     population = 'POP100'
 
 
-class TigerWebBase(object):
+class TigerWeb(object):
     """
     Base class object for all Tigerweb spatial queries
 
@@ -74,11 +74,11 @@ class TigerWebBase(object):
         self._field = field
 
         original_crs = gdf.crs
-        gdf = gdf.to_crs(epsg=TigerWebBase._ESRI_CODE)
+        gdf = gdf.to_crs(epsg=TigerWeb._ESRI_CODE)
         self.gdf = gdf
         self._ocrs = original_crs
         self.crs = gdf.crs.name
-        self.esri_wkid = TigerWebBase._ESRI_CODE
+        self.esri_wkid = TigerWeb._ESRI_CODE
 
         self._wkid = None  # TODO: delete?
         self._shapes = {}
@@ -86,9 +86,95 @@ class TigerWebBase(object):
         self._points = {}  # TODO: delete after making sure it doesn't break anything
         self._esri_json = {}
         self._features = {}
-        self._albers_features = {}  # TODO: delete after making sure it doesn't break anything
+        self._albers_features = {}  # TODO: may not need this - check - don't remove yet
+        self._get_polygons()
 
-    # TODO: may not need this - check - don't remove yet
+    def _get_polygons(self):
+
+        """
+        GeoPandas-based method to read and store polygons from self.gdf for
+        later TigerWeb processing. Populates:
+          - self._esri_json[name] : ESRI polygon geometry (single ring) JSON string
+          - self._shapes[name]    : GeoJSON Feature of the full input geometry
+        """
+
+        gdf = self.gdf
+        if gdf is None or gdf.empty:
+            return  # nothing to do
+
+        # Resolve the name column (case-insensitive) if user provided `field`
+        field_col = None
+        if self._field is not None:
+            for col in gdf.columns:
+                if col.lower() == self._field:
+                    field_col = col
+                    break
+
+        name_counter = -1
+
+        def exterior_vertex_count(geom):
+            """Count exterior vertices across Polygon/MultiPolygon."""
+
+            if geom.geom_type == 'Polygon':
+                return len(list(geom.exterior.coords))
+            elif geom.geom_type == 'MultiPolygon':
+                return sum(len(list(p.exterior.coords)) for p in geom.geoms)
+            return 0
+
+        for idx, row in gdf.iterrows():
+
+            geom = row.geometry
+
+            # Skip invalid/empty geometry
+            if geom is None or geom.is_empty:
+                continue
+            if geom.geom_type not in ("Polygon", "MultiPolygon"):
+                # Ignore non-polygon types in a polygon workflow
+                continue
+
+            # Determine feature name
+            if field_col is not None:
+                name = row[field_col]
+                if isinstance(name, str):
+                    name = name.lower()
+            else:
+                name_counter += 1
+                name = name_counter
+
+            # Decide whether to use bbox or the actual ring
+            vcount = exterior_vertex_count(geom)
+            minx, miny, maxx, maxy = geom.bounds
+
+            if vcount > 20:
+                # Use bounding box to reduce request size / server complexity
+                ring = [(minx, miny), (maxx, miny), (maxx, maxy),
+                        (minx, maxy), (minx, miny)]
+            else:
+                # todo: I think we need to explode multipolygons or use geom.bounds
+                # Use the exterior of the geometry (one ring, no holes)
+                if geom.geom_type == 'Polygon':
+                    ring = list(map(tuple, geom.exterior.coords))
+                else:  # MultiPolygon
+                    # todo: geom.bounds probably makes the most sense in the current structure
+                    #  however we could change to tuple based storage (name, esri_json) from
+                    #  dict based storage
+                    # Pick the largest polygon by area for a single-ring query
+                    largest = max(geom.geoms, key=lambda p: p.area)
+                    ring = list(map(tuple, largest.exterior.coords))
+
+            # Build ESRI JSON (single ring)
+            esri_json = self.polygon_to_esri_json(ring)
+            # self._esri_json.append((name, esri_json))
+            self._esri_json[name] = esri_json
+
+            # Store the input geometry as a GeoJSON Feature (full geometry)
+            gi = geom.__geo_interface__
+            if gi['type'].lower() == 'polygon':
+                gj_geom = geojson.Polygon(gi['coordinates'])
+            else:  # multipolygon
+                gj_geom = geojson.MultiPolygon(gi['coordinates'])
+            self._shapes[name] = geojson.Feature(geometry=gj_geom)
+
     @property
     def shapes(self):
         """
@@ -783,113 +869,3 @@ def multiproc_request_data(key, base, mapserver, esri_json, geotype,
         features = features[0]
 
     return key, features
-
-
-# todo: merge this with TigerWebBase. No need for parent/child classes here
-class TigerWeb(TigerWebBase):
-    """
-    Class to query data from TigerWeb by using shapefile polygon(s)
-
-    Parameters
-    ----------
-    shp : str
-        shapefile path
-    field : str
-        shapefile field to id multiple polygons
-    filter : tuple
-        tuple of names or polygon numbers to pull from
-        default is () which grabs all polygons
-
-    """
-    def __init__(self, gdf, field=None):
-        super(TigerWeb, self).__init__(gdf, field,)
-
-        # todo: I think we can clean this up a little
-        self._get_polygons()
-
-    def _get_polygons(self):
-
-        """
-        GeoPandas-based method to read and store polygons from self.gdf for
-        later TigerWeb processing. Populates:
-          - self._esri_json[name] : ESRI polygon geometry (single ring) JSON string
-          - self._shapes[name]    : GeoJSON Feature of the full input geometry
-        """
-
-        gdf = self.gdf
-        if gdf is None or gdf.empty:
-            return  # nothing to do
-
-        # Resolve the name column (case-insensitive) if user provided `field`
-        field_col = None
-        if self._field is not None:
-            for col in gdf.columns:
-                if col.lower() == self._field:
-                    field_col = col
-                    break
-
-        name_counter = -1
-
-        def exterior_vertex_count(geom):
-            """Count exterior vertices across Polygon/MultiPolygon."""
-
-            if geom.geom_type == 'Polygon':
-                return len(list(geom.exterior.coords))
-            elif geom.geom_type == 'MultiPolygon':
-                return sum(len(list(p.exterior.coords)) for p in geom.geoms)
-            return 0
-
-        for idx, row in gdf.iterrows():
-
-            geom = row.geometry
-
-            # Skip invalid/empty geometry
-            if geom is None or geom.is_empty:
-                continue
-            if geom.geom_type not in ("Polygon", "MultiPolygon"):
-                # Ignore non-polygon types in a polygon workflow
-                continue
-
-            # Determine feature name
-            if field_col is not None:
-                name = row[field_col]
-                if isinstance(name, str):
-                    name = name.lower()
-            else:
-                name_counter += 1
-                name = name_counter
-
-            # Decide whether to use bbox or the actual ring
-            vcount = exterior_vertex_count(geom)
-            minx, miny, maxx, maxy = geom.bounds
-
-            if vcount > 20:
-                # Use bounding box to reduce request size / server complexity
-                ring = [(minx, miny), (maxx, miny), (maxx, maxy),
-                        (minx, maxy), (minx, miny)]
-            else:
-                # todo: I think we need to explode multipolygons or use geom.bounds
-                # Use the exterior of the geometry (one ring, no holes)
-                if geom.geom_type == 'Polygon':
-                    ring = list(map(tuple, geom.exterior.coords))
-                else:  # MultiPolygon
-                    # todo: geom.bounds probably makes the most sense in the current structure
-                    #  however we could change to tuple based storage (name, esri_json) from
-                    #  dict based storage
-                    # Pick the largest polygon by area for a single-ring query
-                    largest = max(geom.geoms, key=lambda p: p.area)
-                    ring = list(map(tuple, largest.exterior.coords))
-
-            # Build ESRI JSON (single ring)
-            esri_json = self.polygon_to_esri_json(ring)
-            self._esri_json[name] = esri_json
-
-            # Store the input geometry as a GeoJSON Feature (full geometry)
-            gi = geom.__geo_interface__
-            if gi['type'].lower() == 'polygon':
-                gj_geom = geojson.Polygon(gi['coordinates'])
-            else:  # multipolygon
-                gj_geom = geojson.MultiPolygon(gi['coordinates'])
-            self._shapes[name] = geojson.Feature(geometry=gj_geom)
-
-
