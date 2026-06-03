@@ -127,10 +127,13 @@ class TigerWebBase(object):
             dict : {name: geoJSON object}
         """
         if not self._features:
-            print("Warning, no features in feature dict,")
-            print('Please run get_data() to get TigerWeb features')
+            raise ValueError("No features have been collected yet, please run get_data()")
 
-        return copy.deepcopy(self._features)
+        features = pd.concat(self._features.values(), ignore_index=True)
+        features = features.drop_duplicates(subset=["geometry", self._field])
+        features = features.reset_index(drop=True)
+        features = features.to_crs(self._ocrs)
+        return features
 
     @property
     def features_gdf(self):
@@ -201,7 +204,7 @@ class TigerWebBase(object):
         if name not in self._features:
             raise KeyError("Name: {} not present in feature dict".format(name))
         else:
-            return copy.deepcopy(self._features[name])
+            return self._features[name].to_crs(self._ocrs)
 
     def get_feature_gdf(self, name):
         """
@@ -360,7 +363,7 @@ class TigerWebBase(object):
 
         rows = []
         for key, feats in (features_dict or {}).items():
-            if not feats:
+            if len(feats) == 0:
                 continue
 
             for feat in feats:
@@ -505,6 +508,8 @@ class TigerWebBase(object):
                 else:
                     key, features = out
                     features[self._field] = key
+                    if features.crs is None:
+                        features = features.set_crs(epsg=self._ESRI_CODE)
                     self._features[key] = features
 
         elif multithread:
@@ -532,9 +537,9 @@ class TigerWebBase(object):
         print('break')
         # todo: update this structure....
         # generate geodataframe and remove duplicates
-        self._features_gdf = self._features_to_geodataframe(
-            self._features, dedupe=True
-        )
+        # self._features_gdf = self._features_to_geodataframe(
+        #     self._features, dedupe=True
+        # )
 
     def __request_data(self, key, base, mapserver, esri_json, geotype,
                        outfields, verbose, retry):
@@ -628,6 +633,8 @@ class TigerWebBase(object):
                     newdf = []
 
                 if len(newdf) > 0:
+                    if newdf.crs is None:
+                        newdf = newdf.set_crs(epsg=self._ESRI_CODE)
                     features.append(newdf)
 
                     start += len(newdf)
