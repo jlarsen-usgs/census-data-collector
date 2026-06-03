@@ -1,9 +1,0 @@
-pandas
-numpy
-beautifulsoup4
-pyshp==2.1.0
-pycrs
-geojson
-shapely
-requests
-scipy
