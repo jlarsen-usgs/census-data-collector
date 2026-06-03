@@ -75,6 +75,8 @@ class TigerWeb(object):
 
         original_crs = gdf.crs
         gdf = gdf.to_crs(epsg=TigerWeb._ESRI_CODE)
+        gdf = gdf.explode()
+        gdf["geometry"] = gdf["geometry"].buffer(0)
         self.gdf = gdf
         self._ocrs = original_crs
         self.crs = gdf.crs.name
@@ -84,13 +86,12 @@ class TigerWeb(object):
         self._shapes = {}
         self._albers_shapes = {}  # TODO: delete after making sure it doesn't break anything
         self._points = {}  # TODO: delete after making sure it doesn't break anything
-        self._esri_json = {}
+        self._esri_json = []
         self._features = {}
         self._albers_features = {}  # TODO: may not need this - check - don't remove yet
         self._get_polygons()
 
     def _get_polygons(self):
-
         """
         GeoPandas-based method to read and store polygons from self.gdf for
         later TigerWeb processing. Populates:
@@ -110,6 +111,11 @@ class TigerWeb(object):
                     field_col = col
                     break
 
+        if field_col is None:
+            field_col = "uid"
+            self._field_col = field_col
+            gdf[field_col] = range(len(gdf))
+
         name_counter = -1
 
         def exterior_vertex_count(geom):
@@ -117,13 +123,9 @@ class TigerWeb(object):
 
             if geom.geom_type == 'Polygon':
                 return len(list(geom.exterior.coords))
-            elif geom.geom_type == 'MultiPolygon':
-                return sum(len(list(p.exterior.coords)) for p in geom.geoms)
             return 0
 
-        for idx, row in gdf.iterrows():
-
-            geom = row.geometry
+        for geom, name in zip(gdf["geometry"], gdf[field_col]):
 
             # Skip invalid/empty geometry
             if geom is None or geom.is_empty:
@@ -131,15 +133,6 @@ class TigerWeb(object):
             if geom.geom_type not in ("Polygon", "MultiPolygon"):
                 # Ignore non-polygon types in a polygon workflow
                 continue
-
-            # Determine feature name
-            if field_col is not None:
-                name = row[field_col]
-                if isinstance(name, str):
-                    name = name.lower()
-            else:
-                name_counter += 1
-                name = name_counter
 
             # Decide whether to use bbox or the actual ring
             vcount = exterior_vertex_count(geom)
@@ -150,23 +143,17 @@ class TigerWeb(object):
                 ring = [(minx, miny), (maxx, miny), (maxx, maxy),
                         (minx, maxy), (minx, miny)]
             else:
-                # todo: I think we need to explode multipolygons or use geom.bounds
                 # Use the exterior of the geometry (one ring, no holes)
                 if geom.geom_type == 'Polygon':
                     ring = list(map(tuple, geom.exterior.coords))
                 else:  # MultiPolygon
-                    # todo: geom.bounds probably makes the most sense in the current structure
-                    #  however we could change to tuple based storage (name, esri_json) from
-                    #  dict based storage
-                    # Pick the largest polygon by area for a single-ring query
-                    largest = max(geom.geoms, key=lambda p: p.area)
-                    ring = list(map(tuple, largest.exterior.coords))
+                   raise AssertionError(f"{geom.geom_type} is unsupported")
 
             # Build ESRI JSON (single ring)
             esri_json = self.polygon_to_esri_json(ring)
-            # self._esri_json.append((name, esri_json))
-            self._esri_json[name] = esri_json
+            self._esri_json.append((name, esri_json))
 
+            # todo: remove this at some point. Do not need to maintain self._shapes
             # Store the input geometry as a GeoJSON Feature (full geometry)
             gi = geom.__geo_interface__
             if gi['type'].lower() == 'polygon':
@@ -578,7 +565,7 @@ class TigerWeb(object):
 
         if multiproc:
             actors = []
-            for key, esri_json in self._esri_json.items():
+            for key, esri_json in self._esri_json:
 
                 actor = multiproc_request_data.remote(key, base, mapserver,
                                                       esri_json, geotype,
@@ -601,7 +588,7 @@ class TigerWeb(object):
         elif multithread:
             thread_list = []
             container = threading.BoundedSemaphore(thread_pool)
-            for key, esri_json in self._esri_json.items():
+            for key, esri_json in self._esri_json:
 
                 x = threading.Thread(target=self.threaded_request_data,
                                      args=(key, base, mapserver, esri_json,
@@ -615,17 +602,10 @@ class TigerWeb(object):
                 thread.join()
 
         else:
-            for key, esri_json in self._esri_json.items():
+            for key, esri_json in self._esri_json:
 
                 self.__request_data(key, base, mapserver, esri_json, geotype,
                                     outfields, verbose, retry)
-
-        print('break')
-        # todo: update this structure....
-        # generate geodataframe and remove duplicates
-        # self._features_gdf = self._features_to_geodataframe(
-        #     self._features, dedupe=True
-        # )
 
     def __request_data(self, key, base, mapserver, esri_json, geotype,
                        outfields, verbose, retry):
