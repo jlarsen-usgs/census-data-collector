@@ -74,7 +74,7 @@ class TigerWeb(object):
         gdf = gdf.to_crs(epsg=TigerWeb._ESRI_CODE)
         gdf = gdf.explode()
         gdf["geometry"] = gdf["geometry"].buffer(0)
-        self.gdf = gdf
+        self._gdf = gdf
         self._ocrs = original_crs
         self.esri_wkid = TigerWeb._ESRI_CODE
 
@@ -84,12 +84,12 @@ class TigerWeb(object):
 
     def _get_polygons(self):
         """
-        GeoPandas-based method to read and store polygons from self.gdf for
+        GeoPandas-based method to read and store polygons from self._gdf for
         later TigerWeb processing. Populates:
           - self._esri_json[name] : ESRI polygon geometry (single ring) JSON string
         """
 
-        gdf = self.gdf
+        gdf = self._gdf
         if gdf is None or gdf.empty:
             return  # nothing to do
 
@@ -159,6 +159,17 @@ class TigerWeb(object):
         features = features.reset_index(drop=True)
         features = features.to_crs(self._ocrs)
         return features
+
+    @property
+    def feature_names(self):
+        """
+        Gets uniquer identifier names from the field parameter
+
+        Returns
+        -------
+        list
+        """
+        return list(self._gdf[self._field].unique())
 
 
     def get_feature(self, name):

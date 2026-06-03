@@ -252,6 +252,7 @@ class CensusBase(object):
             method to prefer cached census api data over real time data
             collection.
         """
+        self._census_features = {}
         url = self._server.base.format(self.year)
 
         lut = None
