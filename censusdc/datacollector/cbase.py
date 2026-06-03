@@ -43,6 +43,7 @@ class CensusBase(object):
         # if not isinstance(features, dict):     # TODO: make sure that commenting this out doesn't break anything, maybe change dict to geodataframe?
         #     raise TypeError('features must be in a dictionary format')
         self._features = features
+        self._features["pull_id"] = range(len(self._features))
         self._year = year
         self.__apikey = apikey
         self._text = server
@@ -97,6 +98,7 @@ class CensusBase(object):
             raise AssertionError("unknown server type")
 
         self._features_level = 'undefined'
+        self._census_features = {}
         self.__thread_fail = {}
         self.__set_features_level()
 
@@ -196,64 +198,64 @@ class CensusBase(object):
 
         """
         level = []
-        for name in self.feature_names:
-            for feature in self.get_feature(name):
-                tmp = 0
-                for key in (TigerWebVariables.state,):
-                    if key in feature.properties:   # TODO: need to update because using geodataframe
-                        tmp = 1
+        feature_cols = list(self._features)
+
+        tmp = 0
+        for key in (TigerWebVariables.state,):
+            if key in feature_cols:
+                tmp = 1
+            else:
+                raise AssertionError("State number must be in "
+                                     "properties dict")
+
+        if tmp == 1:
+            for key in (TigerWebVariables.place,
+                        TigerWebVariables.state):
+                if key in feature_cols:
+                    tmp = 0
+                else:
+                    break
+
+        if tmp == 1:
+            for key in (TigerWebVariables.county,
+                        TigerWebVariables.state):
+                if key in feature_cols:
+                    tmp = 2
+                else:
+                    tmp = 1
+                    break
+
+        if tmp == 2:
+            if self._text == 'acs1':
+                for key in (TigerWebVariables.cousub,
+                            TigerWebVariables.state,
+                            TigerWebVariables.county):
+                    if key in feature_cols:
+                        tmp = 3
                     else:
-                        raise AssertionError("State number must be in "
-                                             "properties dict")
-
-                if tmp == 1:
-                    for key in (TigerWebVariables.place,
-                                TigerWebVariables.state):
-                        if key in feature.properties:
-                            tmp = 0
-                        else:
-                            break
-
-                if tmp == 1:
-                    for key in (TigerWebVariables.county,
-                                TigerWebVariables.state):
-                        if key in feature.properties:
-                            tmp = 2
-                        else:
-                            tmp = 1
-                            break
-
-                if tmp == 2:
-                    if self._text == 'acs1':
-                        for key in (TigerWebVariables.cousub,
-                                    TigerWebVariables.state,
-                                    TigerWebVariables.county):
-                            if key in feature.properties:
-                                tmp = 3
-                            else:
-                                tmp = 2
-                                break
+                        tmp = 2
+                        break
+            else:
+                for key in (TigerWebVariables.tract,
+                            TigerWebVariables.state,
+                            TigerWebVariables.county):
+                    if key in feature_cols:
+                        tmp = 3
                     else:
-                        for key in (TigerWebVariables.tract,
-                                    TigerWebVariables.state,
-                                    TigerWebVariables.county):
-                            if key in feature.properties:
-                                tmp = 3
-                            else:
-                                tmp = 2
-                                break
-                if tmp == 3:
-                    for key in (TigerWebVariables.blkgrp,
-                                TigerWebVariables.state,
-                                TigerWebVariables.county,
-                                TigerWebVariables.tract):
-                        if key in feature.properties:
-                            tmp = 4
-                        else:
-                            tmp = 3
-                            break
+                        tmp = 2
+                        break
+        if tmp == 3:
+            for key in (TigerWebVariables.blkgrp,
+                        TigerWebVariables.state,
+                        TigerWebVariables.county,
+                        TigerWebVariables.tract):
+                if key in feature_cols:
+                    tmp = 4
+                else:
+                    tmp = 3
+                    break
 
-                level.append(tmp)
+        level.append(tmp)
 
         if not level:
             # hack around canadian huc12's for now. print a warning in future
@@ -344,6 +346,8 @@ class CensusBase(object):
         else:
             variables = lut[self.year]["variables"]
 
+        self._census_features = {var: [] for var in ["GEOID"] + list(variables.split(","))}
+
         fmt = lut[self.year]['fmt']
 
         if multiproc and not ENABLE_MULTIPROC:
@@ -397,22 +401,24 @@ class CensusBase(object):
             container = threading.BoundedSemaphore(thread_pool)
             thread_list = []
             thread_id = 0
-            for name in self.feature_names:
-                for featix, feature in enumerate(self.get_feature(name)):
-                    if cache is not None:
-                        geoid = feature.properties["GEOID"]
-                        record = cache.loc[cache['geoid'] == geoid]
-                        if len(record) != 1:
-                            record = None
-                    else:
+            for feature in self._features.itertuples():
+                feature = feature._asdict()
+                if cache is not None:
+                    geoid = feature["GEOID"]
+                    record = cache.loc[cache['geoid'] == geoid]
+                    if len(record) != 1:
                         record = None
-                    x = RestartableThread(target=self.threaded_request_data,
-                                          args=(feature, featix, name,
-                                                level, fmt, variables,
-                                                url, retry, verbose, record,
-                                                thread_id, container))
-                    thread_list.append(x)
-                    thread_id += 1
+                else:
+                    record = None
+
+                name = feature["pull_id"]
+                x = RestartableThread(target=self.threaded_request_data,
+                                      args=(feature, 0, name,
+                                            level, fmt, variables,
+                                            url, retry, verbose, record,
+                                            thread_id, container))
+                thread_list.append(x)
+                thread_id += 1
 
             for thread in thread_list:
                 thread.start()
@@ -429,17 +435,18 @@ class CensusBase(object):
                 thread.join()
 
         else:
-            for name in self.feature_names:
-                for featix, feature in enumerate(self.get_feature(name)):
-                    if cache is not None:
-                        geoid = feature.properties["GEOID"]
-                        record = cache.loc[cache['geoid'] == geoid]
-                        if len(record) != 1:
-                            record = None
-                    else:
+            for feature in self._features.itertuples():
+                feature = feature._asdict()
+                if cache is not None:
+                    geoid = feature["GEOID"]
+                    record = cache.loc[cache['geoid'] == geoid]
+                    if len(record) != 1:
                         record = None
-                    self.__request_data(feature, featix, name, level, fmt,
-                                        variables, url, retry, verbose, record)
+                else:
+                    record = None
+                name = feature["GEOID"]
+                self.__request_data(feature, feature["pull_id"], name, level, fmt,
+                                    variables, url, retry, verbose, record)
 
     def __request_data(self, feature, featix, name, level, fmt, variables,
                        url, retry, verbose, cache_record):
@@ -448,8 +455,8 @@ class CensusBase(object):
 
         Parameters
         ----------
-        feature : geoJSON
-            geoJSON feature
+        feature : dict
+            dictionary of geopandas record
         featix : int
             feature index (in an enumeration)
         name : str
@@ -474,48 +481,49 @@ class CensusBase(object):
 
         """
         if cache_record is not None:
+            self._census_features["GEOID"].append(feature["GEOID"])
             for column in list(cache_record):
                 if column in ("NAME", 'state', 'county',
                               'tract', 'geoid', 'place'):
                     continue
-                try:
-                    self._features[name][featix].properties[column] = \
-                        float(cache_record[column].values[0])
-                except (TypeError, ValueError):
-                    self._features[name][featix].properties[column] = \
-                        float('nan')
 
+                try:
+                    self._census_features[column].append(
+                        float(cache_record[column].values[0])
+                    )
+                except (TypeError, ValueError):
+                    self._census_features[column].append(float("nan"))
             return
 
         loc = ""
         if level == "block_group":
             loc = fmt.format(
-                feature.properties[TigerWebVariables.blkgrp],
-                feature.properties[TigerWebVariables.state],
-                feature.properties[TigerWebVariables.county],
-                feature.properties[TigerWebVariables.tract])
+                feature[TigerWebVariables.blkgrp],
+                feature[TigerWebVariables.state],
+                feature[TigerWebVariables.county],
+                feature[TigerWebVariables.tract])
         elif level == "tract":
             loc = fmt.format(
-                feature.properties[TigerWebVariables.tract],
-                feature.properties[TigerWebVariables.state],
-                feature.properties[TigerWebVariables.county])
+                feature[TigerWebVariables.tract],
+                feature[TigerWebVariables.state],
+                feature[TigerWebVariables.county])
         elif level == "place":
             loc = fmt.format(
-                feature.properties[TigerWebVariables.place],
-                feature.properties[TigerWebVariables.state]
+                feature[TigerWebVariables.place],
+                feature[TigerWebVariables.state]
             )
         elif level == "county_subdivision":
             loc = fmt.format(
-                feature.properties[TigerWebVariables.cousub],
-                feature.properties[TigerWebVariables.state],
-                feature.properties[TigerWebVariables.county])
+                feature[TigerWebVariables.cousub],
+                feature[TigerWebVariables.state],
+                feature[TigerWebVariables.county])
         elif level == "county":
             loc = fmt.format(
-                feature.properties[TigerWebVariables.county],
-                feature.properties[TigerWebVariables.state])
+                feature[TigerWebVariables.county],
+                feature[TigerWebVariables.state])
         elif level == "state":
             loc = fmt.format(
-                feature.properties[TigerWebVariables.state])
+                feature[TigerWebVariables.state])
         else:
             raise AssertionError("level is undefined")
 
@@ -568,6 +576,7 @@ class CensusBase(object):
                       'feature # {}'.format(level, name, featix))
 
         if len(data) == 2:
+            self._census_features["GEOID"].append(feature["GEOID"])
             for dix, header in enumerate(data[0]):
                 if header == "NAME":
                     continue
@@ -575,11 +584,13 @@ class CensusBase(object):
                     continue
                 else:
                     try:
-                        self._features[name][featix].properties[header] = \
-                            float(data[1][dix])
+                        value = float(data[1][dix])
+                        if value < 0:
+                            value = float("nan")
+
+                        self._census_features[header].append(value)
                     except (TypeError, ValueError):
-                        self._features[name][featix].properties[header] = \
-                            float('nan')
+                        self._census_features[header] = float('nan')
 
     def threaded_request_data(self, feature, featix, name, level, fmt, variables,
                               url, retry, verbose, cache_record, thread_id,
@@ -675,31 +686,31 @@ def multiproc_data_request(year, apikey, feature, featix, name,
     loc = ""
     if level == "block_group":
         loc = fmt.format(
-            feature.properties[TigerwebVariables['blkgrp']],
-            feature.properties[TigerwebVariables['state']],
-            feature.properties[TigerwebVariables['county']],
-            feature.properties[TigerwebVariables['tract']])
+            feature[TigerwebVariables['blkgrp']],
+            feature[TigerwebVariables['state']],
+            feature[TigerwebVariables['county']],
+            feature[TigerwebVariables['tract']])
     elif level == "tract":
         loc = fmt.format(
-            feature.properties[TigerwebVariables['tract']],
-            feature.properties[TigerwebVariables['state']],
-            feature.properties[TigerwebVariables['county']])
+            feature[TigerwebVariables['tract']],
+            feature[TigerwebVariables['state']],
+            feature[TigerwebVariables['county']])
     elif level == "county_subdivision":
         loc = fmt.format(
-            feature.properties[TigerwebVariables['cousub']],
-            feature.properties[TigerwebVariables['state']],
-            feature.properties[TigerwebVariables['county']])
+            feature[TigerwebVariables['cousub']],
+            feature[TigerwebVariables['state']],
+            feature[TigerwebVariables['county']])
     elif level == "place":
         loc = fmt.format(
-            feature.properties[TigerWebVariables.place],
-            feature.properties[TigerWebVariables.state])
+            feature[TigerWebVariables.place],
+            feature[TigerWebVariables.state])
     elif level == "county":
         loc = fmt.format(
-            feature.properties[TigerwebVariables['county']],
-            feature.properties[TigerwebVariables['state']])
+            feature[TigerwebVariables['county']],
+            feature[TigerwebVariables['state']])
     elif level == "state":
         loc = fmt.format(
-            feature.properties[TigerwebVariables['state']])
+            feature[TigerwebVariables['state']])
     else:
         raise AssertionError("level is undefined")
 
