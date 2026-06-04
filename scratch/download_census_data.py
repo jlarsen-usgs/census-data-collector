@@ -15,16 +15,34 @@ from censusdc import TigerWeb, Acs5
 from censusdc import TigerWebVariables as TWV
 from censusdc.utils import GeoFeatures
 from censusdc.utils import CensusTimeSeries
+from censusdc.datacollector.data_discovery import get_supported_products
+from censusdc.datacollector.data_discovery import get_variables
+from censusdc.datacollector.data_discovery import get_geographies
 
 
 
-#---- test -----------------------####
+
+#---- test: data discovery ------------------####
+
+df_supported = get_supported_products()
+
+dataset = 'acs-acs5'
+year = 2009
+df_variables = get_variables(df_supported, dataset, year)
+
+dataset = 'acs-acs5'
+year = 2009
+get_geographies(df_supported, dataset, year)
+
+
+#---- test: tigerweb -----------------------####
 
 shp_file = os.path.join('..', 'data','Sacramento_neighborhoods_WGS.shp')
 gdf = gpd.read_file(shp_file)
 tigweb = TigerWeb(gdf, field="name")
 tigweb.get_data(2010)
 feature = tigweb.get_feature("La_riviera")
+
 
 
 
