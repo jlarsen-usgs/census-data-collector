@@ -26,13 +26,14 @@ from censusdc.datacollector.data_discovery import get_geographies
 
 df_supported = get_supported_products()
 
-dataset = 'acs-acs5'
-year = 2009
+dataset = ['acs-acs5', 'acs-acs5-profile']
+year = [2009, 2010]
 df_variables = get_variables(df_supported, dataset, year)
 
-dataset = 'acs-acs5'
-year = 2009
+dataset = ['acs-acs5', 'acs-acs5-profile']
+year = [2009, 2010]
 get_geographies(df_supported, dataset, year)
+
 
 
 #---- test: tigerweb -----------------------####
@@ -42,7 +43,6 @@ gdf = gpd.read_file(shp_file)
 tigweb = TigerWeb(gdf, field="name")
 tigweb.get_data(2010)
 feature = tigweb.get_feature("La_riviera")
-
 
 
 
