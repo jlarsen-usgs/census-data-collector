@@ -6,7 +6,6 @@ from ..utils import Acs5Server, Acs1Server, Sf3Server, RestartableThread, \
 import threading
 import geopandas as gpd
 import pandas as pd
-import copy
 import warnings
 warnings.simplefilter('always', UserWarning)
 try:
