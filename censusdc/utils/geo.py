@@ -136,8 +136,6 @@ class GeoFeatures(object):
             if not poly.is_valid:
                 poly = poly.buffer(0)
 
-
-
             self._shapely_features[ix] = poly
 
     @property

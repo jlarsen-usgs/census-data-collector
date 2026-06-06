@@ -25,7 +25,7 @@ def get_supported_products():
     n = 0
     while n < 100:
         try:
-            r = s.get("https://api.census.gov/data.json")
+            r = s.get("https://api.census.gov/data")
             r.raise_for_status()
             break
 
@@ -50,7 +50,7 @@ def get_supported_products():
         df_supported['vintage'] = df_supported['vintage'].round().astype(int)
 
     except JSONDecodeError:
-        raise("Cannot connect to U.S. Census API")
+        raise Exception("Cannot connect to U.S. Census API")
 
     return df_supported
 
@@ -180,3 +180,12 @@ def get_geographies(df_supported, dataset, year):
     df_geographies = pd.concat(df_geographies_list, axis=0)
 
     return df_geographies
+
+
+if __name__ == "__main__":
+
+    dataset = []
+    year = []
+    df_supported = get_supported_products()
+    df_variables = get_variables(df_supported, dataset, year)
+    get_geographies(df_supported, dataset, year)
