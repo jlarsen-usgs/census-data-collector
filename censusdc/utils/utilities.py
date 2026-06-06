@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import threading
 import datetime
+from difflib import SequenceMatcher
 try:
     from simplejson.errors import JSONDecodeError
 except ImportError:
@@ -370,3 +371,37 @@ class RestartableThread(threading.Thread):
     def clone(self):
         return RestartableThread(*self.myargs, **self.mykwargs)
 
+
+
+def sequence_matcher(s, valid, fail_ratio=0.33):
+    """
+    Generalized simple fuzzy string matcher. Calculates sequence ratios for
+    a string based on possible valid inputs
+
+    Parameters
+    ----------
+    s : str
+        sting to match to a valid parameter
+    valid : list or tuple
+        list or tuple possbile valid parameters
+    fail_ratio : float
+        failure ratio where no match will be found an error is raised
+
+    Returns
+    -------
+        valid string
+    """
+    s = s.lower()
+    scores = []
+    for vu in valid:
+        score = SequenceMatcher(None, vu, s).ratio()
+        scores.append(score)
+
+    max_score = max(scores)
+    if max_score < fail_ratio:
+        raise AssertionError(
+            f"cannot determine valid parameter from {s}; valid entries include {valid}"
+        )
+    uidx = scores.index(max(scores))
+    vs = valid[uidx]
+    return vs
