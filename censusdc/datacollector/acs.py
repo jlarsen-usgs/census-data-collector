@@ -1,13 +1,14 @@
 from .cbase import CensusBase
 
 
+# todo: convert this information over to a geopandas dataframe
 class AcsVariables(object):
     """
     Small listing of common census variable names for querying data
     """
     population = 'B01003_001E'
-    households = 'B11001_001E'
-    households2 = "B19001_001E"
+    households_ = 'B11001_001E'
+    households = "B19001_001E"
     income_lt_10k = "B19001_002E"
     income_10k_15k = "B19001_003E"
     income_15k_20k = "B19001_004E"
