@@ -1,13 +1,24 @@
 import pandas as pd
+from pathlib import Path
 
 
 
 class DefaultInterface(object):
 
 
-    def __init__(self, product):
+    def __init__(self, product, subproduct=None):
         self._cen_prod = product
+        self._cen_subprod = subproduct
+        self._base_path = Path(__file__).parent
 
+    def _load_dataframe(self):
+        """
+
+        Returns
+        -------
+
+        """
+        self._dataframe = pd.read_csv(self._file)
 
     @property
     def census_product(self):

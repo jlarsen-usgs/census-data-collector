@@ -1,4 +1,21 @@
 from .cbase import CensusBase
+from ..defaults.census_defaults import DefaultInterface
+
+
+class Acs5Defaults(DefaultInterface):
+    """
+
+    """
+    def __init__(self, f=None, subproduct=None):
+        super().__init__(product="acs5", subproduct=None)
+        if f is None:
+            if subproduct is None:
+                f = self._base_path / "acs5_variables.dat"
+            elif subproduct in ("profile", "summary"):
+                f = self._base_path / f"acs5_{subproduct}_variables.dat"
+
+        self._file = f
+        self._load_dataframe()
 
 
 # todo: convert this information over to a geopandas dataframe
