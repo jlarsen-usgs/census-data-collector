@@ -32,7 +32,7 @@ df_variables = get_variables(df_supported, dataset, year)
 
 dataset = ['acs-acs5', 'acs-acs5-profile']
 year = [2009, 2010]
-get_geographies(df_supported, dataset, year)
+df_geographies = get_geographies(df_supported, dataset, year)
 
 
 
