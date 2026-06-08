@@ -1,5 +1,5 @@
 """
-Development code for TigerWeb REST data collection.
+Module for TigerWeb REST data collection.
 """
 import geojson
 import requests
@@ -53,7 +53,9 @@ class TigerWebVariables(object):
 
 class TigerWeb(object):
     """
-    Base class object for all Tigerweb spatial queries
+    Class object for TigerWeb geospatial data collection. This class takes user
+    provided geospatial information and sends it to the TigerWeb rest service to
+    get census geometries and US census geographic ID information.
 
     Parameters
     ----------
