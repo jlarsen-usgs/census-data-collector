@@ -97,4 +97,27 @@ class DefaultInterface(object):
         """
 
 
+    def clear_defaults(self):
+        """
+        Removes all defaults for a given instance
 
+        Returns
+        -------
+
+        """
+
+
+    def write_defaults(self, f=None):
+        """
+        Writes new defaults to file
+
+        Parameters
+        ----------
+        f : PathLike
+            optional file path to write defaults to, if None the defaults
+            will be stored in the default file for the Census Data Collector
+
+        Returns
+        -------
+            None
+        """

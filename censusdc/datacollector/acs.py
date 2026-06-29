@@ -4,10 +4,18 @@ from ..defaults.census_defaults import DefaultInterface
 
 class Acs5Defaults(DefaultInterface):
     """
+    Container for loading and manipulating default variables for
+    American Community Survey census product data pulls
+
+    f : None or PathLike
+        Optional file name or None. If None, code will load in the
+        default file for acs5 variables (subproduct dependent)
+    subproduct : None or str
+        Optional sub-product name (e.g., "profile", "summary")
 
     """
     def __init__(self, f=None, subproduct=None):
-        super().__init__(product="acs5", subproduct=None)
+        super().__init__(product="acs5", subproduct=subproduct)
         if f is None:
             if subproduct is None:
                 f = self._base_path / "acs5_variables.dat"

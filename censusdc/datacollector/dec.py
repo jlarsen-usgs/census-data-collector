@@ -1,38 +1,47 @@
 from .cbase import CensusBase
+from ..defaults.census_defaults import DefaultInterface
 
 
-class Sf1Variables(object):
+class Sf3Defaults(DefaultInterface):
     """
-    Small listing of common census variable names for querying data
+    Container for loading and manipulating default variables for
+    the Decennial Census summary file 3 census product data pulls
+
+    f : None or PathLike
+        Optional file name or None. If None, code will load in the
+        default file for sf3 variables
+    subproduct : None
+        Unused variable in SF3
+
     """
-    population = "P001001"
-    households = "P015001"
+    def __init__(self, f=None, subproduct=None):
+        super().__init__("sf3", subproduct=None)
+        if f is None:
+            f = self._base_path / "sf3_variables.dat"
+
+        self._file = f
+        self._load_dataframe()
 
 
-class Sf3Variables(object):
+class Sf1Defaults(DefaultInterface):
     """
-    Small listing of common census variable names for querying data
+    Container for loading and manipulating default variables for
+    the Decennial Census summary file 1 census product data pulls
+
+    f : None or PathLike
+        Optional file name or None. If None, code will load in the
+        default file for sf1 variables
+    subproduct : None
+        Unused variable in SF1
+
     """
-    population = "P001001"
-    households = "P052001"
-    income_lt_10k = "P052002"
-    income_10K_15k = "P052003"
-    income_15k_20k = "P052004"
-    income_20k_25k = "P052005"
-    income_25k_30k = "P052006"
-    income_30k_35k = "P052007"
-    income_35k_40k = "P052008"
-    income_40k_45k = "P052009"
-    income_45k_50k = "P052010"
-    income_50k_60k = "P052011"
-    income_60k_75k = "P052012"
-    income_75k_100k = "P052013"
-    income_100k_125k = "P052014"
-    income_125k_150k = "P052015"
-    income_150k_200k = "P052016"
-    income_gt_200k = "P052017"
-    median_income = "HCT012001"
-    median_h_year = "H035001"
+    def __init__(self, f=None, subproduct=None):
+        super().__init__("sf1", subproduct=None)
+        if f is None:
+            f = self._base_path / "sf1_variables.dat"
+
+        self._file = f
+        self._load_dataframe()
 
 
 class Sf3Variables1990(object):
