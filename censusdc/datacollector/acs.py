@@ -117,7 +117,7 @@ class Acs5(CensusBase):
             determines the geographic level of data queried
             default is 'finest' available based on census dataset and
             the geoJSON feature information
-        variables : list, tuple
+        variables : list, tuple, DefaultInterface object
             user specified Acs5 variables, default pulls variables from
             the AcsVariables class
         retry : int

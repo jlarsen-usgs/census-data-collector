@@ -587,6 +587,44 @@ class CensusBase(object):
         self.__thread_fail[thread_id] = False
         container.release()
 
+    def check_variables(self, variables, defaults=None):
+        """
+        General method to check variable inputs from ACS, Decennial, and other
+        Census objects
+
+        Parameters
+        ----------
+        variables : list, tuple, np.ndarray, DefaultInterface object
+            user supplied variable codes
+
+        defaults : DefaultInterface object
+            DefaultInterface object for getting variables
+
+        Returns
+        -------
+
+        """
+        from ..defaults.census_defaults import DefaultInterface
+
+        if isinstance(variables, DefaultInterface):
+            return variables.parameter_codes
+
+        elif not variables:
+            if defaults is not None:
+                return defaults.parameter_codes
+            else:
+                raise AssertionError("Census variable codes must be provided")
+
+        elif isinstance(variables, (list, tuple)):
+            return list(variables)
+
+        elif isinstance(variables, str):
+            return [variables,]
+
+        else:
+            raise TypeError(f"{type(variables)} not supported for variables parameter")
+
+
 
 @ray.remote
 def multiproc_data_request(year, apikey, feature,

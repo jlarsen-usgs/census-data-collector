@@ -4,8 +4,12 @@ from pathlib import Path
 
 
 class DefaultInterface(object):
+    """
+    Parent interface for storing and loading default census data pulls
 
-
+    Class is not intended to be instantiated directly. See Acs5Defaults for
+    a general usage pattern to develop new Defaults class objects.
+    """
     def __init__(self, product, subproduct=None):
         self._cen_prod = product
         self._cen_subprod = subproduct
@@ -18,7 +22,7 @@ class DefaultInterface(object):
         -------
 
         """
-        self._dataframe = pd.read_csv(self._file)
+        self._data = pd.read_csv(self._file).to_dict()
 
     @property
     def census_product(self):
@@ -38,7 +42,7 @@ class DefaultInterface(object):
         -------
 
         """
-        return
+        return pd.DataFrame(self._data)
 
     @property
     def parameter_codes(self):
@@ -48,7 +52,7 @@ class DefaultInterface(object):
         -------
 
         """
-        return
+        return self._data["cen_code"]
 
     @property
     def parameter_names(self):
@@ -58,7 +62,7 @@ class DefaultInterface(object):
         -------
 
         """
-        return
+        return self._data["name"]
 
     @property
     def pandas_rename(self):
@@ -68,7 +72,7 @@ class DefaultInterface(object):
         -------
 
         """
-        return {v: n for v, n in zip(self.variables, self.names)}
+        return {v: n for v, n in zip(self.parameter_codes, self.parameter_names)}
 
     def add_defaults(self, parameter_code, name):
         """
@@ -82,8 +86,10 @@ class DefaultInterface(object):
         -------
 
         """
+        self._data["cen_code"].append(parameter_code)
+        self._data["name"].append(name)
 
-    def remove_defaults(self, parameter_code, name):
+    def remove_defaults(self, parameter_code=None, name=None):
         """
 
         Parameters
@@ -95,7 +101,18 @@ class DefaultInterface(object):
         -------
 
         """
+        if parameter_code is None and name is None:
+            raise AssertionError("parameter_code or name must be supplied")
 
+        if parameter_code is None:
+            ix = self._data["name"].index(name)
+            self._data["name"].pop(ix)
+            self._data["cen_code"].pop(ix)
+
+        else:
+            ix = self._data["cen_code"].index(parameter_code)
+            self._data["name"].pop(ix)
+            self._data["cen_code"].pop(ix)
 
     def clear_defaults(self):
         """
@@ -105,7 +122,8 @@ class DefaultInterface(object):
         -------
 
         """
-
+        self._data["name"] = []
+        self._data["cen_code"] = []
 
     def write_defaults(self, f=None):
         """
