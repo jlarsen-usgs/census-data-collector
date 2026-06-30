@@ -291,15 +291,17 @@ class CensusBase(object):
             profile = False
             if 'profile' in self._text:
                 profile = True
-            elif 'summary' in self._text:
-                summary = True
             cache = get_cache(self.year, level, self.__apikey,
                               verbose=verbose, profile=profile, summary=True)
 
+        # todo: continue clean ups here and remove variables stuff from "server"
+        #  may need to create custom defaults for water-use prior to implementing this
+        #  work here.
         if variables:
             if isinstance(variables, str):
                 variables = (variables,)
             variables = ",".join(variables)
+
         else:
             variables = lut[self.year]["variables"]
 
@@ -610,6 +612,12 @@ class CensusBase(object):
             return variables.parameter_codes
 
         elif not variables:
+            if defaults is not None:
+                return defaults.parameter_codes
+            else:
+                raise AssertionError("Census variable codes must be provided")
+
+        elif variables is None:
             if defaults is not None:
                 return defaults.parameter_codes
             else:

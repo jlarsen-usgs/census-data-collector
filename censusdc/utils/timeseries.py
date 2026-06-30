@@ -1,4 +1,4 @@
-from ..utils import TigerWebMapServer, GeoFeatures
+from ..utils import TigerWebMapServer
 import copy
 import shapefile
 import calendar
@@ -194,6 +194,7 @@ class CensusTimeSeries(object):
         -------
 
         """
+        from .geo import GeoFeatures
         from .. import TigerWeb, Acs1, Acs5, Sf3, Sf1, Acs5Profile, \
             Acs1Profile, Acs5Summary
         from ..datacollector.dec import Sf3HR1990, Sf3HR, Sf1HR

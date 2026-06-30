@@ -22,7 +22,8 @@ class DefaultInterface(object):
         -------
 
         """
-        self._data = pd.read_csv(self._file).to_dict()
+        df = pd.read_csv(self._file)
+        self._data = {c: list(df[c].values) for c in list(df)}
 
     @property
     def census_product(self):
@@ -139,3 +140,7 @@ class DefaultInterface(object):
         -------
             None
         """
+        if f is None:
+            f = self._file
+
+        self.dataframe.to_csv(f)
