@@ -1,3 +1,5 @@
+from pyexpat import features
+
 # Census Data Collector  
 The census data collector is a geographic based tool to query census data from
 the TigerWeb REST services and the US Census API. Queryable census products
@@ -47,110 +49,40 @@ Two polygons have been drawn; one for the Tahoe Park and one for the La Riviera
 We will use this shapefile and these polygon features to query block
 information for the 2010 census
 ```python
-from censusdc import TigerWeb
-from censusdc import TigerWebVariables as TWV
-import os
+from pathlib import Path
+import geopandas as gpd
+import pandas as pd
+import matplotlib.pyplot as plt
 
-shp_file = os.path.join('data','Sacramento_neighborhoods.shp')
+# import censusdc functionality
+from censusdc import TigerWeb, Acs1, Acs5, Sf3
 
-# if the shapefile has a label field for polygons we can tag data 
+shp_file = Path('data/Sacramento_neighborhoods.shp')
+gdf = gpd.read_file(shp_file)
+
+# if the geodataframe has a label field for polygons we can tag data 
 # using the field parameter
-tigweb = TigerWeb(shp_file, field="name")
-
-# if you have only specific fields that you would like
-tigweb.get_data(2010, outfields=(TWV.geoid, TWV.state, TWV.county,
-                                 TWV.tract, TWV.blkgrp, TWV.block))
+tigweb = TigerWeb(gdf, field="name")
 
 # default method gets all relevant tigerweb attributes
 tigweb.get_data(2010)
 
+# returns a geodataframe of census information
 features = tigweb.features
 ```
-The features parameter returns a dictionary of geoJSON objects that can be
-accessed and exported.  
-
-To get the features from a single polygon we can use
-```python
-# get all polygon names
-names = tigweb.feature_names
-
-# get all GeoJSON features associated with a single polygon
-feature = tigweb.get_feature("la_riviera")
-```
- and we can visualize the geoJSON features using Descartes and matplotlib
+we can visualize the features using geopandas built in plotting methods
  ```python
 import matplotlib.pyplot as plt
-from descartes import PolygonPatch
-import numpy as np
-import utm
 
-fig = plt.figure()
-ax = fig.gca()
-for name in tigweb.feature_names:
-    for feature in tigweb.get_feature(name):
-        ax.add_patch(PolygonPatch(feature.geometry, alpha=0.5))
-    
-    # get the input polygon shapes and convert from UTM to WGS84
-    x, y = np.array(tigweb.get_shape(name)).T
-    y, x = utm.to_latlon(x, y, 11, zone_letter='N')
-    ax.plot(x, y, 'r-')
+fig, ax = plt.subplots()
+features.plot(ax=ax)
+gdf.plot(ax=ax, facecolor="None", edgecolor="r")
 
 ax.axis('scaled')
 plt.show()
 ```
 <p align="center">
   <img src="https://raw.githubusercontent.com/jlarsen-usgs/census-data-collector/master/data/Tigerweb_example.png" alt="TigerWeb"/>
-</p>
-
-*__Example 2__*:  
-_Sacramento neighborhood points:_  
-Point shapefiles can also be supplied to `TigerWeb`. Here we have on in the
-Tahoe Park neighborhood and one in the La Riviera neighborhood
-<p align="center">
-  <img src="https://raw.githubusercontent.com/jlarsen-usgs/census-data-collector/master/data/Sacramento_points.png" alt="Sacto_pts"/>
-</p>
-
-We can either use the points by themselves or define a radius around the 
-points to query data from. The `radius=` parameter accepts either a string
-which references an attribute column in the point shapefile or a float that
-applies a constant radius to all points.   
-```python
-from censusdc import TigerWeb
-from censusdc import TigerWebVariables as TWV
-import os
-
-shp_file = os.path.join('data','Sacramento_points.shp')
-
-# radius infromation must be in the same units as the shapefile projection!
-tigweb = TigerWeb(shp_file, field="name", radius="radius")
-tigweb.get_data(2013, level='tract')
-```
-and here we can visualize the census block group features within the 
-defined radius from our points
-```python
-import matplotlib.pyplot as plt
-from descartes import PolygonPatch
-import numpy as np
-import utm
-
-fig = plt.figure()
-    ax = fig.gca()
-    for name in tigweb.feature_names:
-        for feature in tigweb.get_feature(name):
-            ax.add_patch(PolygonPatch(feature.geometry, alpha=0.5))
-
-        x, y = np.array(tigweb.get_shape(name)).T
-        y, x = utm.to_latlon(x, y, 11, zone_letter='N')
-        px, py = np.array(tigweb.get_point(name))
-        py, px = utm.to_latlon(px, py, 11, zone_letter='N')
-        ax.plot(x, y, 'r-')
-        ax.plot(px, py, 'ro')
-
-    ax.axis('scaled')
-    plt.show()
-```
-<p align="center">
-  <img src="https://raw.githubusercontent.com/jlarsen-usgs/census-data-collector/master/data/Tigerweb_points_example.png" alt="TigerWeb_pts"/>
 </p>
 
 __*Using tigerweb features to grab census data*__
@@ -162,49 +94,33 @@ added to each GeoJSON feature to keep spatial correlation. Here is an example:
 
 ```python
 from censusdc import TigerWeb, Acs5
-from descartes import PolygonPatch
+import geopandas as gpd
 import matplotlib.pyplot as plt
-from matplotlib.collections import PatchCollection
+from pathlib import Path
 import numpy as np
-import os
-import utm
 
 # the user must have a census api key to pull data from the Acs5
 with open("api_key.dat") as api:
     apikey = api.readline().strip()
 
-data = 'data'
-point_name = "Sacramento_points.shp"
+shp_name = Path('data/Sacramento_neighborhoods.shp')
+gdf = gpd.read_file(shp_name)
 
-tigweb = TigerWeb(os.path.join(data, point_name), field='name',
-                  radius='radius')
+tigweb = TigerWeb(gdf, field='name')
 tigweb.get_data(2013, level='tract')
 
 # get ACS5 data
 acs = Acs5(tigweb.features, 2013, apikey)
 acs.get_data(retry=20)  # number of retries for connection issues
+cen_feats = acs.features
 
-fig = plt.figure()
-ax = fig.gca()
-population = []
-patches = []
-for name in acs.feature_names:
-    for feature in acs.get_feature(name):
-        patches.append(PolygonPatch(feature.geometry))
-        population.append(feature.properties["B01003_001E"])
-    x, y = np.array(tigweb.get_shape(name)).T
-    y, x = utm.to_latlon(x, y, 11, zone_letter='N')
-    px, py = np.array(tigweb.get_point(name))
-    py, px = utm.to_latlon(px, py, 11, zone_letter='N')
-    ax.plot(x, y, 'r-')
-    ax.plot(px, py, 'ro')
-
-p = PatchCollection(patches, cmap="viridis", alpha=0.75)
-p.set_array(np.array(population))
-ax.add_collection(p)
+fig, ax = plt.subplots()
+# plot population
+cen_feats.plot(column="B01003_001E", ax=ax)
+# plot outlines
+ax = gdf.plot(ax=ax, facecolor="None", edgecolor="k")
 ax.axis('scaled')
-plt.colorbar(p, shrink=0.7)
-plt.show()
+plt.colorbar(ax.collections[0], shrink=0.4);
 ```
 <p align="center">
   <img src="https://raw.githubusercontent.com/jlarsen-usgs/census-data-collector/master/data/Tigerweb_points_population.png" alt="Acs5_pop_2013"/>

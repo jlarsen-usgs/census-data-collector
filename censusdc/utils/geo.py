@@ -105,7 +105,7 @@ def area_weighted_resampling(cen_gdf, aoi_gdf, groupby, method="accumulate"):
 
     method = sequence_matcher(method, valid, fail_ratio=0.5)
 
-    if not isinstance(groupby, (np.array, tuple, list)):
+    if not isinstance(groupby, (np.ndarray, tuple, list)):
         if isinstance(groupby, (str, int, float)):
             groupby = [groupby,]
         else:
@@ -117,7 +117,7 @@ def area_weighted_resampling(cen_gdf, aoi_gdf, groupby, method="accumulate"):
 
     igdf = calculate_intersection_weights(cen_gdf, aoi_gdf)
 
-    ignore = _IGNORE() + tuple(groupby)
+    ignore = _IGNORE() + tuple(groupby) + ("geometry",)
     columns = [i for i in list(igdf) if i not in ignore]
 
     if method in ("sum", "accumulate", "mean", "max", "min", "count"):
@@ -147,6 +147,9 @@ def area_weighted_resampling(cen_gdf, aoi_gdf, groupby, method="accumulate"):
         raise NotImplementedError(
             f"{method} not implemented for area_weighted_resampling"
         )
+
+    if "Id" in list(ogdf) and "Id" not in groupby:
+        ogdf = ogdf.drop(columns=["Id"])
 
     return ogdf
 

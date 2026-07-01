@@ -3,7 +3,6 @@ import geopandas as gpd
 from pathlib import Path
 
 
-
 with open("api_key.dat") as foo:
     api_key = foo.readline().strip()
 
