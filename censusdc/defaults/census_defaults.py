@@ -2,24 +2,30 @@ import pandas as pd
 from pathlib import Path
 
 
-
 class DefaultInterface(object):
     """
     Parent interface for storing and loading default census data pulls
 
     Class is not intended to be instantiated directly. See Acs5Defaults for
     a general usage pattern to develop new Defaults class objects.
+
+    Parameters
+    ----------
+    product : str
+        census product name, e.g., "acs5"
+    subproduct : str
+        optional subproduct name, e.g., "profile"
+
     """
     def __init__(self, product, subproduct=None):
         self._cen_prod = product
         self._cen_subprod = subproduct
         self._base_path = Path(__file__).parent
+        self._data = None
 
     def _load_dataframe(self):
         """
-
-        Returns
-        -------
+        Internal method to load the stored defaults into memory
 
         """
         df = pd.read_csv(self._file)
@@ -28,9 +34,7 @@ class DefaultInterface(object):
     @property
     def census_product(self):
         """
-
-        Returns
-        -------
+        Returns the Census Product that the instance is associated with
 
         """
         return self._cen_prod
@@ -38,9 +42,7 @@ class DefaultInterface(object):
     @property
     def dataframe(self):
         """
-
-        Returns
-        -------
+        Returns a pandas dataframe of defaults variables
 
         """
         return pd.DataFrame(self._data)
@@ -48,43 +50,38 @@ class DefaultInterface(object):
     @property
     def parameter_codes(self):
         """
-
-        Returns
-        -------
+        Returns census variable codes
 
         """
-        return self._data["cen_code"]
+        return self._data["cen_code"].tolist()
 
     @property
     def parameter_names(self):
         """
-
-        Returns
-        -------
+        Returns human readable parameter names
 
         """
-        return self._data["name"]
+        return self._data["name"].tolist()
 
     @property
     def pandas_rename(self):
         """
-
-        Returns
-        -------
+        Returns a dictionary of parameter codes, parameter names for renaming
+        feature output from census data pulls
 
         """
         return {v: n for v, n in zip(self.parameter_codes, self.parameter_names)}
 
     def add_defaults(self, parameter_code, name):
         """
+        Method to add a new default variable to the stored defaults
 
         Parameters
         ----------
-        parameter_code
-        name
-
-        Returns
-        -------
+        parameter_code : str
+            census parameter code
+        name : str
+            human readable name associated with the parameter code
 
         """
         self._data["cen_code"].append(parameter_code)
@@ -92,14 +89,15 @@ class DefaultInterface(object):
 
     def remove_defaults(self, parameter_code=None, name=None):
         """
+        Method to remove a default from the saved Defaults. Can be removed by
+        census variable code or by human readable name
 
         Parameters
         ----------
-        parameter_code
-        name
-
-        Returns
-        -------
+        parameter_code : str
+            optional parameter code to remove
+        name : str
+            optional variable name to remove
 
         """
         if parameter_code is None and name is None:
@@ -118,9 +116,6 @@ class DefaultInterface(object):
     def clear_defaults(self):
         """
         Removes all defaults for a given instance
-
-        Returns
-        -------
 
         """
         self._data["name"] = []
@@ -143,4 +138,40 @@ class DefaultInterface(object):
         if f is None:
             f = self._file
 
-        self.dataframe.to_csv(f)
+        self.dataframe.to_csv(f, index=False)
+
+
+class UserDefaults(DefaultInterface):
+    """
+    Container for loading and manipulating default variables for
+    American Community Survey census product data pulls
+
+    f : None or PathLike
+        Optional file name or None. If None, code will load in the
+        default file for acs5 variables (subproduct dependent)
+    subproduct : None or str
+        Optional sub-product name (e.g., "profile", "summary")
+
+    """
+    def __init__(self):
+        super().__init__("user", "specified")
+        self._data = {"name": [], "cen_code": []}
+
+    @staticmethod
+    def load(f):
+        """
+        Method to load a user specified default file
+
+        Parameters
+        ----------
+        f : PathLike
+            file name path
+
+        Returns
+        -------
+            UserDefaults object
+        """
+        obj = UserDefaults()
+        obj._file = f
+        obj._load_dataframe()
+        return obj

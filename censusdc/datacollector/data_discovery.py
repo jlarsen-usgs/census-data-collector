@@ -1,6 +1,7 @@
 import difflib
 
 import requests
+import numpy as np
 import pandas as pd
 import difflib
 try:
@@ -8,12 +9,28 @@ try:
 except ImportError:
     from json import JSONDecodeError
 
-# TODO:
-# 1) get supported census products
-# 2) get variables for specified census product
-# 3) get geographies for specified census product
 
+_SUPPORTED = [
+    'acs-acs1',
+    'acs-acs3',
+    'acs-acs5',
+    'acs-acs5-profile',
+    'dec-sf1',
+    'dec-sf3'
+]
 
+_CACHE = {
+    "supported": None,
+    "geographies": {},
+    "variables": {}
+}
+
+# todo: code in supported geographies
+_GEOGRAPHIES = {
+
+}
+
+# todo: docstrings!!!!
 def get_supported_products():
     """
 
@@ -21,50 +38,69 @@ def get_supported_products():
     -------
 
     """
-    s = requests.session()
-    n = 0
-    while n < 100:
+    if _CACHE["supported"] is None:
+        s = requests.session()
+        n = 0
+        while n < 100:
+            try:
+                r = s.get("https://api.census.gov/data")
+                r.raise_for_status()
+                break
+
+            except (requests.exceptions.HTTPError,
+                    requests.exceptions.ConnectionError,
+                    requests.exceptions.ChunkedEncodingError,
+                    requests.exceptions.ReadTimeout) as e:
+                err = e
+                n += 1
+
         try:
-            r = s.get("https://api.census.gov/data")
-            r.raise_for_status()
-            break
+            data = r.json()
+            data = data['dataset']
 
-        except (requests.exceptions.HTTPError,
-                requests.exceptions.ConnectionError,
-                requests.exceptions.ChunkedEncodingError,
-                requests.exceptions.ReadTimeout) as e:
-            err = e
-            n += 1
+            df = pd.DataFrame(data)
+            df.columns = df.columns.str.removeprefix('c_')
+            df = df[['vintage', 'dataset', 'title', 'description', 'geographyLink', 'variablesLink']].reset_index(drop=True)
 
-    try:
-        data = r.json()
-        data = data['dataset']
+            df['dataset'] = df['dataset'].apply(lambda x: '-'.join(x))
+            df_supported = df[df['dataset'].isin(_SUPPORTED)].reset_index(drop=True)
+            df_supported['vintage'] = df_supported['vintage'].round().astype(int)
 
-        df = pd.DataFrame(data)
-        df.columns = df.columns.str.removeprefix('c_')
-        df = df[['vintage', 'dataset', 'title', 'description', 'geographyLink', 'variablesLink']].reset_index(drop=True)
+        except JSONDecodeError:
+            raise Exception("Cannot connect to U.S. Census API")
 
-        df['dataset'] = df['dataset'].apply(lambda x: '-'.join(x))
-        supported_products = ['acs-acs1', 'acs-acs3', 'acs-acs5', 'acs-acs5-profile', 'dec-sf1', 'dec-sf3']
-        df_supported = df[df['dataset'].isin(supported_products)].reset_index(drop=True)
-        df_supported['vintage'] = df_supported['vintage'].round().astype(int)
+        _CACHE["supported"] = df_supported
 
-    except JSONDecodeError:
-        raise Exception("Cannot connect to U.S. Census API")
-
-    return df_supported
+    return _CACHE["supported"]
 
 
+# todo: docstrings!
+def get_variables(dataset, year):
+    """
 
-def get_variables(df_supported, dataset, year):
+    Parameters
+    ----------
+    dataset
+    year
 
+    Returns
+    -------
+
+    """
     if isinstance(dataset, str):
         dataset = [dataset]
 
-    if isinstance(year, str):
-        year = [year]
+    if isinstance(year, (float, str)):
+        year = int(year)
+
+    if not isinstance(year, (np.ndarray, tuple, list)):
+        year = [int(year)]
+
+    df_supported = get_supported_products()
 
     df_variables_list = []
+    # todo: I think we should remove looping from here and force the user to get variables
+    #  for one product at a time
     for this_dataset in dataset:
 
         for this_year in year:
@@ -106,7 +142,8 @@ def get_variables(df_supported, dataset, year):
                 df_variables['dataset'] = this_dataset
                 col = df_variables.pop('dataset')
                 df_variables.insert(0, 'dataset', col)
-
+                df_variables.sort_values(by=["name"], inplace=True)
+                df_variables.reset_index(drop=True, inplace=True)
                 df_variables_list.append(df_variables)
 
             except JSONDecodeError:
@@ -119,46 +156,68 @@ def get_variables(df_supported, dataset, year):
 
 
 
+# todo: docstrings!!!!
+def get_geographies(dataset, year):
+    """
 
-def get_geographies(df_supported, dataset, year):
+    Parameters
+    ----------
+    dataset :
+    year :
 
+    Returns
+    -------
+
+    """
     if isinstance(dataset, str):
         dataset = [dataset]
 
-    if isinstance(year, str):
-        year = [year]
+    if isinstance(year, (float, str)):
+        year = int(year)
+
+    if not isinstance(year, (np.ndarray, tuple, list)):
+        year = [int(year)]
+
+    df_supported = get_supported_products()
 
     df_geographies_list = []
     for this_dataset in dataset:
-
         for this_year in year:
+            use_cache = False
+            if this_dataset in _CACHE["geographies"]:
+                if this_year in _CACHE["geographies"][this_dataset]:
+                    df_geographies = _CACHE["geographies"][this_dataset][this_year]
+                    use_cache = True
 
-            # fuzzy match of dataset name
-            dataset_match = difflib.get_close_matches(this_dataset, df_supported['dataset'], n=1, cutoff=0.01)
+            if not use_cache:
+                # fuzzy match of dataset name
+                dataset_match = difflib.get_close_matches(this_dataset, df_supported['dataset'], n=1, cutoff=0.01)
 
-            # get geography link
-            mask = (df_supported['dataset'] == dataset_match[0]) & (df_supported['vintage'] == this_year)
-            geography_link = df_supported.loc[mask, 'geographyLink'].values[0]
+                # get geography link
+                mask = (df_supported['dataset'] == dataset_match[0]) & (df_supported['vintage'] == this_year)
+                geography_link = df_supported.loc[mask, 'geographyLink'].values[0]
 
-            # request and reformat data
-            s = requests.session()
-            n = 0
-            while n < 100:
+                # request and reformat data
+                s = requests.session()
+                n = 0
+                while n < 100:
+                    try:
+                        r = s.get(geography_link)
+                        r.raise_for_status()
+                        break
+
+                    except (requests.exceptions.HTTPError,
+                            requests.exceptions.ConnectionError,
+                            requests.exceptions.ChunkedEncodingError,
+                            requests.exceptions.ReadTimeout) as e:
+                        err = e
+                        n += 1
+
                 try:
-                    r = s.get(geography_link)
-                    r.raise_for_status()
-                    break
-
-                except (requests.exceptions.HTTPError,
-                        requests.exceptions.ConnectionError,
-                        requests.exceptions.ChunkedEncodingError,
-                        requests.exceptions.ReadTimeout) as e:
-                    err = e
-                    n += 1
-
-            try:
-                data = r.json()
-                data = data['fips']
+                    data = r.json()
+                    data = data['fips']
+                except JSONDecodeError:
+                    raise ("Cannot connect to U.S. Census API")
 
                 df_geographies = pd.DataFrame(data)
                 # TODO: Reformat this - what are these columns?  What does the user need?
@@ -171,10 +230,12 @@ def get_geographies(df_supported, dataset, year):
                 col = df_geographies.pop('dataset')
                 df_geographies.insert(0, 'dataset', col)
 
-                df_geographies_list.append(df_geographies)
+                if this_dataset in _CACHE["geographies"]:
+                    _CACHE["geographies"][this_dataset][this_year] = df_geographies
+                else:
+                    _CACHE["geographies"][this_dataset] = {this_year: df_geographies}
 
-            except JSONDecodeError:
-                raise("Cannot connect to U.S. Census API")
+            df_geographies_list.append(df_geographies)
 
     # convert list of dataframes to dataframe
     df_geographies = pd.concat(df_geographies_list, axis=0)
