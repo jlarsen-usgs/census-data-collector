@@ -44,7 +44,7 @@ class Acs1(CensusBase):
 
     """
     def __init__(self, features, year, apikey):
-        super(Acs1, self).__init__(features, year, apikey, 'acs1')
+        super(Acs1, self).__init__(features, year, apikey, 'acs-acs1')
 
     def get_data(self, level='finest', variables=(), retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4,
@@ -102,7 +102,7 @@ class Acs5(CensusBase):
 
     """
     def __init__(self, features, year, apikey):
-        super(Acs5, self).__init__(features, year, apikey, 'acs5')
+        super(Acs5, self).__init__(features, year, apikey, 'acs-acs5')
 
     def get_data(self, level='finest', variables=(), retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4,
@@ -162,7 +162,7 @@ class Acs5Profile(CensusBase):
     """
     def __init__(self, features, year, apikey):
         super(Acs5Profile, self).__init__(features, year,
-                                          apikey, 'acs5profile')
+                                          apikey, 'acs-acs5-profile')
 
     def get_data(self, level='finest', variables=(), retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4,
@@ -222,7 +222,7 @@ class Acs1Profile(CensusBase):
     """
     def __init__(self, features, year, apikey):
         super(Acs1Profile, self).__init__(features, year,
-                                          apikey, 'acs1profile')
+                                          apikey, 'acs-acs1-profile')
 
     def get_data(self, level='finest', variables=(), retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4,

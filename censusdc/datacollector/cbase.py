@@ -44,29 +44,29 @@ class CensusBase(object):
         self._features = features
         self._year = year
         self.__apikey = apikey
-        self._text = server
+        self._dataset = server
 
-        if server == 'acs1':
+        if server == 'acs-acs1':
             self._server = Acs1Server
             self.__level_dict = {0: 'place', 1: 'state', 2: 'county',
                                  3: 'county_subdivision'}
             self.__ilevel_dict = {'place': 0, 'state': 1, 'county': 2,
                                   'county_subdivision': 3}
 
-        elif server == 'acs1profile':
+        elif server == 'acs-acs1-profile':
             self._server = Acs1ProfileServer
             self.__level_dict = {0: 'place', 1: 'state', 2: 'county',
                                  3: 'county_subdivision'}
             self.__ilevel_dict = {'place': 0, 'state': 1, 'county': 2,
                                   'county_subdivision': 3}
 
-        elif server == 'acs5':
+        elif server == 'acs-acs5':
             self._server = Acs5Server
             self.__level_dict = {0: 'place', 1: 'state', 2: 'county',
                                  3: 'tract', 4: 'block_group'}
             self.__ilevel_dict = {'place': 0, "state": 1, "county": 2,
                                   "tract": 3, "block_group": 4}
-        elif server == 'acs5profile':
+        elif server == 'acs-acs5-profile':
             self._server = Acs5ProfileServer
             self.__level_dict = {0: 'place', 1: 'state', 2: 'county',
                                  3: 'tract', 4: 'block_group'}
@@ -80,13 +80,13 @@ class CensusBase(object):
             self.__ilevel_dict = {'place': 0, "state": 1, "county": 2,
                                   "tract": 3, "block_group": 4}
 
-        elif server == "sf3":
+        elif server == "dec-sf3":
             self._server = Sf3Server
             self.__level_dict = {0: 'place', 1: "state", 2: "county",
                                  3: 'tract', 4: 'block_group'}
             self.__ilevel_dict = {'place': 0, "state": 1, "county": 2,
                                   "tract": 3, "block_group": 4}
-        elif server == "sf1":
+        elif server == "dec-sf1":
             self._server = Sf1Server
             self.__level_dict = {0: 'place', 1: "state", 2: "county",
                                  3: 'tract', 4: 'block_group'}
@@ -182,7 +182,7 @@ class CensusBase(object):
                     break
 
         if tmp == 2:
-            if self._text == 'acs1':
+            if self._dataset == 'acs1':
                 for key in (TigerWebVariables.cousub,
                             TigerWebVariables.state,
                             TigerWebVariables.county):
@@ -284,12 +284,12 @@ class CensusBase(object):
 
         if lut is None:
             raise KeyError("No {} server could be found for {} and {}"
-                           .format(self._text, self.year, level))
+                           .format(self._dataset, self.year, level))
 
         cache = None
         if use_cache and level in ("tract", "place"):
             profile = False
-            if 'profile' in self._text:
+            if 'profile' in self._dataset:
                 profile = True
             cache = get_cache(self.year, level, self.__apikey,
                               verbose=verbose, profile=profile, summary=True)
