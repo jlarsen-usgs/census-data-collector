@@ -124,25 +124,32 @@ class TigerWeb(object):
                 # Ignore non-polygon types in a polygon workflow
                 continue
 
-            # Decide whether to use bbox or the actual ring
-            vcount = exterior_vertex_count(geom)
-            minx, miny, maxx, maxy = geom.bounds
-
-            if vcount > 20:
-                # Use bounding box to reduce request size / server complexity
-                ring = [(minx, miny), (maxx, miny), (maxx, maxy),
-                        (minx, maxy), (minx, miny)]
+            if geom.geom_type == "MultiPolygon":
+                geoms = list(geom.geoms)
             else:
-                # Use the exterior of the geometry (one ring, no holes)
-                if geom.geom_type == 'Polygon':
-                    ring = list(map(tuple, geom.exterior.coords))
-                else:  # MultiPolygon
-                   raise AssertionError(f"{geom.geom_type} is unsupported")
+                geoms = [geom,]
 
-            # Build ESRI JSON (single ring)
-            esri_json = self.polygon_to_esri_json(ring)
-            self._esri_json.append((name, esri_json))
+            for geom in geoms:
+                # Decide whether to use bbox or the actual ring
+                vcount = exterior_vertex_count(geom)
+                minx, miny, maxx, maxy = geom.bounds
 
+                if vcount > 20:
+                    # Use bounding box to reduce request size / server complexity
+                    ring = [(minx, miny), (maxx, miny), (maxx, maxy),
+                            (minx, maxy), (minx, miny)]
+                else:
+                    # Use the exterior of the geometry (one ring, no holes)
+                    if geom.geom_type == 'Polygon':
+                        ring = list(map(tuple, geom.exterior.coords))
+                    else:  # MultiPolygon, Point, etc...
+                        raise AssertionError(
+                            f"{geom.geom_type} is unsupported for feature {name}"
+                        )
+
+                # Build ESRI JSON (single ring)
+                esri_json = self.polygon_to_esri_json(ring)
+                self._esri_json.append((name, esri_json))
 
     @property
     def features(self):
@@ -195,6 +202,14 @@ class TigerWeb(object):
         else:
             return self._features[name].to_crs(self._ocrs)
 
+    def clear_features(self):
+        """
+        Method to clear features before running a new data pull on TigerWeb.
+        This is useful for changing census discretization without remaking
+        esri json strings for large data pulls
+
+        """
+        self._features = {}
 
     def polygon_to_esri_json(self, polygon):
         """
@@ -227,6 +242,10 @@ class TigerWeb(object):
 
             if len(pts) == 2:
                 ring.append(pts)
+
+            elif len(pts) == 3:
+                # polygonZ
+                ring.append(pts[:-1])
 
             else:
                 raise AssertionError("Each point must consist of only "
@@ -369,7 +388,9 @@ class TigerWeb(object):
             for key, esri_json in self._esri_json:
 
                 self.__request_data(key, base, mapserver, esri_json, geotype,
-                                    outfields, verbose, retry)
+                                    outfields, verbose, retry)\
+
+        return self.features
 
     def __request_data(self, key, base, mapserver, esri_json, geotype,
                        outfields, verbose, retry):
@@ -385,7 +406,7 @@ class TigerWeb(object):
         mapserver : int, list
             map server number, will be a list in the case of place
         esri_json : str
-            json geography string
+            json geometry string
         geotype : str
             geometery type
         outfields : str
@@ -477,7 +498,14 @@ class TigerWeb(object):
         if len(features) > 1:
             features = pd.concat(features, ignore_index=True)
         else:
-            features = features[0]
+            if not features:
+                return
+            else:
+                features = features[0]
+
+        if key in self._features:
+            features = pd.concat((self._features[key], features), ignore_index=True)
+            features = features.drop_duplicates(subset=["GEOID"])
 
         self._features[key] = features
 

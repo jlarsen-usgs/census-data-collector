@@ -155,7 +155,7 @@ class TigerWebMapServer(object):
 
     __dec_blkgrp = 'GEOID,BLKGRP,STATE,COUNTY,TRACT,AREALAND,AREAWATER'
     __acs_blkgrp = 'GEOID,BLKGRP,STATE,COUNTY,TRACT,AREALAND,AREAWATER'
-    block_group = {2000: {'mapserver': 8,
+    block_group = {2000: {'mapserver': 10,
                           'outFields': __dec_blkgrp},
                    2010: {'mapserver': 12,
                           'outFields': __dec_blkgrp},
