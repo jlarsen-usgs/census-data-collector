@@ -100,6 +100,71 @@ class TigerWebMapServer(object):
                     'outFields': __dec_block}}
 
 
+def identify_census_discretization(geoid):
+    """
+    Method to identify the specific census discretization level
+    by GEOID size
+
+    Parameters
+    ----------
+    geoid : str
+        U.S. Census Bureau GeoId
+
+    Returns
+    -------
+        str: census level (e.g., "tract")
+    """
+    geoid = str(geoid)
+    geoid_len = len(geoid)
+    if geoid_len == 2:
+        level = "state"
+    elif geoid_len == 5:
+        level = "county"
+    elif geoid_len == 7:
+        level = "place"
+    elif geoid_len == 10:
+        level = "county_subdivision"
+    elif geoid_len == 11:
+        level = "tract"
+    elif geoid_len == 12:
+        level = "block_group"
+    elif geoid_len >= 15:
+        level = "block"
+    else:
+        raise NotImplementedError(
+            "Cannot determine census discretization from the geoid length"
+        )
+    return level
+
+
+def get_format_str(level):
+    """
+    Method to get the geography formatting string for census API data pulls
+
+    Parameters
+    ----------
+    level : str
+        census geography level
+
+    Returns
+    -------
+        str: formatting string
+    """
+    formatters = {
+        "state": "state:{}",
+        "county": "county:{}&in=state:{}",
+        "place": "place:{}&in=state:{}",
+        "tract": "tract:{}&in=state:{}&in=county:{}",
+        "block_group": "block%20group:{}&in=state:{}&in=county:{}&in=tract:{}"
+    }
+    if level not in formatters:
+        raise NotImplementedError(
+            f"Census geography data pull formatter has not been implemented for: {level}"
+        )
+    return formatters[level]
+
+
+'''
 class Sf3Server(object):
     """
     Class to store map server information for Decennial Sf3 census data queries
@@ -160,7 +225,7 @@ class Sf1Server(object):
     """
     base = "https://api.census.gov/data/{}/dec/sf1"
 
-    levels = ("block_group", "block", "tract", "county", "state")
+    levels = ("block", "block_group", "tract", "county", "state")
     __variables = "P001001,P015001" #  population & households
 
     def state(variables):
@@ -511,3 +576,4 @@ class Acs1ProfileServer(object):
                 for i in (2013, 2014, 2015, 2017, 2018, 2019)}
 
     cache_block_group = cache_block_group(__variables)
+'''

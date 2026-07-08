@@ -53,7 +53,7 @@ class DefaultInterface(object):
         Returns census variable codes
 
         """
-        return self._data["cen_code"].tolist()
+        return self._data["cen_code"]
 
     @property
     def parameter_names(self):
@@ -61,7 +61,7 @@ class DefaultInterface(object):
         Returns human readable parameter names
 
         """
-        return self._data["name"].tolist()
+        return self._data["name"]
 
     @property
     def pandas_rename(self):
