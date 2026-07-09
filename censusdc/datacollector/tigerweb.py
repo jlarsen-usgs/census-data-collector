@@ -318,7 +318,7 @@ class TigerWeb(object):
                            .format(year, level))
 
         if level == "county_subdivision":
-            base = TigerWebMapServer.lcdbase[year]
+            base = TigerWebMapServer.cousub_base[year]
         elif level == "county":
             base = TigerWebMapServer.cobase[year]
         elif level == "place":

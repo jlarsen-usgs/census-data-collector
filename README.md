@@ -1,5 +1,3 @@
-from pyexpat import features
-
 # Census Data Collector  
 The census data collector is a geographic based tool to query census data from
 the TigerWeb REST services and the US Census API. Queryable census products

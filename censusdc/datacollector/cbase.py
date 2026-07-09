@@ -1,8 +1,6 @@
 import requests
 from .tigerweb import TigerWebVariables
-from ..utils import Acs5Server, Acs1Server, Sf3Server, RestartableThread, \
-    thread_count, Sf1Server, get_cache, Acs5ProfileServer, Acs1ProfileServer, \
-    Acs5SummaryServer
+from ..utils import  RestartableThread, thread_count, get_cache
 import threading
 import geopandas as gpd
 import pandas as pd
@@ -36,57 +34,86 @@ class CensusBase(object):
     apikey : str
         users specific census apikey (obtained from
         https://api.census.gov/data/key_signup.html)
+    dataset : str
+        dataset name e.g. "acs-acs5"
 
     """
-    def __init__(self, features, year, apikey, server):
+    def __init__(self, features, year, apikey, dataset):
+        from .data_discovery import get_supported_products
+        from ..utils.servers import identify_census_discretization
+
         if not isinstance(features, gpd.GeoDataFrame):
             raise TypeError("Features must be supplied as a geodataframe")
+
         self._features = features
         self._year = year
         self.__apikey = apikey
-        self._text = server
+        self._dataset = dataset.lower()
 
-        if server == 'acs1':
+        # check the year and get a record for the requested dataset
+        products = get_supported_products()
+        products = products[products.dataset == self._dataset]
+        if len(products) == 0:
+            raise NotImplementedError(f"No support implemented for {self._dataset}")
+
+        if year not in products.vintage.values:
+            raise AssertionError(
+                f"{year} does not exist for {dataset}. "
+                f"Valid years include {products.vintage.values()} "
+            )
+
+        self._census_table_rec = products[products["vintage"] == year]
+        self._base_url = "/".join(
+            self._census_table_rec["geographyLink"].values[0].split("/")[:-1]
+        )
+        self._geography = identify_census_discretization(
+            self._features["GEOID"].values[0]
+        )
+
+        # todo: should be able to remove this set of if/elif statements
+        #  server objects should be unnecessary now!
+        """
+        if dataset == 'acs-acs1':
             self._server = Acs1Server
             self.__level_dict = {0: 'place', 1: 'state', 2: 'county',
                                  3: 'county_subdivision'}
             self.__ilevel_dict = {'place': 0, 'state': 1, 'county': 2,
                                   'county_subdivision': 3}
 
-        elif server == 'acs1profile':
+        elif dataset == 'acs-acs1-profile':
             self._server = Acs1ProfileServer
             self.__level_dict = {0: 'place', 1: 'state', 2: 'county',
                                  3: 'county_subdivision'}
             self.__ilevel_dict = {'place': 0, 'state': 1, 'county': 2,
                                   'county_subdivision': 3}
 
-        elif server == 'acs5':
+        elif dataset == 'acs-acs5':
             self._server = Acs5Server
             self.__level_dict = {0: 'place', 1: 'state', 2: 'county',
                                  3: 'tract', 4: 'block_group'}
             self.__ilevel_dict = {'place': 0, "state": 1, "county": 2,
                                   "tract": 3, "block_group": 4}
-        elif server == 'acs5profile':
+        elif dataset == 'acs-acs5-profile':
             self._server = Acs5ProfileServer
             self.__level_dict = {0: 'place', 1: 'state', 2: 'county',
                                  3: 'tract', 4: 'block_group'}
             self.__ilevel_dict = {'place': 0, "state": 1, "county": 2,
                                   "tract": 3, "block_group": 4}
 
-        elif server == 'acs5summary':
+        elif dataset == 'acs5summary':
             self._server = Acs5SummaryServer
             self.__level_dict = {0: 'place', 1: 'state', 2: 'county',
                                  3: 'tract', 4: 'block_group'}
             self.__ilevel_dict = {'place': 0, "state": 1, "county": 2,
                                   "tract": 3, "block_group": 4}
 
-        elif server == "sf3":
+        elif dataset == "dec-sf3":
             self._server = Sf3Server
             self.__level_dict = {0: 'place', 1: "state", 2: "county",
                                  3: 'tract', 4: 'block_group'}
             self.__ilevel_dict = {'place': 0, "state": 1, "county": 2,
                                   "tract": 3, "block_group": 4}
-        elif server == "sf1":
+        elif dataset == "dec-sf1":
             self._server = Sf1Server
             self.__level_dict = {0: 'place', 1: "state", 2: "county",
                                  3: 'tract', 4: 'block_group'}
@@ -94,11 +121,11 @@ class CensusBase(object):
                                   "tract": 3, "block_group": 4}
         else:
             raise AssertionError("unknown server type")
-
-        self._features_level = 'undefined'
+        """
+        # self._geography = 'undefined'
         self._census_features = {}
         self.__thread_fail = {}
-        self.__set_features_level()
+        # self.__set_geography()
 
     @property
     def year(self):
@@ -119,13 +146,13 @@ class CensusBase(object):
             raise AssertionError("Please run get_data() prior to grabbing features")
 
     @property
-    def features_level(self):
+    def geography(self):
         """
         Minimum common level (maximum resolution) of all the
         features supplied to Acs
 
         """
-        return self._features_level
+        return self._geography
 
     def join(self, cenobj):
         """
@@ -147,11 +174,12 @@ class CensusBase(object):
         new_cen_feats = pd.merge(cen_feats, other, how="left", on="GEOID")
         self._census_features = new_cen_feats
 
-    def __set_features_level(self):
+    def __set_geography(self):
         """
         Internal method to determine a common 'finest' discretization
         of all supplied featues
 
+        DEPRECATED Remove after new code testing
         """
         level = []
         feature_cols = list(self._features)
@@ -182,7 +210,7 @@ class CensusBase(object):
                     break
 
         if tmp == 2:
-            if self._text == 'acs1':
+            if self._dataset == 'acs1':
                 for key in (TigerWebVariables.cousub,
                             TigerWebVariables.state,
                             TigerWebVariables.county):
@@ -217,11 +245,11 @@ class CensusBase(object):
             # hack around canadian huc12's for now. print a warning in future
             msg = "Cannot determine census data level: setting to 'tract'"
             print(f"WARNING: {msg}")
-            self._features_level = self.__level_dict[3]
+            self._geography = self.__level_dict[3]
         else:
-            self._features_level = self.__level_dict[min(level)]
+            self._geography = self.__level_dict[min(level)]
 
-    def get_data(self, level='finest', variables=(), retry=100, verbose=True,
+    def get_data(self, variables=(), retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4,
                  use_cache=False):
         """
@@ -230,10 +258,6 @@ class CensusBase(object):
 
         Parameters
         ----------
-        level : str
-            determines the geographic level of data queried
-            default is 'finest' available based on census dataset and
-            the geoJSON feature information
         variables : list, tuple
             user specified Acs5 variables, default pulls variables from
             the Acs5Variables class
@@ -251,10 +275,15 @@ class CensusBase(object):
             method to prefer cached census api data over real time data
             collection.
         """
+        from .data_discovery import get_geographies
+        from ..utils.servers import get_format_str
         self._census_features = {}
-        url = self._server.base.format(self.year)
+        url = self._base_url
+        # url = self._server.base.format(self.year)
 
         lut = None
+        # todo: we should be able to figure out the "level" by geoid length
+        """
         if level == 'finest':
             for level in self._server.levels:
                 lut = self._server.__dict__[level]
@@ -263,8 +292,8 @@ class CensusBase(object):
                 else:
                     lut = None
 
-            if level != self.features_level:
-                level = self.features_level
+            if level != self.geography:
+                level = self.geography
                 lut = self._server.__dict__[level]
                 if self.year not in lut:
                     lut = None
@@ -278,20 +307,21 @@ class CensusBase(object):
                     lut = None
 
             if self.__ilevel_dict[level] > \
-                    self.__ilevel_dict[self.features_level]:
+                    self.__ilevel_dict[self.geography]:
                 raise AssertionError("Cannot grab level data finer than {}"
-                                     .format(self.features_level))
+                                     .format(self.geography))
 
         if lut is None:
             raise KeyError("No {} server could be found for {} and {}"
-                           .format(self._text, self.year, level))
+                           .format(self._dataset, self.year, level))
+        """
 
         cache = None
-        if use_cache and level in ("tract", "place"):
+        if use_cache and self._geography in ("tract", "place"):
             profile = False
-            if 'profile' in self._text:
+            if 'profile' in self._dataset:
                 profile = True
-            cache = get_cache(self.year, level, self.__apikey,
+            cache = get_cache(self.year, self._geography, self.__apikey,
                               verbose=verbose, profile=profile, summary=True)
 
         # todo: continue clean ups here and remove variables stuff from "server"
@@ -302,12 +332,10 @@ class CensusBase(object):
                 variables = (variables,)
             variables = ",".join(variables)
 
-        else:
-            variables = lut[self.year]["variables"]
-
         self._census_features = {var: [] for var in ["GEOID"] + list(variables.split(","))}
+        # todo: check the geography using the data discovery stuff...
 
-        fmt = lut[self.year]['fmt']
+        fmt = get_format_str(self._geography)
 
         if multiproc and not ENABLE_MULTIPROC:
             multiproc = False
@@ -330,7 +358,7 @@ class CensusBase(object):
                 else:
                     record = None
                 actor = multiproc_data_request.remote(
-                    year, apikey, feature, level,
+                    year, apikey, feature, self._geography,
                     fmt, variables, url,
                     retry, verbose, record, twv)
 
@@ -374,7 +402,7 @@ class CensusBase(object):
                     record = None
 
                 x = RestartableThread(target=self.threaded_request_data,
-                                      args=(feature, level, fmt, variables,
+                                      args=(feature, self._geography, fmt, variables,
                                             url, retry, verbose, record,
                                             thread_id, container))
                 thread_list.append(x)
@@ -406,7 +434,7 @@ class CensusBase(object):
                     record = None
 
                 self.__request_data(
-                    feature, level, fmt, variables, url, retry, verbose, record
+                    feature, self._geography, fmt, variables, url, retry, verbose, record
                 )
 
         self._census_features = pd.DataFrame.from_dict(self._census_features)

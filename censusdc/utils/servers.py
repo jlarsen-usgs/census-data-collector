@@ -4,16 +4,6 @@ class TigerWebMapServer(object):
     """
     Class to store map server information for TigerWeb queries
     """
-    __gacs = 'https://tigerweb.geo.census.gov/arcgis/rest/services/' + \
-             'Generalized_ACS{}/Tracts_Blocks/MapServer'
-    __gacspl = 'https://tigerweb.geo.census.gov/arcgis/rest/services/' \
-               'Generalized_ACS{}/Places_CouSub_ConCity_SubMCD/MapServer'
-    __acs1 = 'https://tigerweb.geo.census.gov/arcgis/rest/services/' + \
-             'TIGERweb/Places_CouSub_ConCity_SubMCD/MapServer'
-    __acs1co = "https://tigerweb.geo.census.gov/arcgis/rest/services/" + \
-               "TIGERweb/State_County/MapServer/"
-    __base = 'https://tigerweb.geo.census.gov/arcgis/rest/services/' + \
-             'TIGERweb/Tracts_Blocks/MapServer'
     __2000 = 'https://tigerweb.geo.census.gov/arcgis/rest/services/' + \
              'Census2020/tigerWMS_Census2000/MapServer'
     __2010 = 'https://tigerweb.geo.census.gov/arcgis/rest/services/' + \
@@ -26,101 +16,57 @@ class TigerWebMapServer(object):
     levels = ('block', 'block_group', 'tract', 'place',
               'county_subdivision', 'county')
 
-    base = {1990: __2000,
-            2000: __2000,
-            2005: __acs1,
-            2006: __acs1,
-            2007: __acs1,
-            2008: __acs1,
-            2009: __2000,
-            2010: __2010,
-            2011: __gacs.format(2015),
-            2012: __gacs.format(2015),
-            2013: __gacs.format(2015),
-            2014: __gacs.format(2015),
-            2015: __gacs.format(2015),
-            2016: __gacs.format(2016),
-            2017: __gacs.format(2017),
-            2018: __gacs.format(2018),
-            2019: __gacs.format(2019),
-            2020: __2020}
+    base = {
+        1990: __2000,
+        2000: __2000,
+        2010: __2010,
+        2020: __2020
+    }
 
-    place_base = {2000: __2000,
-                  2005: __acs1,
-                  2006: __acs1,
-                  2007: __acs1,
-                  2008: __acs1,
-                  2009: __acs1,
-                  2010: __2010,
-                  2011: __gacspl.format(2015),
-                  2012: __gacspl.format(2015),
-                  2013: __gacspl.format(2015),
-                  2014: __gacspl.format(2015),
-                  2015: __gacspl.format(2015),
-                  2016: __gacspl.format(2016),
-                  2017: __gacspl.format(2017),
-                  2018: __gacspl.format(2018),
-                  2019: __gacspl.format(2019),
-                  2020: __2020pl}
+    place_base = {
+        2000: __2000,
+        2010: __2010,
+        2020: __2020pl
+    }
 
-    def lcdbase(acs1):
-        return {i: acs1 for i in range(2005, 2020)}
-    lcdbase = lcdbase(__acs1)
+    cousub_base = {
+        2000: __2000,
+        2010: __2010,
+        2020: __2020
+    }
 
-    def cobase(acs1):
-        return {i: acs1 for i in range(2005, 2020)}
-    cobase = cobase(__acs1co)
+    cobase = {
+        2000: __2000,
+        2010: __2010,
+        2020: __2020
+    }
 
-    __acs1_county = 'GEOID,STATE,COUNTY,AREALAND,AREAWATER'
-    __acs1_co_server = {'mapserver': 1,
-                        'outFields': __acs1_county}
+    __county_subdivision = 'GEOID,STATE,COUNTY,COUSUB,AREALAND,AREAWATER'
+    county_subdivision = {
+        2000: {"mapserver": 20,
+               "outFields": __county_subdivision},
+        2010: {"mapserver": 24,
+               "outFields": __county_subdivision},
+        2020: {"mapserver": 20,
+               "outFields": __county_subdivision},
+    }
 
-    def county(acs1_server):
-        return {i: acs1_server for i in range(2005, 2020)}
-    county = county(__acs1_co_server)
-
-    __acs1_county_subdivision = 'GEOID,STATE,COUNTY,COUSUB,AREALAND,AREAWATER'
-    __acs1_server = {'mapserver': 22,
-                     'outFields': __acs1_county_subdivision}
-
-    def county_subdivision(acs1_server):
-        return {i: acs1_server for i in range(2005, 2020)}
-    county_subdivision = county_subdivision(__acs1_server)
+    __county = 'GEOID,STATE,COUNTY,AREALAND,AREAWATER'
+    county = {
+        2000: {"mapserver": 74,
+               "outFields": __county},
+        2010: {"mapserver": 90,
+               "outFields": __county},
+        2020: {"mapserver": 82,
+               "outFields": __county},
+    }
 
     __place = 'GEOID,STATE,PLACE,AREALAND,AREAWATER'
     place = {2000: {'mapserver': [28, 26],
                     'outFields': __place},
-             2005: {'mapserver': [26, 25],
-                    'outFields': __place},
-             2006: {'mapserver': [26, 25],
-                    'outFields': __place},
-             2007: {'mapserver': [26, 25],
-                    'outFields': __place},
-             2008: {'mapserver': [26, 25],
-                    'outFields': __place},
-             2009: {'mapserver': [26, 25],
-                    'outFields': __place},
              2010: {'mapserver': [32, 30],
                     'outFields': __place},
-             2011: {'mapserver': [11, 10],
-                    'outFields': __place},
-             2012: {'mapserver': [11, 10],
-                    'outFields': __place},
-             2013: {'mapserver': [11, 10],
-                    'outFields': __place},
-             2014: {'mapserver': [11, 10],
-                    'outFields': __place},
-             2015: {'mapserver': [11, 10],
-                    'outFields': __place},
-             2016: {'mapserver': [11, 10],
-                    'outFields': __place},
-             2017: {'mapserver': [11, 10],
-                    'outFields': __place},
-             2018: {'mapserver': [11, 10],
-                    'outFields': __place},
-             2019: {'mapserver': [11, 10],
-                    'outFields': __place},
-             2020: {'mapserver': [18, 17],
+             2020: {'mapserver': [4, 5],
                     'outFields': __place}
         ,}
 
@@ -132,24 +78,6 @@ class TigerWebMapServer(object):
                     'outFields': __dec_tract},
              2010: {'mapserver': 10,
                     'outFields': __dec_tract},
-             2011: {'mapserver': 3,
-                    'outFields': __acs_tract},
-             2012: {'mapserver': 3,
-                    'outFields': __acs_tract},
-             2013: {'mapserver': 3,
-                    'outFields': __acs_tract},
-             2014: {'mapserver': 3,
-                    'outFields': __acs_tract},
-             2015: {'mapserver': 3,
-                    'outFields': __acs_tract},
-             2016: {'mapserver': 3,
-                    'outFields': __acs_tract},
-             2017: {'mapserver': 3,
-                    'outFields': __acs_tract},
-             2018: {'mapserver': 3,
-                    'outFields': __acs_tract},
-             2019: {'mapserver': 3,
-                    'outFields': __acs_tract},
              2020: {'mapserver': 0,
                     'outFields': __dec_tract}}
 
@@ -159,18 +87,6 @@ class TigerWebMapServer(object):
                           'outFields': __dec_blkgrp},
                    2010: {'mapserver': 12,
                           'outFields': __dec_blkgrp},
-                   2013: {'mapserver': 4,
-                          'outFields': __acs_blkgrp},
-                   2014: {'mapserver': 4,
-                          'outFields': __acs_blkgrp},
-                   2015: {'mapserver': 4,
-                          'outFields': __acs_blkgrp},
-                   2017: {'mapserver': 4,
-                          'outFields': __acs_blkgrp},
-                   2018: {'mapserver': 4,
-                          'outFields': __acs_blkgrp},
-                   2019: {'mapserver': 4,
-                          'outFields': __acs_blkgrp},
                    2020: {'mapserver': 1,
                           'outFields': __dec_blkgrp}}
 
@@ -184,6 +100,71 @@ class TigerWebMapServer(object):
                     'outFields': __dec_block}}
 
 
+def identify_census_discretization(geoid):
+    """
+    Method to identify the specific census discretization level
+    by GEOID size
+
+    Parameters
+    ----------
+    geoid : str
+        U.S. Census Bureau GeoId
+
+    Returns
+    -------
+        str: census level (e.g., "tract")
+    """
+    geoid = str(geoid)
+    geoid_len = len(geoid)
+    if geoid_len == 2:
+        level = "state"
+    elif geoid_len == 5:
+        level = "county"
+    elif geoid_len == 7:
+        level = "place"
+    elif geoid_len == 10:
+        level = "county_subdivision"
+    elif geoid_len == 11:
+        level = "tract"
+    elif geoid_len == 12:
+        level = "block_group"
+    elif geoid_len >= 15:
+        level = "block"
+    else:
+        raise NotImplementedError(
+            "Cannot determine census discretization from the geoid length"
+        )
+    return level
+
+
+def get_format_str(level):
+    """
+    Method to get the geography formatting string for census API data pulls
+
+    Parameters
+    ----------
+    level : str
+        census geography level
+
+    Returns
+    -------
+        str: formatting string
+    """
+    formatters = {
+        "state": "state:{}",
+        "county": "county:{}&in=state:{}",
+        "place": "place:{}&in=state:{}",
+        "tract": "tract:{}&in=state:{}&in=county:{}",
+        "block_group": "block%20group:{}&in=state:{}&in=county:{}&in=tract:{}"
+    }
+    if level not in formatters:
+        raise NotImplementedError(
+            f"Census geography data pull formatter has not been implemented for: {level}"
+        )
+    return formatters[level]
+
+
+'''
 class Sf3Server(object):
     """
     Class to store map server information for Decennial Sf3 census data queries
@@ -244,7 +225,7 @@ class Sf1Server(object):
     """
     base = "https://api.census.gov/data/{}/dec/sf1"
 
-    levels = ("block_group", "block", "tract", "county", "state")
+    levels = ("block", "block_group", "tract", "county", "state")
     __variables = "P001001,P015001" #  population & households
 
     def state(variables):
@@ -595,3 +576,4 @@ class Acs1ProfileServer(object):
                 for i in (2013, 2014, 2015, 2017, 2018, 2019)}
 
     cache_block_group = cache_block_group(__variables)
+'''

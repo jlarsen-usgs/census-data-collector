@@ -33,20 +33,19 @@ class Acs1(CensusBase):
 
     Parameters
     ----------
-    features: dict
-        features from TigerWeb data collections
-        {polygon_name: [geojson, geojson,...]}
+    features: GeoDataFrame
+        GeoDataFrame of features from TigerWeb data collections
     year : int
-        census data year of the TigerWeb data
+        census data year to pull data
     apikey : str
         users specific census apikey (obtained from
         https://api.census.gov/data/key_signup.html)
 
     """
     def __init__(self, features, year, apikey):
-        super(Acs1, self).__init__(features, year, apikey, 'acs1')
+        super(Acs1, self).__init__(features, year, apikey, 'acs-acs1')
 
-    def get_data(self, level='finest', variables=(), retry=100, verbose=True,
+    def get_data(self, variables=(), retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4,
                  use_cache=False):
         """
@@ -55,10 +54,6 @@ class Acs1(CensusBase):
 
         Parameters
         ----------
-        level : str
-            determines the geographic level of data queried
-            default is 'finest' available based on census dataset and
-            the geoJSON feature information
         variables : list, tuple
             user specified Acs1 variables, default pulls variables from
             the AcsVariables class
@@ -76,7 +71,7 @@ class Acs1(CensusBase):
             method to prefer cached census api data over real time data
             collection.
         """
-        super(Acs1, self).get_data(level=level, variables=variables,
+        super(Acs1, self).get_data( variables=variables,
                                    retry=retry, verbose=verbose,
                                    multiproc=multiproc,
                                    multithread=multithread,
@@ -91,20 +86,19 @@ class Acs5(CensusBase):
 
     Parameters
     ----------
-    features: dict
-        features from TigerWeb data collections
-        {polygon_name: [geojson, geojson,...]}
+    features: GeoDataFrame
+        GeoDataFrame of features from TigerWeb data collections
     year : int
-        census data year of the TigerWeb data
+        census data year to pull data
     apikey : str
         users specific census apikey (obtained from
         https://api.census.gov/data/key_signup.html)
 
     """
     def __init__(self, features, year, apikey):
-        super(Acs5, self).__init__(features, year, apikey, 'acs5')
+        super(Acs5, self).__init__(features, year, apikey, 'acs-acs5')
 
-    def get_data(self, level='finest', variables=(), retry=100, verbose=True,
+    def get_data(self, variables=(), retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4,
                  use_cache=False):
         """
@@ -113,10 +107,6 @@ class Acs5(CensusBase):
 
         Parameters
         ----------
-        level : str
-            determines the geographic level of data queried
-            default is 'finest' available based on census dataset and
-            the geoJSON feature information
         variables : list, tuple, DefaultInterface object
             user specified Acs5 variables, default pulls variables from
             the AcsVariables class
@@ -135,7 +125,7 @@ class Acs5(CensusBase):
             collection.
         """
         variables = self.check_variables(variables, Acs5Defaults())
-        super(Acs5, self).get_data(level=level, variables=variables,
+        super(Acs5, self).get_data(variables=variables,
                                    retry=retry, verbose=verbose,
                                    multiproc=multiproc,
                                    multithread=multithread,
@@ -150,11 +140,10 @@ class Acs5Profile(CensusBase):
 
     Parameters
     ----------
-    features: dict
-        features from TigerWeb data collections
-        {polygon_name: [geojson, geojson,...]}
+    features: GeoDataFrame
+        GeoDataFrame of features from TigerWeb data collections
     year : int
-        census data year of the TigerWeb data
+        census data year to pull data
     apikey : str
         users specific census apikey (obtained from
         https://api.census.gov/data/key_signup.html)
@@ -162,9 +151,9 @@ class Acs5Profile(CensusBase):
     """
     def __init__(self, features, year, apikey):
         super(Acs5Profile, self).__init__(features, year,
-                                          apikey, 'acs5profile')
+                                          apikey, 'acs-acs5-profile')
 
-    def get_data(self, level='finest', variables=(), retry=100, verbose=True,
+    def get_data(self, variables=(), retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4,
                  use_cache=False):
         """
@@ -173,10 +162,6 @@ class Acs5Profile(CensusBase):
 
         Parameters
         ----------
-        level : str
-            determines the geographic level of data queried
-            default is 'finest' available based on census dataset and
-            the geoJSON feature information
         variables : list, tuple
             user specified Acs5 variables, default pulls variables from
             the AcsVariables class
@@ -195,7 +180,7 @@ class Acs5Profile(CensusBase):
             collection.
         """
         variables = self.check_variables(variables, Acs5Defaults(subproduct="profile"))
-        super(Acs5Profile, self).get_data(level=level, variables=variables,
+        super(Acs5Profile, self).get_data(variables=variables,
                                           retry=retry, verbose=verbose,
                                           multiproc=multiproc,
                                           multithread=multithread,
@@ -210,11 +195,10 @@ class Acs1Profile(CensusBase):
 
     Parameters
     ----------
-    features: dict
-        features from TigerWeb data collections
-        {polygon_name: [geojson, geojson,...]}
+    features: GeoDataFrame
+        GeoDataFrame of features from TigerWeb data collections
     year : int
-        census data year of the TigerWeb data
+        census data year to pull data
     apikey : str
         users specific census apikey (obtained from
         https://api.census.gov/data/key_signup.html)
@@ -222,9 +206,9 @@ class Acs1Profile(CensusBase):
     """
     def __init__(self, features, year, apikey):
         super(Acs1Profile, self).__init__(features, year,
-                                          apikey, 'acs1profile')
+                                          apikey, 'acs-acs1-profile')
 
-    def get_data(self, level='finest', variables=(), retry=100, verbose=True,
+    def get_data(self, variables=(), retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4,
                  use_cache=False):
         """
@@ -233,10 +217,6 @@ class Acs1Profile(CensusBase):
 
         Parameters
         ----------
-        level : str
-            determines the geographic level of data queried
-            default is 'finest' available based on census dataset and
-            the geoJSON feature information
         variables : list, tuple
             user specified Acs5 variables, default pulls variables from
             the AcsVariables class
@@ -254,7 +234,7 @@ class Acs1Profile(CensusBase):
             method to prefer cached census api data over real time data
             collection.
         """
-        super(Acs1Profile, self).get_data(level=level, variables=variables,
+        super(Acs1Profile, self).get_data(variables=variables,
                                           retry=retry, verbose=verbose,
                                           multiproc=multiproc,
                                           multithread=multithread,
@@ -269,11 +249,10 @@ class Acs5Summary(CensusBase):
 
     Parameters
     ----------
-    features: dict
-        features from TigerWeb data collections
-        {polygon_name: [geojson, geojson,...]}
+    features: GeoDataFrame
+        GeoDataFrame of features from TigerWeb data collections
     year : int
-        census data year of the TigerWeb data
+        census data year to pull data
     apikey : str
         users specific census apikey (obtained from
         https://api.census.gov/data/key_signup.html)
@@ -283,7 +262,7 @@ class Acs5Summary(CensusBase):
         super(Acs5Summary, self).__init__(features, year,
                                           apikey, 'acs5summary')
 
-    def get_data(self, level='finest', variables=(), retry=100, verbose=True,
+    def get_data(self, variables=(), retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4,
                  use_cache=False):
         """
@@ -292,10 +271,6 @@ class Acs5Summary(CensusBase):
 
         Parameters
         ----------
-        level : str
-            determines the geographic level of data queried
-            default is 'finest' available based on census dataset and
-            the geoJSON feature information
         variables : list, tuple
             user specified Acs5 variables, default pulls variables from
             the AcsVariables class
@@ -314,7 +289,7 @@ class Acs5Summary(CensusBase):
             collection.
         """
         variables = self.check_variables(variables, Acs5Defaults(subproduct="summary"))
-        super(Acs5Summary, self).get_data(level=level, variables=variables,
+        super(Acs5Summary, self).get_data(variables=variables,
                                           retry=retry, verbose=verbose,
                                           multiproc=multiproc,
                                           multithread=multithread,

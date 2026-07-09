@@ -65,7 +65,7 @@ class Sf3(CensusBase):
     def __init__(self, features, year, apikey):
         super(Sf3, self).__init__(features, year, apikey, 'sf3')
 
-    def get_data(self, level='finest', variables=(), retry=100, verbose=True,
+    def get_data(self, variables=(), retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4,
                  use_cache=False):
         """
@@ -74,10 +74,6 @@ class Sf3(CensusBase):
 
         Parameters
         ----------
-        level : str
-            determines the geographic level of data queried
-            default is 'finest' available based on census dataset and
-            the geoJSON feature information
         variables : list, tuple
             user specified Acs1 variables, default pulls variables from
             the AcsVariables class
@@ -97,7 +93,7 @@ class Sf3(CensusBase):
 
         """
         variables = self.check_variables(variables, Sf3Defaults())
-        super(Sf3, self).get_data(level=level, variables=variables,
+        super(Sf3, self).get_data(variables=variables,
                                   retry=retry, verbose=verbose,
                                   multiproc=multiproc,
                                   multithread=multithread,
@@ -126,7 +122,7 @@ class Sf1(CensusBase):
     def __init__(self, features, year, apikey):
         super(Sf1, self).__init__(features, year, apikey, 'sf1')
 
-    def get_data(self, level='finest', variables=(), retry=100, verbose=True,
+    def get_data(self, variables=(), retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4,
                  use_cache=False):
         """
@@ -135,10 +131,6 @@ class Sf1(CensusBase):
 
         Parameters
         ----------
-        level : str
-            determines the geographic level of data queried
-            default is 'finest' available based on census dataset and
-            the geoJSON feature information
         variables : list, tuple
             user specified Acs1 variables, default pulls variables from
             the AcsVariables class
@@ -157,7 +149,7 @@ class Sf1(CensusBase):
             collection.
         """
         variables = self.check_variables(variables, Sf1Defaults())
-        super(Sf1, self).get_data(level=level, variables=variables,
+        super(Sf1, self).get_data(variables=variables,
                                   retry=retry, verbose=verbose,
                                   multiproc=multiproc,
                                   multithread=multithread,
