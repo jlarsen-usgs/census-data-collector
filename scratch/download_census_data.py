@@ -13,7 +13,7 @@ import geopandas as gpd
 import censusdc
 from censusdc import TigerWeb, Acs5
 from censusdc import TigerWebVariables as TWV
-from censusdc.utils import GeoFeatures
+#from censusdc.utils import GeoFeatures
 from censusdc.utils import CensusTimeSeries
 from censusdc.datacollector.data_discovery import get_supported_products
 from censusdc.datacollector.data_discovery import get_variables
@@ -26,13 +26,15 @@ from censusdc.datacollector.data_discovery import get_geographies
 
 df_supported = get_supported_products()
 
-dataset = ['acs-acs5', 'acs-acs5-profile']
-year = [2009, 2010]
-df_variables = get_variables(df_supported, dataset, year)
+dataset = 'acs-acs5'
+year = 2009
+df_variables_v1 = get_variables(dataset, year)
+df_variables_v2 = get_variables(dataset, year)
 
-dataset = ['acs-acs5', 'acs-acs5-profile']
-year = [2009, 2010]
-df_geographies = get_geographies(df_supported, dataset, year)
+
+dataset = 'acs-acs5'
+year = 2009
+df_geographies = get_geographies(dataset, year)
 
 
 
