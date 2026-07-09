@@ -11,15 +11,13 @@ class DefaultInterface(object):
 
     Parameters
     ----------
-    product : str
-        census product name, e.g., "acs5"
-    subproduct : str
-        optional subproduct name, e.g., "profile"
+    dataset : str
+        census product name, e.g., "acs-acs5"
+
 
     """
-    def __init__(self, product, subproduct=None):
-        self._cen_prod = product
-        self._cen_subprod = subproduct
+    def __init__(self, dataset):
+        self._cen_prod = dataset
         self._base_path = Path(__file__).parent
         self._data = None
 
@@ -32,9 +30,9 @@ class DefaultInterface(object):
         self._data = {c: list(df[c].values) for c in list(df)}
 
     @property
-    def census_product(self):
+    def census_dataset(self):
         """
-        Returns the Census Product that the instance is associated with
+        Returns the Census dataset that the instance is associated with
 
         """
         return self._cen_prod
@@ -141,20 +139,33 @@ class DefaultInterface(object):
         self.dataframe.to_csv(f, index=False)
 
 
+class CensusDefaults(DefaultInterface):
+    """
+    Contianer for loading and manipulating default variables that are distributed
+     with censusdc for supported census products.
+
+    Parameters
+    ----------
+    dataset : str
+        census data set. e.g., acs-acs5
+    """
+    def __init(self, dataset):
+        super().__init__(dataset=dataset)
+        self._file = self._base_path / f"{dataset}_variables.dat"
+        self._load_dataframe()
+
+
 class UserDefaults(DefaultInterface):
     """
     Container for loading and manipulating default variables for
-    American Community Survey census product data pulls
+    American Community Survey census dataset data pulls
 
-    f : None or PathLike
-        Optional file name or None. If None, code will load in the
-        default file for acs5 variables (subproduct dependent)
-    subproduct : None or str
-        Optional sub-product name (e.g., "profile", "summary")
+    dataset : str
+        Defaults to user-specified, unused in this context
 
     """
-    def __init__(self):
-        super().__init__("user", "specified")
+    def __init__(self, dataset="user-specified"):
+        super().__init__(dataset=dataset)
         self._data = {"name": [], "cen_code": []}
 
     @staticmethod

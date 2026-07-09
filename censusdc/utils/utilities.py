@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 import requests
 import pandas as pd
 import threading
@@ -48,28 +48,36 @@ def isbytes(s):
         return False
 
 
-def census_cache_builder(level='tract', apikey="",
-                         multithread=False, thread_pool=4,
-                         profile=False, summary=False, refresh=False):
+def census_cache_builder(
+    dataset,
+    geography,
+    variables=None,
+    apikey="",
+    multithread=False,
+    thread_pool=4,
+    refresh=False
+):
     """
     Method to build out cache for all supported census years for a
-    specific census "level"
+    specific census "geography"
 
     Parameters
     ----------
-    level : str
+    dataset : str
+        census data product, e.g. acs-acs5
+        supported data products can be found by using the
+        data_discovery.get_supported_products() method
+    geography : str
         census discretization
+    variables : str, list, or None
+        string or a list of census variables for a given data product. If None
+        are provided, code will try to pull variables from stored defaults
     apikey : str
         census api key
     multithread : bool
         flag to enable multithreaded cache building
     thread_pool : int
         number of threads to use for multithreading.
-    profile : bool
-        boolean flag to indicate that economic profile data is
-        being collected and cached
-    summary : bool
-        boolean flag to get data from census summary tables
     refresh : bool
         boolean flag to refresh the existing cached data
 
@@ -77,26 +85,39 @@ def census_cache_builder(level='tract', apikey="",
     -------
         None
     """
-    level = level.lower()
-    years = ()
-    if level == "tract":
-        years = (2000, 2009, 2010, 2011,
-                 2012, 2013, 2014, 2015,
-                 2016, 2017, 2018, 2019)
+    from ..datacollector import data_discovery
 
-    if level == "place":
-        years = (2000,) + tuple(range(2005, 2021))
+    geography = geography.lower()
+    geography = geography.replace("_", " ")
+    dataset = dataset.lower()
+    # todo: fuzzy match geographies....
 
-    elif level == "block_group":
-        years = (2000, 2010) + tuple(range(2013, 2022))
+    products = data_discovery.get_supported_products()
+    if dataset not in products.dataset.values:
+        raise NotImplementedError(f"censusdc does not yet have support for {dataset}")
+
+    products = products[products.dataset == dataset]
+    iyears = list(sorted(products.vintage.values))
+
+    years = []
+    for year in iyears:
+        geographies = data_discovery.get_geographies(dataset, year)
+        if geography in geographies["name"].values:
+            years.append(year)
+
+    if not years:
+        raise AssertionError(
+            f"Geography {geography} not currently supported or not available for {dataset}"
+        )
+
 
     if multithread:
         container = threading.BoundedSemaphore(thread_pool)
         thread_list = []
         for year in years:
             x = RestartableThread(target=_threaded_get_cache,
-                                  args=(year, level, apikey, True, 100,
-                                        True, profile, summary, container))
+                                  args=(dataset, year, geography, apikey, True, 100,
+                                        True, container))
             thread_list.append(x)
 
         for thread in thread_list:
@@ -106,12 +127,13 @@ def census_cache_builder(level='tract', apikey="",
 
     else:
         for year in years:
-            get_cache(year, level=level, apikey=apikey, refresh=refresh,
-                      verbose=True, profile=profile, summary=summary)
+            get_cache(
+                dataset, year, geography=geography, apikey=apikey, refresh=refresh, verbose=True
+            )
 
 
-def _threaded_get_cache(year, level, apikey, refresh,
-                        retry, verbose, profile, summary, container):
+def _threaded_get_cache(dataset, year, geography, apikey, refresh,
+                        retry, verbose, container):
     """
     Multithreaded method to build and load cache tables of census data to
     improve performance
@@ -120,7 +142,7 @@ def _threaded_get_cache(year, level, apikey, refresh,
     ----------
     year : int
         census year
-    level : str
+    geography : str
         census discretization
     apikey : str
         census api key
@@ -134,56 +156,50 @@ def _threaded_get_cache(year, level, apikey, refresh,
         pd.DataFrame
     """
     container.acquire()
-    get_cache(year, level, apikey, refresh, retry, verbose, profile, summary)
+    get_cache(dataset, year, geography, apikey, refresh, retry, verbose)
     container.release()
 
 
-def get_cache(year, level='tract', apikey="", refresh=False,
-              retry=100, verbose=False, profile=False, summary=False):
+def get_cache(dataset, year, geography='tract', apikey="", refresh=False,
+              retry=100, verbose=False):
     """
     Method to build and load cache tables of census data to
     improve performance
 
     Parameters
     ----------
+    dataset : str
+        census dataset string. Supported datasets can be discovered with the
+        census data_discovery tools.
     year : int
         census year
-    level : str
+    geography : str
         census discretization
     apikey : str
         census api key
     refresh : boolean
         option to refresh existing cache
-    profile : bool
-        option to collect economic profile data
+
     Returns
     -------
         pd.DataFrame
     """
+    from .servers import get_base_url, get_cache_format_str
+
     if verbose:
-        print("Building census cache for {}, {}".format(year, level))
-    level = level.lower()
-    if level not in ("tract", "place", "block_group"):
-        raise NotImplementedError()
+        print("Building census cache for {}, {}".format(year, geography))
+    geography = geography.lower()
 
-    utils_dir = os.path.dirname(os.path.abspath(__file__))
-    if profile:
-        table_file = os.path.join(utils_dir, '..', 'cache',
-                                  "{}_{}profile.dat".format(level, year))
-    elif summary:
-        table_file = os.path.join(utils_dir, "..", "cache",
-                                  "{}_{}summary.dat".format(level, year))
-    else:
-        table_file = os.path.join(utils_dir, '..', 'cache',
-                                  "{}_{}.dat".format(level, year))
+    utils_dir = Path(__file__).parent
+    table_file = utils_dir / "../cache/{}_{}_{}.dat".format(year, dataset, geography)
 
-    if not os.path.isfile(table_file) or refresh:
-        from .servers import Acs1Server, Acs5Server, Sf1Server, \
-            Acs5ProfileServer, Acs1ProfileServer, Acs5SummaryServer, \
-            Sf3Server
+    if not table_file.exists() or refresh:
+        url_base = get_base_url(dataset, year)
 
-        fips_co = None
-        if level == "place":
+
+
+        """
+        if geography == "place":
             if profile:
                 if year in (2000,):
                     return
@@ -207,7 +223,7 @@ def get_cache(year, level='tract', apikey="", refresh=False,
                     server = Acs1Server
                 else:
                     server = Acs5Server
-        elif level == "block_group":
+        elif geography == "block_group":
             if year in (2000,):
                 server = Sf3Server
                 fips_co = pd.read_csv(
@@ -236,18 +252,16 @@ def get_cache(year, level='tract', apikey="", refresh=False,
                     server = Sf1Server
                 else:
                     server = Acs5Server
+        """
+        fmt = get_cache_format_str(geography)
+        fips_co = None
+        if dataset == "dec-sf3" and year == 2000 and geography == "block group":
+            fips_co = pd.read_csv(
+                utils_dir / "fips_county_table.dat", dtype=str
+            ).to_numpy()
 
-        url = server.base.format(year)
-        server_dict = {}
-        if level == "tract":
-            server_dict = server.cache_tract[year]
-        elif level == "place":
-            server_dict = server.cache_place[year]
-        elif level == "block_group":
-            server_dict = server.cache_block_group[year]
-
-        fmt = server_dict['fmt']
-        variables = server_dict['variables']
+        # todo: make user pass in variables?
+        # variables = server_dict['variables']
 
 
         if fips_co is None:
@@ -315,31 +329,31 @@ def get_cache(year, level='tract', apikey="", refresh=False,
 
         df.to_csv(table_file, index=False)
 
-    if level == "tract":
+    if geography == "tract":
         fmter = "{:06d}"
-    elif level == "place":
+    elif geography == "place":
         fmter = "{:05d}"
-    elif level == "block_group":
+    elif geography == "block_group":
         fmter = "{:01d}"
     else:
         fmter = "{}"
 
     df = pd.read_csv(table_file)
-    if level == "block_group":
-        df[level] = [fmter.format(i) for i in df["block group"].values]
+    if geography == "block_group":
+        df[geography] = [fmter.format(i) for i in df["block group"].values]
     else:
-        df[level] = [fmter.format(i) for i in df[level].values]
+        df[geography] = [fmter.format(i) for i in df[geography].values]
     df['state'] = ["{:02d}".format(i) for i in df['state'].values]
-    if level == "tract":
+    if geography == "tract":
         df['county'] = ["{:03d}".format(i) for i in df['county'].values]
-        df['geoid'] = df['state'] + df['county'] + df[level]
-    elif level == "block_group":
+        df['geoid'] = df['state'] + df['county'] + df[geography]
+    elif geography == "block_group":
         df['county'] = ["{:03d}".format(i) for i in df['county'].values]
         df['tract'] = ["{:06d}".format(i) for i in df['tract'].values]
-        df["geoid"] = df["state"] + df["county"] + df["tract"] + df[level]
+        df["geoid"] = df["state"] + df["county"] + df["tract"] + df[geography]
         df.drop(columns=["block group"], inplace=True)
     else:
-        df['geoid'] = df['state'] + df[level]
+        df['geoid'] = df['state'] + df[geography]
 
     return df
 
@@ -368,6 +382,31 @@ class RestartableThread(threading.Thread):
     def clone(self):
         return RestartableThread(*self.myargs, **self.mykwargs)
 
+
+def default_store(dataset):
+    """
+    Store for getting a default object based on dataset type
+
+    Parameters
+    ----------
+    datset : str
+        census dataset
+
+    Returns
+    -------
+        DefaultInterface object
+    """
+    # todo: redo: how defaults are done!!!
+    from ..datacollector.acs import Acs5Defaults
+    from ..datacollector.dec import Sf3Defaults, Sf1Defaults
+
+    defaults = {
+        "acs-acs5": Acs5Defaults,
+        "acs-acs5-profile": Acs5Defaults,
+        "dec-sf3": Sf3Defaults,
+        "dec-sf1": Sf1Defaults
+    }
+    default = defaults[dataset]
 
 
 def sequence_matcher(s, valid, fail_ratio=0.33):

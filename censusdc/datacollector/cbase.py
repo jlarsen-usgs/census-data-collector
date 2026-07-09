@@ -324,16 +324,13 @@ class CensusBase(object):
             cache = get_cache(self.year, self._geography, self.__apikey,
                               verbose=verbose, profile=profile, summary=True)
 
-        # todo: continue clean ups here and remove variables stuff from "server"
-        #  may need to create custom defaults for water-use prior to implementing this
-        #  work here.
         if variables:
             if isinstance(variables, str):
                 variables = (variables,)
             variables = ",".join(variables)
 
         self._census_features = {var: [] for var in ["GEOID"] + list(variables.split(","))}
-        # todo: check the geography using the data discovery stuff...
+        # todo: check the geography using the data discovery stuff in the instantiation...
 
         fmt = get_format_str(self._geography)
 

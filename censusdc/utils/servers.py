@@ -114,6 +114,9 @@ def identify_census_discretization(geoid):
     -------
         str: census level (e.g., "tract")
     """
+    # Note as the census data collector grows this may need to be changed/replaced
+    #  to handle other geographies that may have similar geoid lengths. One way could be
+    #  to tag tigerweb records with a geography key.
     geoid = str(geoid)
     geoid_len = len(geoid)
     if geoid_len == 2:
@@ -123,11 +126,11 @@ def identify_census_discretization(geoid):
     elif geoid_len == 7:
         level = "place"
     elif geoid_len == 10:
-        level = "county_subdivision"
+        level = "county subdivision"
     elif geoid_len == 11:
         level = "tract"
     elif geoid_len == 12:
-        level = "block_group"
+        level = "block group"
     elif geoid_len >= 15:
         level = "block"
     else:
@@ -137,13 +140,13 @@ def identify_census_discretization(geoid):
     return level
 
 
-def get_format_str(level):
+def get_format_str(geography):
     """
     Method to get the geography formatting string for census API data pulls
 
     Parameters
     ----------
-    level : str
+    geography : str
         census geography level
 
     Returns
@@ -157,11 +160,62 @@ def get_format_str(level):
         "tract": "tract:{}&in=state:{}&in=county:{}",
         "block_group": "block%20group:{}&in=state:{}&in=county:{}&in=tract:{}"
     }
-    if level not in formatters:
+    if geography not in formatters:
         raise NotImplementedError(
-            f"Census geography data pull formatter has not been implemented for: {level}"
+            f"Census geography data pull formatter has not been implemented for: {geography}"
         )
-    return formatters[level]
+    return formatters[geography]
+
+
+def get_cache_format_str(geography):
+    """
+    Method to get the geography formatting string for census API data pulls to build
+    the cache.
+
+    Parameters
+    ----------
+    geography : str
+        census geography level
+
+    Returns
+    -------
+        str: formatting string
+    """
+    formatters = {
+        "state": "state:{}",
+        "county": "county:*&in=state:{}",
+        "place": "place:*&in=state:{}",
+        "tract": "tract:*&in=state:{}",
+        "block group": "block%20group:*&in=state:{}&in=county:*&in=tract:*"
+    }
+    if geography not in formatters:
+        raise NotImplementedError(
+            f"Census geography data pull formatter has not been implemented for: {geography}"
+        )
+    return formatters[geography]
+
+
+def get_base_url(dataset, year):
+    """
+    Method to get the base url for a census data product
+
+    Parameters
+    ----------
+    dataset : str
+        dataset string
+    year : int
+        year
+
+    Returns
+    -------
+        str
+    """
+    from ..datacollector.data_discovery import get_supported_products
+    # get cached data products dataframe
+    products = get_supported_products()
+    dsrec = products[(products["dataset"] == dataset) & (products["vintage"] == year)]
+    base_url = "/".join(dsrec["geographyLink"].values[0].split("/")[:-1])
+    return base_url
 
 
 '''

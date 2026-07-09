@@ -15,7 +15,7 @@ class Acs5Defaults(DefaultInterface):
 
     """
     def __init__(self, f=None, subproduct=None):
-        super().__init__(product="acs5", subproduct=subproduct)
+        super().__init__(product="acs5",)
         if f is None:
             if subproduct is None:
                 f = self._base_path / "acs5_variables.dat"
