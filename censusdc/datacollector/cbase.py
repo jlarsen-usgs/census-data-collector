@@ -1,8 +1,6 @@
 import requests
 from .tigerweb import TigerWebVariables
-from ..utils import Acs5Server, Acs1Server, Sf3Server, RestartableThread, \
-    thread_count, Sf1Server, get_cache, Acs5ProfileServer, Acs1ProfileServer, \
-    Acs5SummaryServer
+from ..utils import  RestartableThread, thread_count, get_cache
 import threading
 import geopandas as gpd
 import pandas as pd
@@ -74,6 +72,7 @@ class CensusBase(object):
 
         # todo: should be able to remove this set of if/elif statements
         #  server objects should be unnecessary now!
+        """
         if dataset == 'acs-acs1':
             self._server = Acs1Server
             self.__level_dict = {0: 'place', 1: 'state', 2: 'county',
@@ -122,7 +121,7 @@ class CensusBase(object):
                                   "tract": 3, "block_group": 4}
         else:
             raise AssertionError("unknown server type")
-
+        """
         # self._geography = 'undefined'
         self._census_features = {}
         self.__thread_fail = {}
