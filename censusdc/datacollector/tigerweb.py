@@ -4,6 +4,7 @@ Module for TigerWeb REST data collection.
 import geojson
 import requests
 import pandas as pd
+import math
 from ..utils import TigerWebMapServer, thread_count
 import threading
 import geopandas as gpd
@@ -263,6 +264,25 @@ class TigerWeb(object):
         s = s.replace(" ", "")
         return s
 
+    def _get_decennial_year(self, year):
+        """
+        Method to adjust user provided year to decennial census geography
+        dataset year
+
+        Parameters
+        ----------
+        year : int
+
+        Returns
+        -------
+            int (decennial year, rounds down)
+        """
+        if year % 10 == 0:
+            return year
+        else:
+            oyear = int((math.floor(year / 10)) * 10)
+            print(f"Grabbing {oyear} decennial geography data")
+            return oyear
 
     def get_data(self, year, level='finest', outfields=(), verbose=True,
                  multiproc=False, multithread=False, thread_pool=4, retry=100):
@@ -295,6 +315,7 @@ class TigerWeb(object):
 
         """
         level = level.lower()
+        year = self._get_decennial_year(year)
 
         lut = None
         if level == 'finest':

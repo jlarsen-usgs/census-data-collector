@@ -145,8 +145,8 @@ def _threaded_get_cache(dataset, year, geography, variables, apikey, refresh,
         census year
     geography : str
         census discretization
-    variables : str
-        variables string
+    variables : CensusDefaults, list
+        variables list or object
     apikey : str
         census api key
     refresh : boolean
@@ -163,7 +163,7 @@ def _threaded_get_cache(dataset, year, geography, variables, apikey, refresh,
     container.release()
 
 
-def get_cache(dataset, year, geography, variables, apikey="", refresh=False,
+def get_cache(dataset, year, geography, variables=None, apikey="", refresh=False,
               retry=100, verbose=False):
     """
     Method to build and load cache tables of census data to
@@ -178,8 +178,8 @@ def get_cache(dataset, year, geography, variables, apikey="", refresh=False,
         census year
     geography : str
         census discretization
-    variables : str, None
-        variables string, can pass None for grabbing dataset from file
+    variables : None, CensusDefaults, list
+        variables can pass None for grabbing dataset from file
     apikey : str
         census api key
     refresh : boolean
@@ -190,6 +190,7 @@ def get_cache(dataset, year, geography, variables, apikey="", refresh=False,
         pd.DataFrame
     """
     from .servers import get_base_url, get_cache_format_str
+    from ..defaults.census_defaults import CensusDefaults, DefaultInterface
 
     if verbose:
         print("Building census cache for {}, {}".format(year, geography))
@@ -201,61 +202,22 @@ def get_cache(dataset, year, geography, variables, apikey="", refresh=False,
     if not table_file.exists() or refresh:
         url_base = get_base_url(dataset, year)
 
-        """
-        if geography == "place":
-            if profile:
-                if year in (2000,):
-                    return
-                elif year in range(2005, 2009):
-                    server = Acs1ProfileServer
-                else:
-                    server = Acs5ProfileServer
-            elif summary:
-                if year in (2000,):
-                    return
-                elif year in range(2005, 2009):
-                    return
-                elif year == 2009:
-                    server = Acs5SummaryServer
-                else:
-                    return
-            else:
-                if year in (2000,):
-                    server = Sf1Server
-                elif year in range(2005, 2009):
-                    server = Acs1Server
-                else:
-                    server = Acs5Server
-        elif geography == "block_group":
-            if year in (2000,):
-                server = Sf3Server
-                fips_co = pd.read_csv(
-                    os.path.join(utils_dir, "fips_county_table.dat"),
-                    dtype=str
-                ).to_numpy()
-            elif year in (2010,):
-                server = Sf1Server
-            else:
-                server = Acs5Server
+        if isinstance(variables, (list, tuple)):
+            pass
+        elif isinstance(variables, str):
+            variables = [variables,]
+        if variables is None:
+            varobj = CensusDefaults(dataset)
+            variables = varobj.parameter_codes
+        elif isinstance(variables, DefaultInterface):
+            variables = variables.parameter_codes
         else:
-            if profile:
-                if year == 2000:
-                    return
-                else:
-                    server = Acs5ProfileServer
-            elif summary:
-                if year == 2000:
-                    return
-                elif year == 2009:
-                    server = Acs5SummaryServer
-                else:
-                    return
-            else:
-                if year in (2000,):
-                    server = Sf1Server
-                else:
-                    server = Acs5Server
-        """
+            raise TypeError(
+                f"Unsupported type {type(variables)} for variables parameter"
+            )
+
+        variables = ','.join(variables)
+
         fmt = get_cache_format_str(geography)
         fips_co = None
         if dataset == "dec-sf3" and year == 2000 and geography == "block group":
@@ -325,17 +287,14 @@ def get_cache(dataset, year, geography, variables, apikey="", refresh=False,
                 if df is None:
                     df = tdf
                 else:
-                    df = df.append(tdf, ignore_index=True)
+                    df = pd.concat((df, tdf), ignore_index=True)
 
         df.to_csv(table_file, index=False)
 
-    # todo: what's going on here????
     if geography == "tract":
         fmter = "{:06d}"
     elif geography == "place":
         fmter = "{:05d}"
-    elif geography == "block_group":
-        fmter = "{:01d}"
     else:
         fmter = "{}"
 
@@ -344,17 +303,18 @@ def get_cache(dataset, year, geography, variables, apikey="", refresh=False,
         df[geography] = [fmter.format(i) for i in df["block group"].values]
     else:
         df[geography] = [fmter.format(i) for i in df[geography].values]
+
     df['state'] = ["{:02d}".format(i) for i in df['state'].values]
     if geography == "tract":
         df['county'] = ["{:03d}".format(i) for i in df['county'].values]
-        df['geoid'] = df['state'] + df['county'] + df[geography]
-    elif geography == "block_group":
+        df['GEOID'] = df['state'] + df['county'] + df[geography]
+    elif geography == "block group":
         df['county'] = ["{:03d}".format(i) for i in df['county'].values]
         df['tract'] = ["{:06d}".format(i) for i in df['tract'].values]
-        df["geoid"] = df["state"] + df["county"] + df["tract"] + df[geography]
+        df["GEOID"] = df["state"] + df["county"] + df["tract"] + df[geography]
         df.drop(columns=["block group"], inplace=True)
     else:
-        df['geoid'] = df['state'] + df[geography]
+        df['GEOID'] = df['state'] + df[geography]
 
     return df
 
