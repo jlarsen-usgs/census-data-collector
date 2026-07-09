@@ -55,7 +55,8 @@ def census_cache_builder(
     apikey="",
     multithread=False,
     thread_pool=4,
-    refresh=False
+    refresh=False,
+    check_variables=False
 ):
     """
     Method to build out cache for all supported census years for a
@@ -74,6 +75,9 @@ def census_cache_builder(
         are provided, code will try to pull variables from stored defaults
     apikey : str
         census api key
+    check_variables : bool
+        flag to implement variable checking and validation prior to pulling census
+        data. Useful for first run or so when using defined census variables.
     multithread : bool
         flag to enable multithreaded cache building
     thread_pool : int
@@ -88,7 +92,9 @@ def census_cache_builder(
     from ..datacollector import data_discovery
 
     geography = geography.lower()
-    geography = geography.replace("_", " ")
+    syms = ("_", "-")
+    for sym in syms:
+        geography = geography.replace(sym, " ")
     dataset = dataset.lower()
     # todo: fuzzy match geographies....
 
@@ -115,7 +121,7 @@ def census_cache_builder(
         thread_list = []
         for year in years:
             x = RestartableThread(target=_threaded_get_cache,
-                                  args=(dataset, year, geography, apikey, True, 100,
+                                  args=(dataset, year, geography, apikey, check_variables, True, 100,
                                         True, container))
             thread_list.append(x)
 
@@ -127,11 +133,11 @@ def census_cache_builder(
     else:
         for year in years:
             get_cache(
-                dataset, year, geography=geography, variables=variables, apikey=apikey, refresh=refresh, verbose=True
+                dataset, year, geography=geography, variables=variables,  apikey=apikey, check_variables=check_variables, refresh=refresh, verbose=True
             )
 
 
-def _threaded_get_cache(dataset, year, geography, variables, apikey, refresh,
+def _threaded_get_cache(dataset, year, geography, variables, apikey, check_variables, refresh,
                         retry, verbose, container):
     """
     Multithreaded method to build and load cache tables of census data to
@@ -149,6 +155,8 @@ def _threaded_get_cache(dataset, year, geography, variables, apikey, refresh,
         variables list or object
     apikey : str
         census api key
+    check_variables : bool
+        option to do variable checking and validation
     refresh : boolean
         option to refresh existing cache
     profile : bool
@@ -159,12 +167,12 @@ def _threaded_get_cache(dataset, year, geography, variables, apikey, refresh,
         pd.DataFrame
     """
     container.acquire()
-    get_cache(dataset, year, geography, variables, apikey, refresh, retry, verbose)
+    get_cache(dataset, year, geography, variables, apikey, check_variables, refresh, retry, verbose)
     container.release()
 
 
-def get_cache(dataset, year, geography, variables=None, apikey="", refresh=False,
-              retry=100, verbose=False):
+def get_cache(dataset, year, geography, variables=None, apikey="", check_variables=False,
+              refresh=False, retry=100, verbose=False):
     """
     Method to build and load cache tables of census data to
     improve performance
@@ -182,6 +190,9 @@ def get_cache(dataset, year, geography, variables=None, apikey="", refresh=False
         variables can pass None for grabbing dataset from file
     apikey : str
         census api key
+    check_variables : bool
+        flag to implement variable checking and validation prior to pulling census
+        data. Useful for first run or so when using defined census variables.
     refresh : boolean
         option to refresh existing cache
 
@@ -191,9 +202,14 @@ def get_cache(dataset, year, geography, variables=None, apikey="", refresh=False
     """
     from .servers import get_base_url, get_cache_format_str
     from ..defaults.census_defaults import CensusDefaults, DefaultInterface
+    from ..datacollector.data_discovery import get_variables
 
     if verbose:
         print("Building census cache for {}, {}".format(year, geography))
+
+    syms = ("_", "-")
+    for sym in syms:
+        geography = geography.replace(sym, " ")
     geography = geography.lower()
 
     utils_dir = Path(__file__).parent
@@ -215,6 +231,18 @@ def get_cache(dataset, year, geography, variables=None, apikey="", refresh=False
             raise TypeError(
                 f"Unsupported type {type(variables)} for variables parameter"
             )
+
+        if check_variables:
+            dfval = get_variables(dataset, year)
+            valid = dfval["name"].values
+            validated = []
+            for var in variables:
+                if var in valid:
+                    validated.append(var)
+                else:
+                    print(f"{var} not valid for {year} {dataset}; removing")
+
+            variables = validated
 
         variables = ','.join(variables)
 
@@ -295,6 +323,8 @@ def get_cache(dataset, year, geography, variables=None, apikey="", refresh=False
         fmter = "{:06d}"
     elif geography == "place":
         fmter = "{:05d}"
+    elif geography == "block group":
+        fmter = "{:01d}"
     else:
         fmter = "{}"
 

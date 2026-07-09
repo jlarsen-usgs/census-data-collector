@@ -56,6 +56,60 @@ class Acs1(CensusBase):
                                    use_cache=use_cache)
 
 
+class Acs3(CensusBase):
+    """
+    Class to collect data from the Acs3 census using geojson features
+    from TigerWeb
+
+    Parameters
+    ----------
+    features: GeoDataFrame
+        GeoDataFrame of features from TigerWeb data collections
+    year : int
+        census data year to pull data
+    apikey : str
+        users specific census apikey (obtained from
+        https://api.census.gov/data/key_signup.html)
+
+    """
+    def __init__(self, features, year, apikey):
+        super(Acs3, self).__init__(features, year, apikey, 'acs-acs1')
+
+    def get_data(self, variables=(), retry=100, verbose=True,
+                 multiproc=False, multithread=False, thread_pool=4,
+                 use_cache=False):
+        """
+        Method to get data from the Acs1 servers and set it to feature
+        properties!
+
+        Parameters
+        ----------
+        variables : list, tuple
+            user specified Acs1 variables, default pulls variables from
+            the AcsVariables class
+        retry : int
+            number of retries for HTTP connection issues before failure
+        verbose : bool
+            verbose operation mode
+        multithread : bool
+            boolean flag to allow multithreading of data collection
+        multiproc : bool
+            multiprocessing support using ray, linux only!
+        thread_pool : int
+            number of CPU threads to use during multithread operations
+        use_cache : bool
+            method to prefer cached census api data over real time data
+            collection.
+        """
+        variables = self.check_variables(variables, CensusDefaults(self._dataset))
+        super(Acs3, self).get_data(variables=variables,
+                                   retry=retry, verbose=verbose,
+                                   multiproc=multiproc,
+                                   multithread=multithread,
+                                   thread_pool=thread_pool,
+                                   use_cache=use_cache)
+
+
 class Acs5(CensusBase):
     """
     Class to collect data from the Acs5 census using geojson features
@@ -167,7 +221,7 @@ class Acs5Profile(CensusBase):
 
 class Acs1Profile(CensusBase):
     """
-    Class to collect data from the Acs5 profile census using geojson features
+    Class to collect data from the Acs1 profile census using geojson features
     from TigerWeb
 
     Parameters
@@ -219,10 +273,10 @@ class Acs1Profile(CensusBase):
                                           thread_pool=thread_pool,
                                           use_cache=use_cache)
 
-# todo: figure out what this junk is
-class Acs5Summary(CensusBase):
+
+class Acs3Profile(CensusBase):
     """
-    Class to collect data from the Acs5 profile census using geojson features
+    Class to collect data from the Acs3 profile census using geojson features
     from TigerWeb
 
     Parameters
@@ -237,8 +291,8 @@ class Acs5Summary(CensusBase):
 
     """
     def __init__(self, features, year, apikey):
-        super(Acs5Summary, self).__init__(features, year,
-                                          apikey, 'acs5summary')
+        super(Acs3Profile, self).__init__(features, year,
+                                          apikey, 'acs-acs3-profile')
 
     def get_data(self, variables=(), retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4,
@@ -266,9 +320,8 @@ class Acs5Summary(CensusBase):
             method to prefer cached census api data over real time data
             collection.
         """
-        # todo: explore this "summary" thing again. What is it??? When did we need it???
         variables = self.check_variables(variables, CensusDefaults(self._dataset))
-        super(Acs5Summary, self).get_data(variables=variables,
+        super(Acs3Profile, self).get_data(variables=variables,
                                           retry=retry, verbose=verbose,
                                           multiproc=multiproc,
                                           multithread=multithread,

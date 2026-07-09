@@ -62,70 +62,12 @@ class CensusBase(object):
                 f"Valid years include {products.vintage.values()} "
             )
 
-        self._census_table_rec = products[products["vintage"] == year]
-        self._base_url = "/".join(
-            self._census_table_rec["geographyLink"].values[0].split("/")[:-1]
-        )
         self._geography = identify_census_discretization(
             self._features["GEOID"].values[0]
         )
 
-        # todo: should be able to remove this set of if/elif statements
-        #  server objects should be unnecessary now!
-        """
-        if dataset == 'acs-acs1':
-            self._server = Acs1Server
-            self.__level_dict = {0: 'place', 1: 'state', 2: 'county',
-                                 3: 'county_subdivision'}
-            self.__ilevel_dict = {'place': 0, 'state': 1, 'county': 2,
-                                  'county_subdivision': 3}
-
-        elif dataset == 'acs-acs1-profile':
-            self._server = Acs1ProfileServer
-            self.__level_dict = {0: 'place', 1: 'state', 2: 'county',
-                                 3: 'county_subdivision'}
-            self.__ilevel_dict = {'place': 0, 'state': 1, 'county': 2,
-                                  'county_subdivision': 3}
-
-        elif dataset == 'acs-acs5':
-            self._server = Acs5Server
-            self.__level_dict = {0: 'place', 1: 'state', 2: 'county',
-                                 3: 'tract', 4: 'block_group'}
-            self.__ilevel_dict = {'place': 0, "state": 1, "county": 2,
-                                  "tract": 3, "block_group": 4}
-        elif dataset == 'acs-acs5-profile':
-            self._server = Acs5ProfileServer
-            self.__level_dict = {0: 'place', 1: 'state', 2: 'county',
-                                 3: 'tract', 4: 'block_group'}
-            self.__ilevel_dict = {'place': 0, "state": 1, "county": 2,
-                                  "tract": 3, "block_group": 4}
-
-        elif dataset == 'acs5summary':
-            self._server = Acs5SummaryServer
-            self.__level_dict = {0: 'place', 1: 'state', 2: 'county',
-                                 3: 'tract', 4: 'block_group'}
-            self.__ilevel_dict = {'place': 0, "state": 1, "county": 2,
-                                  "tract": 3, "block_group": 4}
-
-        elif dataset == "dec-sf3":
-            self._server = Sf3Server
-            self.__level_dict = {0: 'place', 1: "state", 2: "county",
-                                 3: 'tract', 4: 'block_group'}
-            self.__ilevel_dict = {'place': 0, "state": 1, "county": 2,
-                                  "tract": 3, "block_group": 4}
-        elif dataset == "dec-sf1":
-            self._server = Sf1Server
-            self.__level_dict = {0: 'place', 1: "state", 2: "county",
-                                 3: 'tract', 4: 'block_group'}
-            self.__ilevel_dict = {'place': 0, "state": 1, "county": 2,
-                                  "tract": 3, "block_group": 4}
-        else:
-            raise AssertionError("unknown server type")
-        """
-        # self._geography = 'undefined'
         self._census_features = {}
         self.__thread_fail = {}
-        # self.__set_geography()
 
     @property
     def year(self):
@@ -156,7 +98,7 @@ class CensusBase(object):
 
     def join(self, cenobj):
         """
-        Method to join two census data objects into a single object
+        Method to left join two census data objects into a single object
         with all varaibles.
 
         Parameters
@@ -173,81 +115,6 @@ class CensusBase(object):
 
         new_cen_feats = pd.merge(cen_feats, other, how="left", on="GEOID")
         self._census_features = new_cen_feats
-
-    def __set_geography(self):
-        """
-        Internal method to determine a common 'finest' discretization
-        of all supplied featues
-
-        DEPRECATED Remove after new code testing
-        """
-        level = []
-        feature_cols = list(self._features)
-
-        tmp = 0
-        for key in (TigerWebVariables.state,):
-            if key in feature_cols:
-                tmp = 1
-            else:
-                raise AssertionError("State number must be in "
-                                     "properties dict")
-
-        if tmp == 1:
-            for key in (TigerWebVariables.place,
-                        TigerWebVariables.state):
-                if key in feature_cols:
-                    tmp = 0
-                else:
-                    break
-
-        if tmp == 1:
-            for key in (TigerWebVariables.county,
-                        TigerWebVariables.state):
-                if key in feature_cols:
-                    tmp = 2
-                else:
-                    tmp = 1
-                    break
-
-        if tmp == 2:
-            if self._dataset == 'acs1':
-                for key in (TigerWebVariables.cousub,
-                            TigerWebVariables.state,
-                            TigerWebVariables.county):
-                    if key in feature_cols:
-                        tmp = 3
-                    else:
-                        tmp = 2
-                        break
-            else:
-                for key in (TigerWebVariables.tract,
-                            TigerWebVariables.state,
-                            TigerWebVariables.county):
-                    if key in feature_cols:
-                        tmp = 3
-                    else:
-                        tmp = 2
-                        break
-        if tmp == 3:
-            for key in (TigerWebVariables.blkgrp,
-                        TigerWebVariables.state,
-                        TigerWebVariables.county,
-                        TigerWebVariables.tract):
-                if key in feature_cols:
-                    tmp = 4
-                else:
-                    tmp = 3
-                    break
-
-        level.append(tmp)
-
-        if not level:
-            # hack around canadian huc12's for now. print a warning in future
-            msg = "Cannot determine census data level: setting to 'tract'"
-            print(f"WARNING: {msg}")
-            self._geography = self.__level_dict[3]
-        else:
-            self._geography = self.__level_dict[min(level)]
 
     def get_data(self, variables=(), retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4,
@@ -276,45 +143,9 @@ class CensusBase(object):
             collection.
         """
         from .data_discovery import get_geographies
-        from ..utils.servers import get_format_str
+        from ..utils.servers import get_format_str, get_base_url
         self._census_features = {}
-        url = self._base_url
-        # url = self._server.base.format(self.year)
-
-        lut = None
-        # todo: we should be able to figure out the "level" by geoid length
-        """
-        if level == 'finest':
-            for level in self._server.levels:
-                lut = self._server.__dict__[level]
-                if self.year in lut:
-                    break
-                else:
-                    lut = None
-
-            if level != self.geography:
-                level = self.geography
-                lut = self._server.__dict__[level]
-                if self.year not in lut:
-                    lut = None
-
-        else:
-            if level in self._server.__dict__:
-                lut = self._server.__dict__[level]
-                if self.year in lut:
-                    pass
-                else:
-                    lut = None
-
-            if self.__ilevel_dict[level] > \
-                    self.__ilevel_dict[self.geography]:
-                raise AssertionError("Cannot grab level data finer than {}"
-                                     .format(self.geography))
-
-        if lut is None:
-            raise KeyError("No {} server could be found for {} and {}"
-                           .format(self._dataset, self.year, level))
-        """
+        url = get_base_url(self._dataset, self.year)
 
         cache = None
         if use_cache and self._geography in ("tract", "place"):
@@ -614,7 +445,7 @@ class CensusBase(object):
         self.__thread_fail[thread_id] = False
         container.release()
 
-    def check_variables(self, variables, defaults=None):
+    def check_variables(self, variables, defaults=None, validate=False):
         """
         General method to check variable inputs from ACS, Decennial, and other
         Census objects
@@ -623,9 +454,11 @@ class CensusBase(object):
         ----------
         variables : list, tuple, np.ndarray, DefaultInterface object
             user supplied variable codes
-
         defaults : DefaultInterface object
             DefaultInterface object for getting variables
+        validate : bool
+            flag to implement variable checking and validation prior to pulling census
+            data. Useful for first run or so when using defined census variables.
 
         Returns
         -------
