@@ -23,7 +23,7 @@ class Sf3(CensusBase):
     def __init__(self, features, year, apikey):
         super(Sf3, self).__init__(features, year, apikey, 'dec-sf3')
 
-    def get_data(self, variables=(), retry=100, verbose=True,
+    def get_data(self, variables=(), validate_variables=False, retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4,
                  use_cache=False):
         """
@@ -35,6 +35,10 @@ class Sf3(CensusBase):
         variables : list, tuple
             user specified Acs1 variables, default pulls variables from
             the AcsVariables class
+        validate_variables : bool
+            method to validate user provided variables. Useful when
+            performing a new data pull to check variable codes against valid ones
+            for the census data product.
         retry : int
             number of retries for HTTP connection issues before failure
         verbose : bool
@@ -50,7 +54,7 @@ class Sf3(CensusBase):
             collection.
 
         """
-        variables = self.check_variables(variables, CensusDefaults(self._dataset))
+        variables = self.check_variables(variables, CensusDefaults(self._dataset), validate=validate_variables)
         super(Sf3, self).get_data(variables=variables,
                                   retry=retry, verbose=verbose,
                                   multiproc=multiproc,
@@ -80,7 +84,7 @@ class Sf1(CensusBase):
     def __init__(self, features, year, apikey):
         super(Sf1, self).__init__(features, year, apikey, 'dec-sf1')
 
-    def get_data(self, variables=(), retry=100, verbose=True,
+    def get_data(self, variables=(), validate_variables=False, retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4,
                  use_cache=False):
         """
@@ -92,6 +96,10 @@ class Sf1(CensusBase):
         variables : list, tuple
             user specified Acs1 variables, default pulls variables from
             the AcsVariables class
+        validate_variables : bool
+            method to validate user provided variables. Useful when
+            performing a new data pull to check variable codes against valid ones
+            for the census data product.
         retry : int
             number of retries for HTTP connection issues before failure
         verbose : bool
@@ -106,7 +114,7 @@ class Sf1(CensusBase):
             method to prefer cached census api data over real time data
             collection.
         """
-        variables = self.check_variables(variables, CensusDefaults(self._dataset))
+        variables = self.check_variables(variables, CensusDefaults(self._dataset), validate=validate_variables)
         super(Sf1, self).get_data(variables=variables,
                                   retry=retry, verbose=verbose,
                                   multiproc=multiproc,

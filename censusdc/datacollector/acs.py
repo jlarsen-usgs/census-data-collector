@@ -21,7 +21,7 @@ class Acs1(CensusBase):
     def __init__(self, features, year, apikey):
         super(Acs1, self).__init__(features, year, apikey, 'acs-acs1')
 
-    def get_data(self, variables=(), retry=100, verbose=True,
+    def get_data(self, variables=(), validate_variables=False, retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4,
                  use_cache=False):
         """
@@ -33,6 +33,10 @@ class Acs1(CensusBase):
         variables : list, tuple
             user specified Acs1 variables, default pulls variables from
             the AcsVariables class
+        validate_variables : bool
+            method to validate user provided variables. Useful when
+            performing a new data pull to check variable codes against valid ones
+            for the census data product.
         retry : int
             number of retries for HTTP connection issues before failure
         verbose : bool
@@ -47,7 +51,7 @@ class Acs1(CensusBase):
             method to prefer cached census api data over real time data
             collection.
         """
-        variables = self.check_variables(variables, CensusDefaults(self._dataset))
+        variables = self.check_variables(variables, CensusDefaults(self._dataset), validate=validate_variables)
         super(Acs1, self).get_data(variables=variables,
                                    retry=retry, verbose=verbose,
                                    multiproc=multiproc,
@@ -75,7 +79,7 @@ class Acs3(CensusBase):
     def __init__(self, features, year, apikey):
         super(Acs3, self).__init__(features, year, apikey, 'acs-acs1')
 
-    def get_data(self, variables=(), retry=100, verbose=True,
+    def get_data(self, variables=(), validate_variables=False, retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4,
                  use_cache=False):
         """
@@ -87,6 +91,10 @@ class Acs3(CensusBase):
         variables : list, tuple
             user specified Acs1 variables, default pulls variables from
             the AcsVariables class
+        validate_variables : bool
+            method to validate user provided variables. Useful when
+            performing a new data pull to check variable codes against valid ones
+            for the census data product.
         retry : int
             number of retries for HTTP connection issues before failure
         verbose : bool
@@ -101,7 +109,7 @@ class Acs3(CensusBase):
             method to prefer cached census api data over real time data
             collection.
         """
-        variables = self.check_variables(variables, CensusDefaults(self._dataset))
+        variables = self.check_variables(variables, CensusDefaults(self._dataset), validate=validate_variables)
         super(Acs3, self).get_data(variables=variables,
                                    retry=retry, verbose=verbose,
                                    multiproc=multiproc,
@@ -129,7 +137,7 @@ class Acs5(CensusBase):
     def __init__(self, features, year, apikey):
         super(Acs5, self).__init__(features, year, apikey, 'acs-acs5')
 
-    def get_data(self, variables=(), retry=100, verbose=True,
+    def get_data(self, variables=(), validate_variables=False, retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4,
                  use_cache=False):
         """
@@ -141,6 +149,10 @@ class Acs5(CensusBase):
         variables : list, tuple, DefaultInterface object
             user specified Acs5 variables, default pulls variables from
             the AcsVariables class
+        validate_variables : bool
+            method to validate user provided variables. Useful when
+            performing a new data pull to check variable codes against valid ones
+            for the census data product.
         retry : int
             number of retries for HTTP connection issues before failure
         verbose : bool
@@ -155,7 +167,7 @@ class Acs5(CensusBase):
             method to prefer cached census api data over real time data
             collection.
         """
-        variables = self.check_variables(variables, CensusDefaults(self._dataset))
+        variables = self.check_variables(variables, CensusDefaults(self._dataset), validate=validate_variables)
         super(Acs5, self).get_data(variables=variables,
                                    retry=retry, verbose=verbose,
                                    multiproc=multiproc,
@@ -184,7 +196,7 @@ class Acs5Profile(CensusBase):
         super(Acs5Profile, self).__init__(features, year,
                                           apikey, 'acs-acs5-profile')
 
-    def get_data(self, variables=(), retry=100, verbose=True,
+    def get_data(self, variables=(), validate_variables=False, retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4,
                  use_cache=False):
         """
@@ -196,6 +208,10 @@ class Acs5Profile(CensusBase):
         variables : list, tuple
             user specified Acs5 variables, default pulls variables from
             the AcsVariables class
+        validate_variables : bool
+            method to validate user provided variables. Useful when
+            performing a new data pull to check variable codes against valid ones
+            for the census data product.
         retry : int
             number of retries for HTTP connection issues before failure
         verbose : bool
@@ -210,7 +226,7 @@ class Acs5Profile(CensusBase):
             method to prefer cached census api data over real time data
             collection.
         """
-        variables = self.check_variables(variables, CensusDefaults(self._dataset))
+        variables = self.check_variables(variables, CensusDefaults(self._dataset), validate=validate_variables)
         super(Acs5Profile, self).get_data(variables=variables,
                                           retry=retry, verbose=verbose,
                                           multiproc=multiproc,
@@ -239,7 +255,7 @@ class Acs1Profile(CensusBase):
         super(Acs1Profile, self).__init__(features, year,
                                           apikey, 'acs-acs1-profile')
 
-    def get_data(self, variables=(), retry=100, verbose=True,
+    def get_data(self, variables=(), validate_variables=False, retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4,
                  use_cache=False):
         """
@@ -251,6 +267,10 @@ class Acs1Profile(CensusBase):
         variables : list, tuple
             user specified Acs5 variables, default pulls variables from
             the AcsVariables class
+        validate_variables : bool
+            method to validate user provided variables. Useful when
+            performing a new data pull to check variable codes against valid ones
+            for the census data product.
         retry : int
             number of retries for HTTP connection issues before failure
         verbose : bool
@@ -265,7 +285,7 @@ class Acs1Profile(CensusBase):
             method to prefer cached census api data over real time data
             collection.
         """
-        variables = self.check_variables(variables, CensusDefaults(self._dataset))
+        variables = self.check_variables(variables, CensusDefaults(self._dataset), validate=validate_variables)
         super(Acs1Profile, self).get_data(variables=variables,
                                           retry=retry, verbose=verbose,
                                           multiproc=multiproc,
@@ -294,7 +314,7 @@ class Acs3Profile(CensusBase):
         super(Acs3Profile, self).__init__(features, year,
                                           apikey, 'acs-acs3-profile')
 
-    def get_data(self, variables=(), retry=100, verbose=True,
+    def get_data(self, variables=(), validate_variables=False, retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4,
                  use_cache=False):
         """
@@ -306,6 +326,10 @@ class Acs3Profile(CensusBase):
         variables : list, tuple
             user specified Acs5 variables, default pulls variables from
             the AcsVariables class
+        validate_variables : bool
+            method to validate user provided variables. Useful when
+            performing a new data pull to check variable codes against valid ones
+            for the census data product.
         retry : int
             number of retries for HTTP connection issues before failure
         verbose : bool
@@ -320,7 +344,7 @@ class Acs3Profile(CensusBase):
             method to prefer cached census api data over real time data
             collection.
         """
-        variables = self.check_variables(variables, CensusDefaults(self._dataset))
+        variables = self.check_variables(variables, CensusDefaults(self._dataset), validate=validate_variables)
         super(Acs3Profile, self).get_data(variables=variables,
                                           retry=retry, verbose=verbose,
                                           multiproc=multiproc,
