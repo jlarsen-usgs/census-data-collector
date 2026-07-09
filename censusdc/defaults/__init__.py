@@ -1,1 +1,1 @@
-from .census_defaults import UserDefaults
+from .census_defaults import UserDefaults, CensusDefaults

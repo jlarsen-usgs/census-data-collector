@@ -1,47 +1,5 @@
 from .cbase import CensusBase
-from ..defaults.census_defaults import DefaultInterface
-
-
-class Sf3Defaults(DefaultInterface):
-    """
-    Container for loading and manipulating default variables for
-    the Decennial Census summary file 3 census product data pulls
-
-    f : None or PathLike
-        Optional file name or None. If None, code will load in the
-        default file for sf3 variables
-    subproduct : None
-        Unused variable in SF3
-
-    """
-    def __init__(self, f=None, subproduct=None):
-        super().__init__("sf3", subproduct=None)
-        if f is None:
-            f = self._base_path / "sf3_variables.dat"
-
-        self._file = f
-        self._load_dataframe()
-
-
-class Sf1Defaults(DefaultInterface):
-    """
-    Container for loading and manipulating default variables for
-    the Decennial Census summary file 1 census product data pulls
-
-    f : None or PathLike
-        Optional file name or None. If None, code will load in the
-        default file for sf1 variables
-    subproduct : None
-        Unused variable in SF1
-
-    """
-    def __init__(self, f=None, subproduct=None):
-        super().__init__("sf1", subproduct=None)
-        if f is None:
-            f = self._base_path / "sf1_variables.dat"
-
-        self._file = f
-        self._load_dataframe()
+from ..defaults.census_defaults import CensusDefaults
 
 
 class Sf3(CensusBase):
@@ -63,7 +21,7 @@ class Sf3(CensusBase):
     """
 
     def __init__(self, features, year, apikey):
-        super(Sf3, self).__init__(features, year, apikey, 'sf3')
+        super(Sf3, self).__init__(features, year, apikey, 'dec-sf3')
 
     def get_data(self, variables=(), retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4,
@@ -82,7 +40,7 @@ class Sf3(CensusBase):
         verbose : bool
             verbose operation mode
         multiproc : bool
-            multiprocessing support using ray, linux only!
+            multiprocessing support using ray
         multithread : bool
             boolean flag to allow multithreading of data collection
         thread_pool : int
@@ -92,7 +50,7 @@ class Sf3(CensusBase):
             collection.
 
         """
-        variables = self.check_variables(variables, Sf3Defaults())
+        variables = self.check_variables(variables, CensusDefaults(self._dataset))
         super(Sf3, self).get_data(variables=variables,
                                   retry=retry, verbose=verbose,
                                   multiproc=multiproc,
@@ -120,7 +78,7 @@ class Sf1(CensusBase):
     """
 
     def __init__(self, features, year, apikey):
-        super(Sf1, self).__init__(features, year, apikey, 'sf1')
+        super(Sf1, self).__init__(features, year, apikey, 'dec-sf1')
 
     def get_data(self, variables=(), retry=100, verbose=True,
                  multiproc=False, multithread=False, thread_pool=4,
@@ -139,7 +97,7 @@ class Sf1(CensusBase):
         verbose : bool
             verbose operation mode
         multiproc : bool
-            multiprocessing support using ray, linux only!
+            multiprocessing support using ray
         multithread : bool
             boolean flag to allow multithreading of data collection
         thread_pool : int
@@ -148,7 +106,7 @@ class Sf1(CensusBase):
             method to prefer cached census api data over real time data
             collection.
         """
-        variables = self.check_variables(variables, Sf1Defaults())
+        variables = self.check_variables(variables, CensusDefaults(self._dataset))
         super(Sf1, self).get_data(variables=variables,
                                   retry=retry, verbose=verbose,
                                   multiproc=multiproc,

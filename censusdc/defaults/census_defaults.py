@@ -62,6 +62,17 @@ class DefaultInterface(object):
         return self._data["name"]
 
     @property
+    def to_str(self):
+        """
+        Method to get parameter code string for API function calls
+
+        Returns
+        -------
+            str
+        """
+        return ",".join(self.parameter_codes)
+
+    @property
     def pandas_rename(self):
         """
         Returns a dictionary of parameter codes, parameter names for renaming
@@ -149,7 +160,7 @@ class CensusDefaults(DefaultInterface):
     dataset : str
         census data set. e.g., acs-acs5
     """
-    def __init(self, dataset):
+    def __init__(self, dataset):
         super().__init__(dataset=dataset)
         self._file = self._base_path / f"{dataset}_variables.dat"
         self._load_dataframe()

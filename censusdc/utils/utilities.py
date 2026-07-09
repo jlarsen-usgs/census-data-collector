@@ -110,7 +110,6 @@ def census_cache_builder(
             f"Geography {geography} not currently supported or not available for {dataset}"
         )
 
-
     if multithread:
         container = threading.BoundedSemaphore(thread_pool)
         thread_list = []
@@ -128,11 +127,11 @@ def census_cache_builder(
     else:
         for year in years:
             get_cache(
-                dataset, year, geography=geography, apikey=apikey, refresh=refresh, verbose=True
+                dataset, year, geography=geography, variables=variables, apikey=apikey, refresh=refresh, verbose=True
             )
 
 
-def _threaded_get_cache(dataset, year, geography, apikey, refresh,
+def _threaded_get_cache(dataset, year, geography, variables, apikey, refresh,
                         retry, verbose, container):
     """
     Multithreaded method to build and load cache tables of census data to
@@ -140,10 +139,14 @@ def _threaded_get_cache(dataset, year, geography, apikey, refresh,
 
     Parameters
     ----------
+    dataset : str
+        census dataset string
     year : int
         census year
     geography : str
         census discretization
+    variables : str
+        variables string
     apikey : str
         census api key
     refresh : boolean
@@ -156,11 +159,11 @@ def _threaded_get_cache(dataset, year, geography, apikey, refresh,
         pd.DataFrame
     """
     container.acquire()
-    get_cache(dataset, year, geography, apikey, refresh, retry, verbose)
+    get_cache(dataset, year, geography, variables, apikey, refresh, retry, verbose)
     container.release()
 
 
-def get_cache(dataset, year, geography='tract', apikey="", refresh=False,
+def get_cache(dataset, year, geography, variables, apikey="", refresh=False,
               retry=100, verbose=False):
     """
     Method to build and load cache tables of census data to
@@ -175,6 +178,8 @@ def get_cache(dataset, year, geography='tract', apikey="", refresh=False,
         census year
     geography : str
         census discretization
+    variables : str, None
+        variables string, can pass None for grabbing dataset from file
     apikey : str
         census api key
     refresh : boolean
@@ -195,8 +200,6 @@ def get_cache(dataset, year, geography='tract', apikey="", refresh=False,
 
     if not table_file.exists() or refresh:
         url_base = get_base_url(dataset, year)
-
-
 
         """
         if geography == "place":
@@ -259,10 +262,7 @@ def get_cache(dataset, year, geography='tract', apikey="", refresh=False,
             fips_co = pd.read_csv(
                 utils_dir / "fips_county_table.dat", dtype=str
             ).to_numpy()
-
-        # todo: make user pass in variables?
-        # variables = server_dict['variables']
-
+            fmt = "block%20group:*&in=state:{}&in=county:{}&in=tract:*"
 
         if fips_co is None:
             iterator = STATE_FIPS
@@ -296,7 +296,7 @@ def get_cache(dataset, year, geography='tract', apikey="", refresh=False,
             e = "Unknown connection error"
             while n < retry:
                 try:
-                    r = s.get(url, params=payload)
+                    r = s.get(url_base, params=payload)
                     r.raise_for_status()
                     break
                 except (requests.exceptions.HTTPError,
@@ -329,6 +329,7 @@ def get_cache(dataset, year, geography='tract', apikey="", refresh=False,
 
         df.to_csv(table_file, index=False)
 
+    # todo: what's going on here????
     if geography == "tract":
         fmter = "{:06d}"
     elif geography == "place":
@@ -381,32 +382,6 @@ class RestartableThread(threading.Thread):
 
     def clone(self):
         return RestartableThread(*self.myargs, **self.mykwargs)
-
-
-def default_store(dataset):
-    """
-    Store for getting a default object based on dataset type
-
-    Parameters
-    ----------
-    datset : str
-        census dataset
-
-    Returns
-    -------
-        DefaultInterface object
-    """
-    # todo: redo: how defaults are done!!!
-    from ..datacollector.acs import Acs5Defaults
-    from ..datacollector.dec import Sf3Defaults, Sf1Defaults
-
-    defaults = {
-        "acs-acs5": Acs5Defaults,
-        "acs-acs5-profile": Acs5Defaults,
-        "dec-sf3": Sf3Defaults,
-        "dec-sf1": Sf1Defaults
-    }
-    default = defaults[dataset]
 
 
 def sequence_matcher(s, valid, fail_ratio=0.33):

@@ -1,29 +1,5 @@
 from .cbase import CensusBase
-from ..defaults.census_defaults import DefaultInterface
-
-
-class Acs5Defaults(DefaultInterface):
-    """
-    Container for loading and manipulating default variables for
-    American Community Survey census product data pulls
-
-    f : None or PathLike
-        Optional file name or None. If None, code will load in the
-        default file for acs5 variables (subproduct dependent)
-    subproduct : None or str
-        Optional sub-product name (e.g., "profile", "summary")
-
-    """
-    def __init__(self, f=None, subproduct=None):
-        super().__init__(product="acs5",)
-        if f is None:
-            if subproduct is None:
-                f = self._base_path / "acs5_variables.dat"
-            elif subproduct in ("profile", "summary"):
-                f = self._base_path / f"acs5_{subproduct.lower()}_variables.dat"
-
-        self._file = f
-        self._load_dataframe()
+from ..defaults.census_defaults import CensusDefaults
 
 
 class Acs1(CensusBase):
@@ -71,7 +47,8 @@ class Acs1(CensusBase):
             method to prefer cached census api data over real time data
             collection.
         """
-        super(Acs1, self).get_data( variables=variables,
+        variables = self.check_variables(variables, CensusDefaults(self._dataset))
+        super(Acs1, self).get_data(variables=variables,
                                    retry=retry, verbose=verbose,
                                    multiproc=multiproc,
                                    multithread=multithread,
@@ -124,7 +101,7 @@ class Acs5(CensusBase):
             method to prefer cached census api data over real time data
             collection.
         """
-        variables = self.check_variables(variables, Acs5Defaults())
+        variables = self.check_variables(variables, CensusDefaults(self._dataset))
         super(Acs5, self).get_data(variables=variables,
                                    retry=retry, verbose=verbose,
                                    multiproc=multiproc,
@@ -179,7 +156,7 @@ class Acs5Profile(CensusBase):
             method to prefer cached census api data over real time data
             collection.
         """
-        variables = self.check_variables(variables, Acs5Defaults(subproduct="profile"))
+        variables = self.check_variables(variables, CensusDefaults(self._dataset))
         super(Acs5Profile, self).get_data(variables=variables,
                                           retry=retry, verbose=verbose,
                                           multiproc=multiproc,
@@ -234,6 +211,7 @@ class Acs1Profile(CensusBase):
             method to prefer cached census api data over real time data
             collection.
         """
+        variables = self.check_variables(variables, CensusDefaults(self._dataset))
         super(Acs1Profile, self).get_data(variables=variables,
                                           retry=retry, verbose=verbose,
                                           multiproc=multiproc,
@@ -241,7 +219,7 @@ class Acs1Profile(CensusBase):
                                           thread_pool=thread_pool,
                                           use_cache=use_cache)
 
-
+# todo: figure out what this junk is
 class Acs5Summary(CensusBase):
     """
     Class to collect data from the Acs5 profile census using geojson features
@@ -288,7 +266,8 @@ class Acs5Summary(CensusBase):
             method to prefer cached census api data over real time data
             collection.
         """
-        variables = self.check_variables(variables, Acs5Defaults(subproduct="summary"))
+        # todo: explore this "summary" thing again. What is it??? When did we need it???
+        variables = self.check_variables(variables, CensusDefaults(self._dataset))
         super(Acs5Summary, self).get_data(variables=variables,
                                           retry=retry, verbose=verbose,
                                           multiproc=multiproc,
