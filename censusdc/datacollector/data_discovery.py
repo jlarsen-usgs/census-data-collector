@@ -23,15 +23,17 @@ _CACHE = {
     "variables": {}
 }
 
-# specify supported geographies
-_GEOGRAPHIES = { 'Sf3': ['state', 'county', 'tract', 'block_group'],
-                 'Sf1': ['state', 'county', 'tract', 'place', 'block_group'],
-                 'Acs5': ['state', 'county', 'tract', 'place', 'block_group'],
-                 'Acs5Summary': ['state', 'county', 'tract', 'place', 'block_group'],
-                 'Acs5Profile': ['state', 'county', 'tract', 'place', 'block_group'],
-                 'Acs1': ['state', 'county', 'place', 'county_subdivision'],
-                 'Acs1Profile': ['state', 'county', 'place', 'tract', 'block_group'],
-}
+# specify supported geographies.
+_GEOGRAPHIES = [
+    "state",
+    "county",
+    "county subdivision",
+    "place",
+    "tract",
+    "block group",
+    "block"
+]
+
 
 def get_supported_products():
     """
@@ -175,7 +177,6 @@ def get_variables(dataset, year):
         except JSONDecodeError:
             raise("Cannot connect to U.S. Census API")
 
-
     return df_variables
 
 
@@ -267,6 +268,7 @@ def get_geographies(dataset, year):
             df_geographies_list.append(df_geographies)
 
     # convert list of dataframes to dataframe
-    df_geographies = pd.concat(df_geographies_list, axis=0)
+    df_geographies = pd.concat(df_geographies_list, axis=0, ignore_index=True)
+    df_geographies = df_geographies[df_geographies["name"].isin(_GEOGRAPHIES)]
 
     return df_geographies
