@@ -316,7 +316,7 @@ def get_cache(dataset, year, geography, variables=None, apikey="", validate_vari
     if geography == "tract":
         df['county'] = ["{:03d}".format(i) for i in df['county'].values]
         df['GEOID'] = df['state'] + df['county'] + df[geography]
-    elif geography == "block group":
+    elif geography in ("block group", "block"):
         df['county'] = ["{:03d}".format(i) for i in df['county'].values]
         df['tract'] = ["{:06d}".format(i) for i in df['tract'].values]
         df["GEOID"] = df["state"] + df["county"] + df["tract"] + df[geography]
