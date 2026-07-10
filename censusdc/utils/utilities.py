@@ -21,10 +21,12 @@ STATE_FIPS = ("01", "02", "04", "05", "06",
               "39", "40", "41", "42", "44",
               "45", "46", "47", "48", "49",
               "50", "51", "53", "54", "55",
-              "56", "60", "66", "69", "70",
-              "72", "78", "99", "74", "81",
-              "84", "86", "67", "89", "71",
-              "76", "95", "79")
+              "56", "60", "64", "66", "68",
+              "69", "70", "72", "74", "78",
+              # codes above this line are U.S. states and major territories
+              # codes below are individual minor outlying island territories
+              "99", "81", "84", "86", "67",
+              "89", "71", "76", "95", "79")
 
 
 def isnumeric(s):
@@ -97,7 +99,7 @@ def census_cache_builder(
     for sym in syms:
         geography = geography.replace(sym, " ")
     dataset = dataset.lower()
-    # todo: fuzzy match geographies....
+    # todo: fuzzy match geographies???
 
     products = data_discovery.get_supported_products()
     if dataset not in products.dataset.values:

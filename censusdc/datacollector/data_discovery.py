@@ -14,6 +14,7 @@ _SUPPORTED = [
     'acs-acs5',
     'acs-acs5-profile',
     'dec-sf1',
+    'dec-sf2',
     'dec-sf3'
 ]
 
@@ -187,8 +188,10 @@ def get_geographies(dataset, year):
 
     Parameters
     ----------
-    dataset: dataset name (formatted in manner provided by get_supported_products())
-    year: year to use for dataset query
+    dataset : str
+        dataset name (formatted in manner provided by get_supported_products())
+    year : int
+        year to use for dataset query
 
     Returns
     -------
