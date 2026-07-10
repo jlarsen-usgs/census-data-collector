@@ -4,6 +4,7 @@ import pandas as pd
 import threading
 import datetime
 from difflib import SequenceMatcher
+
 try:
     from simplejson.errors import JSONDecodeError
 except ImportError:
@@ -56,7 +57,7 @@ def census_cache_builder(
     multithread=False,
     thread_pool=4,
     refresh=False,
-    check_variables=False
+    validate_variables=False
 ):
     """
     Method to build out cache for all supported census years for a
@@ -75,7 +76,7 @@ def census_cache_builder(
         are provided, code will try to pull variables from stored defaults
     apikey : str
         census api key
-    check_variables : bool
+    validate_variables : bool
         flag to implement variable checking and validation prior to pulling census
         data. Useful for first run or so when using defined census variables.
     multithread : bool
@@ -121,7 +122,7 @@ def census_cache_builder(
         thread_list = []
         for year in years:
             x = RestartableThread(target=_threaded_get_cache,
-                                  args=(dataset, year, geography, apikey, check_variables, True, 100,
+                                  args=(dataset, year, geography, apikey, validate_variables, True, 100,
                                         True, container))
             thread_list.append(x)
 
@@ -133,11 +134,11 @@ def census_cache_builder(
     else:
         for year in years:
             get_cache(
-                dataset, year, geography=geography, variables=variables,  apikey=apikey, check_variables=check_variables, refresh=refresh, verbose=True
+                dataset, year, geography=geography, variables=variables,  apikey=apikey, validate_variables=validate_variables, refresh=refresh, verbose=True
             )
 
 
-def _threaded_get_cache(dataset, year, geography, variables, apikey, check_variables, refresh,
+def _threaded_get_cache(dataset, year, geography, variables, apikey, validate_variables, refresh,
                         retry, verbose, container):
     """
     Multithreaded method to build and load cache tables of census data to
@@ -155,7 +156,7 @@ def _threaded_get_cache(dataset, year, geography, variables, apikey, check_varia
         variables list or object
     apikey : str
         census api key
-    check_variables : bool
+    validate_variables : bool
         option to do variable checking and validation
     refresh : boolean
         option to refresh existing cache
@@ -167,11 +168,11 @@ def _threaded_get_cache(dataset, year, geography, variables, apikey, check_varia
         pd.DataFrame
     """
     container.acquire()
-    get_cache(dataset, year, geography, variables, apikey, check_variables, refresh, retry, verbose)
+    get_cache(dataset, year, geography, variables, apikey, validate_variables, refresh, retry, verbose)
     container.release()
 
 
-def get_cache(dataset, year, geography, variables=None, apikey="", check_variables=False,
+def get_cache(dataset, year, geography, variables=None, apikey="", validate_variables=False,
               refresh=False, retry=100, verbose=False):
     """
     Method to build and load cache tables of census data to
@@ -190,7 +191,7 @@ def get_cache(dataset, year, geography, variables=None, apikey="", check_variabl
         variables can pass None for grabbing dataset from file
     apikey : str
         census api key
-    check_variables : bool
+    validate_variables : bool
         flag to implement variable checking and validation prior to pulling census
         data. Useful for first run or so when using defined census variables.
     refresh : boolean
@@ -201,8 +202,6 @@ def get_cache(dataset, year, geography, variables=None, apikey="", check_variabl
         pd.DataFrame
     """
     from .servers import get_base_url, get_cache_format_str
-    from ..defaults.census_defaults import CensusDefaults, DefaultInterface
-    from ..datacollector.data_discovery import get_variables
 
     if verbose:
         print("Building census cache for {}, {}".format(year, geography))
@@ -217,42 +216,21 @@ def get_cache(dataset, year, geography, variables=None, apikey="", check_variabl
 
     if not table_file.exists() or refresh:
         url_base = get_base_url(dataset, year)
-
-        if isinstance(variables, (list, tuple)):
-            pass
-        elif isinstance(variables, str):
-            variables = [variables,]
-        if variables is None:
-            varobj = CensusDefaults(dataset)
-            variables = varobj.parameter_codes
-        elif isinstance(variables, DefaultInterface):
-            variables = variables.parameter_codes
-        else:
-            raise TypeError(
-                f"Unsupported type {type(variables)} for variables parameter"
-            )
-
-        if check_variables:
-            dfval = get_variables(dataset, year)
-            valid = dfval["name"].values
-            validated = []
-            for var in variables:
-                if var in valid:
-                    validated.append(var)
-                else:
-                    print(f"{var} not valid for {year} {dataset}; removing")
-
-            variables = validated
-
+        variables = check_variables(dataset, year, variables, validate=validate_variables, forgive=True)
         variables = ','.join(variables)
 
         fmt = get_cache_format_str(geography)
         fips_co = None
+        # todo: update this for block data caching. fips_co needs to be every 10 years...
         if dataset == "dec-sf3" and year == 2000 and geography == "block group":
             fips_co = pd.read_csv(
                 utils_dir / "fips_county_table.dat", dtype=str
             ).to_numpy()
             fmt = "block%20group:*&in=state:{}&in=county:{}&in=tract:*"
+
+        elif geography == "block":
+            # todo: read in fips_co based on the decennial year
+            print('break')
 
         if fips_co is None:
             iterator = STATE_FIPS
@@ -372,6 +350,76 @@ class RestartableThread(threading.Thread):
 
     def clone(self):
         return RestartableThread(*self.myargs, **self.mykwargs)
+
+
+def check_variables(dataset, year, variables, validate=False, forgive=False):
+    """
+    General method to check variable inputs from ACS, Decennial, and other
+    Census objects
+
+    Parameters
+    ----------
+    variables : list, tuple, np.ndarray, DefaultInterface object
+        user supplied variable codes
+    validate : bool
+        flag to implement variable checking and validation prior to pulling census
+        data. Useful for first run or so when using defined census variables.
+    forgive : bool
+        flag to let the validation forgive bad variable strings instead of raising an
+        error. Used by census cache routines
+    Returns
+    -------
+
+    """
+    from ..defaults.census_defaults import DefaultInterface, CensusDefaults
+    from ..datacollector.data_discovery import get_variables
+
+    if isinstance(variables, DefaultInterface):
+        variables = variables.parameter_codes
+
+    elif isinstance(variables, (list, tuple)):
+        variables = list(variables)
+
+    elif isinstance(variables, str):
+        variables = [variables, ]
+
+    else:
+        try:
+            defaults = CensusDefaults(dataset)
+        except FileNotFoundError:
+            defaults = None
+
+        if not variables:
+            if defaults is not None:
+                variables = defaults.parameter_codes
+            else:
+                raise AssertionError("Census variable codes must be provided")
+
+        elif variables is None:
+            if defaults is not None:
+                variables = defaults.parameter_codes
+            else:
+                raise AssertionError("Census variable codes must be provided")
+
+        else:
+            raise TypeError(f"{type(variables)} not supported for variables parameter")
+
+    if validate:
+        dfval = get_variables(dataset, year)
+        valid = dfval["name"].values
+        validated = []
+        for var in variables:
+            if var in valid:
+                validated.append(var)
+            else:
+                if forgive:
+                    print(f"{var} not valid for {year} {dataset} skipping")
+                else:
+                    raise AssertionError(f"{var} not valid for {year} {dataset}")
+
+        variables = validated
+
+    return variables
 
 
 def sequence_matcher(s, valid, fail_ratio=0.33):

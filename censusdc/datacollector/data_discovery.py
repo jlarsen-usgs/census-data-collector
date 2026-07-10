@@ -191,7 +191,7 @@ def get_geographies(dataset, year):
 
     Returns
     -------
-    Dataframe of available variables for this dataset and year with the following columns:
+    DataFrame of available variables for this dataset and year with the following columns:
         - dataset: dataset name
         - year: dataset year
         - name: geography name

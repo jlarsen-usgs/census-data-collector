@@ -90,8 +90,7 @@ class CensusBase(object):
     @property
     def geography(self):
         """
-        Minimum common level (maximum resolution) of all the
-        features supplied to Acs
+        Geography level of requested data
 
         """
         return self._geography
@@ -148,12 +147,15 @@ class CensusBase(object):
         url = get_base_url(self._dataset, self.year)
 
         cache = None
-        if use_cache and self._geography in ("tract", "place"):
-            profile = False
-            if 'profile' in self._dataset:
-                profile = True
-            cache = get_cache(self.year, self._geography, self.__apikey,
-                              verbose=verbose, profile=profile, summary=True)
+        if use_cache:
+            cache = get_cache(
+                self._dataset,
+                self.year,
+                self._geography,
+                variables=variables,
+                apikey=self.__apikey,
+                verbose=verbose
+            )
 
         if variables:
             if isinstance(variables, str):
@@ -180,7 +182,7 @@ class CensusBase(object):
                 feature = feature._asdict()
                 if cache is not None:
                     geoid = feature["GEOID"]
-                    record = cache.loc[cache['geoid'] == geoid]
+                    record = cache.loc[cache['GEOID'] == geoid]
                     if len(record) != 1:
                         record = None
                 else:
@@ -223,7 +225,7 @@ class CensusBase(object):
                 feature = feature._asdict()
                 if cache is not None:
                     geoid = feature["GEOID"]
-                    record = cache.loc[cache['geoid'] == geoid]
+                    record = cache.loc[cache["GEOID"] == geoid]
                     if len(record) != 1:
                         record = None
                 else:
@@ -255,7 +257,7 @@ class CensusBase(object):
                 feature = feature._asdict()
                 if cache is not None:
                     geoid = feature["GEOID"]
-                    record = cache.loc[cache['geoid'] == geoid]
+                    record = cache.loc[cache["GEOID"] == geoid]
                     if len(record) != 1:
                         record = None
                 else:
@@ -267,7 +269,7 @@ class CensusBase(object):
 
         self._census_features = pd.DataFrame.from_dict(self._census_features)
 
-    def __request_data(self, feature, level, fmt, variables,
+    def __request_data(self, feature, geography, fmt, variables,
                        url, retry, verbose, cache_record):
         """
         Request data method for serial and multithreaded applications
@@ -276,10 +278,10 @@ class CensusBase(object):
         ----------
         feature : dict
             dictionary of geopandas record
-        level : str
-            census data level
+        geography : str
+            census data geography
         fmt : str
-            format of level request
+            format of geography request
         variables : str
             string of census variables
         url : str
@@ -299,7 +301,8 @@ class CensusBase(object):
             self._census_features["GEOID"].append(feature["GEOID"])
             for column in list(cache_record):
                 if column in ("NAME", 'state', 'county',
-                              'tract', 'geoid', 'place'):
+                              'tract', 'blkgrp', 'block',
+                              'geoid', 'place'):
                     continue
 
                 try:
@@ -311,36 +314,48 @@ class CensusBase(object):
             return
 
         loc = ""
-        if level == "block_group":
+        if geography == "block":
+            loc = fmt.format(
+                feature[TigerWebVariables.block],
+                feature[TigerWebVariables.state],
+                feature[TigerWebVariables.county],
+                feature[TigerWebVariables.tract]
+            )
+        elif geography == "block_group":
             loc = fmt.format(
                 feature[TigerWebVariables.blkgrp],
                 feature[TigerWebVariables.state],
                 feature[TigerWebVariables.county],
-                feature[TigerWebVariables.tract])
-        elif level == "tract":
+                feature[TigerWebVariables.tract]
+            )
+        elif geography == "tract":
             loc = fmt.format(
                 feature[TigerWebVariables.tract],
                 feature[TigerWebVariables.state],
-                feature[TigerWebVariables.county])
-        elif level == "place":
+                feature[TigerWebVariables.county]
+            )
+        elif geography == "place":
             loc = fmt.format(
                 feature[TigerWebVariables.place],
                 feature[TigerWebVariables.state]
             )
-        elif level == "county_subdivision":
+        elif geography == "county_subdivision":
             loc = fmt.format(
                 feature[TigerWebVariables.cousub],
                 feature[TigerWebVariables.state],
-                feature[TigerWebVariables.county])
-        elif level == "county":
+                feature[TigerWebVariables.county]
+            )
+        elif geography == "county":
             loc = fmt.format(
                 feature[TigerWebVariables.county],
-                feature[TigerWebVariables.state])
-        elif level == "state":
+                feature[TigerWebVariables.state]
+            )
+        elif geography == "state":
             loc = fmt.format(
-                feature[TigerWebVariables.state])
+                feature[TigerWebVariables.state]
+            )
         else:
-            raise AssertionError("level is undefined")
+            raise AssertionError("geography is undefined")
 
         s = requests.session()
 
@@ -380,13 +395,13 @@ class CensusBase(object):
                 raise requests.exceptions.HTTPError(err)
 
         if verbose:
-            print(f'Getting {level} data for GEOID {feature["GEOID"]}')
+            print(f'Getting {geography} data for GEOID {feature["GEOID"]}')
         try:
             data = r.json()
         except JSONDecodeError:
             data = []
             if verbose:
-                print(f'Error getting {level} data for GEOID {feature["GEOID"]}')
+                print(f'Error getting {geography} data for GEOID {feature["GEOID"]}')
 
         if len(data) == 2:
             self._census_features["GEOID"].append(feature["GEOID"])
@@ -405,7 +420,7 @@ class CensusBase(object):
                     except (TypeError, ValueError):
                         self._census_features[header].append(float('nan'))
 
-    def threaded_request_data(self, feature, level, fmt, variables,
+    def threaded_request_data(self, feature, geography, fmt, variables,
                               url, retry, verbose, cache_record, thread_id,
                               container):
         """
@@ -415,10 +430,10 @@ class CensusBase(object):
         ----------
         feature : geoJSON
             geoJSON feature
-        level : str
-            census data level
+        geography : str
+            census data geography
         fmt : str
-            format of level request
+            format of geography request
         variables : str
             string of census variables
         url : str
@@ -440,7 +455,7 @@ class CensusBase(object):
         container.acquire()
         self.__thread_fail[thread_id] = True
         self.__request_data(
-            feature, level, fmt, variables, url, retry, verbose, cache_record
+            feature, geography, fmt, variables, url, retry, verbose, cache_record
         )
         self.__thread_fail[thread_id] = False
         container.release()
@@ -464,37 +479,14 @@ class CensusBase(object):
         -------
 
         """
-        from ..defaults.census_defaults import DefaultInterface
-
-        if isinstance(variables, DefaultInterface):
-            return variables.parameter_codes
-
-        elif not variables:
-            if defaults is not None:
-                return defaults.parameter_codes
-            else:
-                raise AssertionError("Census variable codes must be provided")
-
-        elif variables is None:
-            if defaults is not None:
-                return defaults.parameter_codes
-            else:
-                raise AssertionError("Census variable codes must be provided")
-
-        elif isinstance(variables, (list, tuple)):
-            return list(variables)
-
-        elif isinstance(variables, str):
-            return [variables,]
-
-        else:
-            raise TypeError(f"{type(variables)} not supported for variables parameter")
-
+        from ..utils.utilities import check_variables
+        variables = check_variables(self._dataset, self.year, variables, validate=validate)
+        return variables
 
 
 @ray.remote
 def multiproc_data_request(year, apikey, feature,
-                           level, fmt, variables, url, retry, verbose,
+                           geography, fmt, variables, url, retry, verbose,
                            cache_record, TigerwebVariables):
     """
     Multithread method for requesting census data
@@ -507,10 +499,10 @@ def multiproc_data_request(year, apikey, feature,
         census apikey string
     feature : geoJSON
         geoJSON feature
-    level : str
-        census data level
+    geography : str
+        census data geography
     fmt : str
-        format of level request
+        format of geography request
     variables : str
         string of census variables
     url : str
@@ -526,9 +518,7 @@ def multiproc_data_request(year, apikey, feature,
         l0 = []
         l1 = []
         for column in list(cache_record):
-            if column in ('state', 'county',
-                          'tract', 'geoid',
-                          'blkgrp', 'place'):
+            if column in ('state', 'county', 'tract', 'geoid', 'blkgrp', 'block', 'place'):
                 continue
             else:
                 l0.append(column)
@@ -537,35 +527,48 @@ def multiproc_data_request(year, apikey, feature,
         return feature["GEOID"], data
 
     loc = ""
-    if level == "block_group":
+    if geography == "block":
         loc = fmt.format(
-            feature[TigerwebVariables['blkgrp']],
-            feature[TigerwebVariables['state']],
-            feature[TigerwebVariables['county']],
-            feature[TigerwebVariables['tract']])
-    elif level == "tract":
+            feature[TigerWebVariables.block],
+            feature[TigerWebVariables.state],
+            feature[TigerWebVariables.county],
+            feature[TigerWebVariables.tract]
+        )
+    elif geography == "block_group":
         loc = fmt.format(
-            feature[TigerwebVariables['tract']],
-            feature[TigerwebVariables['state']],
-            feature[TigerwebVariables['county']])
-    elif level == "county_subdivision":
+            feature[TigerWebVariables.blkgrp],
+            feature[TigerWebVariables.state],
+            feature[TigerWebVariables.county],
+            feature[TigerWebVariables.tract]
+        )
+    elif geography == "tract":
         loc = fmt.format(
-            feature[TigerwebVariables['cousub']],
-            feature[TigerwebVariables['state']],
-            feature[TigerwebVariables['county']])
-    elif level == "place":
+            feature[TigerWebVariables.tract],
+            feature[TigerWebVariables.state],
+            feature[TigerWebVariables.county]
+        )
+    elif geography == "place":
         loc = fmt.format(
             feature[TigerWebVariables.place],
-            feature[TigerWebVariables.state])
-    elif level == "county":
+            feature[TigerWebVariables.state]
+        )
+    elif geography == "county_subdivision":
         loc = fmt.format(
-            feature[TigerwebVariables['county']],
-            feature[TigerwebVariables['state']])
-    elif level == "state":
+            feature[TigerWebVariables.cousub],
+            feature[TigerWebVariables.state],
+            feature[TigerWebVariables.county]
+        )
+    elif geography == "county":
         loc = fmt.format(
-            feature[TigerwebVariables['state']])
+            feature[TigerWebVariables.county],
+            feature[TigerWebVariables.state]
+        )
+    elif geography == "state":
+        loc = fmt.format(
+            feature[TigerWebVariables.state]
+        )
     else:
-        raise AssertionError("level is undefined")
+        raise AssertionError("geography is undefined")
 
     s = requests.session()
 
@@ -603,13 +606,13 @@ def multiproc_data_request(year, apikey, feature,
         raise requests.exceptions.HTTPError(err)
 
     if verbose:
-        print(f'Getting {level} data for {feature["GEOID"]}')
+        print(f'Getting {geography} data for {feature["GEOID"]}')
     try:
         data = r.json()
     except JSONDecodeError:
         data = []
         if verbose:
-            print(f'Error getting {level} data for {feature["GEOID"]}')
+            print(f'Error getting {geography} data for {feature["GEOID"]}')
     if len(data) == 2:
         return feature["GEOID"], data
     else:

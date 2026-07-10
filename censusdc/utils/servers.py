@@ -158,7 +158,8 @@ def get_format_str(geography):
         "county": "county:{}&in=state:{}",
         "place": "place:{}&in=state:{}",
         "tract": "tract:{}&in=state:{}&in=county:{}",
-        "block group": "block%20group:{}&in=state:{}&in=county:{}&in=tract:{}"
+        "block group": "block%20group:{}&in=state:{}&in=county:{}&in=tract:{}",
+        "block": "block:{}&in=state:{}%20county:{}%20tract:{}"
     }
     if geography not in formatters:
         raise NotImplementedError(
@@ -186,7 +187,8 @@ def get_cache_format_str(geography):
         "county": "county:*&in=state:{}",
         "place": "place:*&in=state:{}",
         "tract": "tract:*&in=state:{}",
-        "block group": "block%20group:*&in=state:{}&in=county:*&in=tract:*"
+        "block group": "block%20group:*&in=state:{}&in=county:*&in=tract:*",
+        "block": "block:*&in=state:{}&in=county:{}&in=tract:*"
     }
     if geography not in formatters:
         raise NotImplementedError(
@@ -216,3 +218,5 @@ def get_base_url(dataset, year):
     dsrec = products[(products["dataset"] == dataset) & (products["vintage"] == year)]
     base_url = "/".join(dsrec["geographyLink"].values[0].split("/")[:-1])
     return base_url
+
+
