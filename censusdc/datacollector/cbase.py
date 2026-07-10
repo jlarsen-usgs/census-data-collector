@@ -65,6 +65,7 @@ class CensusBase(object):
         self._geography = identify_census_discretization(
             self._features["GEOID"].values[0]
         )
+        # todo: check the geography against the product and year
 
         self._census_features = {}
         self.__thread_fail = {}
@@ -141,12 +142,11 @@ class CensusBase(object):
             method to prefer cached census api data over real time data
             collection.
         """
-        from .data_discovery import get_geographies
         from ..utils.servers import get_format_str, get_base_url
+
         self._census_features = {}
         url = get_base_url(self._dataset, self.year)
 
-        cache = None
         if use_cache:
             cache = get_cache(
                 self._dataset,
@@ -157,13 +157,21 @@ class CensusBase(object):
                 verbose=verbose
             )
 
+            cache_variables = ["GEOID",] + [var for var in variables if var in list(cache)]
+            cache = cache[cache_variables]
+            cache_features = pd.merge(self._features, cache, how="inner", on="GEOID")
+            cache_features[cache_features[cache_variables[1:]] < 0] = float("nan")
+            cached_geoids = cache_features["GEOID"].unique()
+            pull_features = self._features[~self._features["GEOID"].isin(cached_geoids)]
+            self._census_features = {var : cache_features[var].to_list() for var in cache_variables}
+        else:
+            pull_features = self._features
+            self._census_features = {var: [] for var in ["GEOID"] + list(variables)}
+
         if variables:
             if isinstance(variables, str):
                 variables = (variables,)
             variables = ",".join(variables)
-
-        self._census_features = {var: [] for var in ["GEOID"] + list(variables.split(","))}
-        # todo: check the geography using the data discovery stuff in the instantiation...
 
         fmt = get_format_str(self._geography)
 
@@ -178,19 +186,12 @@ class CensusBase(object):
             actors = []
             twv = {k: v for k, v in TigerWebVariables.__dict__.items()
                    if not k.startswith("__")}
-            for feature in self._features.itertuples():
+            for feature in pull_features.itertuples():
                 feature = feature._asdict()
-                if cache is not None:
-                    geoid = feature["GEOID"]
-                    record = cache.loc[cache['GEOID'] == geoid]
-                    if len(record) != 1:
-                        record = None
-                else:
-                    record = None
                 actor = multiproc_data_request.remote(
                     year, apikey, feature, self._geography,
                     fmt, variables, url,
-                    retry, verbose, record, twv)
+                    retry, verbose, twv)
 
                 actors.append(actor)
 
@@ -221,20 +222,11 @@ class CensusBase(object):
             container = threading.BoundedSemaphore(thread_pool)
             thread_list = []
             thread_id = 0
-            for feature in self._features.itertuples():
+            for feature in pull_features.itertuples():
                 feature = feature._asdict()
-                if cache is not None:
-                    geoid = feature["GEOID"]
-                    record = cache.loc[cache["GEOID"] == geoid]
-                    if len(record) != 1:
-                        record = None
-                else:
-                    record = None
-
                 x = RestartableThread(target=self.threaded_request_data,
                                       args=(feature, self._geography, fmt, variables,
-                                            url, retry, verbose, record,
-                                            thread_id, container))
+                                            url, retry, verbose, thread_id, container))
                 thread_list.append(x)
                 thread_id += 1
 
@@ -253,24 +245,15 @@ class CensusBase(object):
                 thread.join()
 
         else:
-            for feature in self._features.itertuples():
+            for feature in pull_features.itertuples():
                 feature = feature._asdict()
-                if cache is not None:
-                    geoid = feature["GEOID"]
-                    record = cache.loc[cache["GEOID"] == geoid]
-                    if len(record) != 1:
-                        record = None
-                else:
-                    record = None
-
                 self.__request_data(
-                    feature, self._geography, fmt, variables, url, retry, verbose, record
+                    feature, self._geography, fmt, variables, url, retry, verbose
                 )
 
         self._census_features = pd.DataFrame.from_dict(self._census_features)
 
-    def __request_data(self, feature, geography, fmt, variables,
-                       url, retry, verbose, cache_record):
+    def __request_data(self, feature, geography, fmt, variables, url, retry, verbose):
         """
         Request data method for serial and multithreaded applications
 
@@ -290,29 +273,11 @@ class CensusBase(object):
             number of retries based on connection error
         verbose : bool
             verbose operation flag
-        cache_record : pd.DataFrame or None
-            cached census data record
 
         Returns
         -------
 
         """
-        if cache_record is not None:
-            self._census_features["GEOID"].append(feature["GEOID"])
-            for column in list(cache_record):
-                if column in ("NAME", 'state', 'county',
-                              'tract', 'blkgrp', 'block',
-                              'geoid', 'place'):
-                    continue
-
-                try:
-                    self._census_features[column].append(
-                        float(cache_record[column].values[0])
-                    )
-                except (TypeError, ValueError):
-                    self._census_features[column].append(float("nan"))
-            return
-
         loc = ""
         if geography == "block":
             loc = fmt.format(
@@ -421,7 +386,7 @@ class CensusBase(object):
                         self._census_features[header].append(float('nan'))
 
     def threaded_request_data(self, feature, geography, fmt, variables,
-                              url, retry, verbose, cache_record, thread_id,
+                              url, retry, verbose, thread_id,
                               container):
         """
         Multithread method for requesting census data
@@ -442,20 +407,16 @@ class CensusBase(object):
             number of retries based on connection error
         verbose : bool
             verbose operation flag
-        cache : pd.DataFrame or None
-            dataframe of cached census data
         thread_id : int
             identifier for the thread
         container : BoundedSemaphore
             bound semaphore instance for thread pool management
-        cache_record : pd.DataFrame or None
-            cached census data record
 
         """
         container.acquire()
         self.__thread_fail[thread_id] = True
         self.__request_data(
-            feature, geography, fmt, variables, url, retry, verbose, cache_record
+            feature, geography, fmt, variables, url, retry, verbose
         )
         self.__thread_fail[thread_id] = False
         container.release()
@@ -487,7 +448,7 @@ class CensusBase(object):
 @ray.remote
 def multiproc_data_request(year, apikey, feature,
                            geography, fmt, variables, url, retry, verbose,
-                           cache_record, TigerwebVariables):
+                           TigerwebVariables):
     """
     Multithread method for requesting census data
 
@@ -511,21 +472,7 @@ def multiproc_data_request(year, apikey, feature,
         number of retries based on connection error
     verbose : str
         verbose operation flag
-    cache_record : pd.Dataframe or None
-        a record of cached data from a pandas dataframe
     """
-    if cache_record is not None:
-        l0 = []
-        l1 = []
-        for column in list(cache_record):
-            if column in ('state', 'county', 'tract', 'geoid', 'blkgrp', 'block', 'place'):
-                continue
-            else:
-                l0.append(column)
-                l1.append(cache_record[column].values[0])
-        data = [l0, l1]
-        return feature["GEOID"], data
-
     loc = ""
     if geography == "block":
         loc = fmt.format(

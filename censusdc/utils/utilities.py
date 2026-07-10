@@ -311,14 +311,14 @@ def get_cache(
                 except (requests.exceptions.HTTPError,
                         requests.exceptions.ConnectionError,
                         requests.exceptions.ChunkedEncodingError,
-                        requests.exceptions.ReadTimeout) as e:
-                    excpt = e
+                        requests.exceptions.ReadTimeout) as excpt:
+                    e = excpt
                     n += 1
                     print("Connection Error: Retry number "
                           "{}".format(n))
 
             if n == retry:
-                raise requests.exceptions.HTTPError(excpt)
+                raise requests.exceptions.HTTPError(e)
 
             try:
                 data = r.json()
@@ -365,7 +365,7 @@ def get_cache(
         df['county'] = ["{:03d}".format(i) for i in df['county'].values]
         df['tract'] = ["{:06d}".format(i) for i in df['tract'].values]
         df["GEOID"] = df["state"] + df["county"] + df["tract"] + df[geography]
-        df.drop(columns=["block group"], inplace=True)
+        df.drop(columns=[geography], inplace=True)
     else:
         df['GEOID'] = df['state'] + df[geography]
 

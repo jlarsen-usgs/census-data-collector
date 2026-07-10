@@ -146,7 +146,7 @@ class Acs5(CensusBase):
 
         Parameters
         ----------
-        variables : list, tuple, DefaultInterface object
+        variables : list, tuple, or DefaultInterface object
             user specified Acs5 variables, default pulls variables from
             the AcsVariables class
         validate_variables : bool
