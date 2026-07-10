@@ -54,10 +54,10 @@ def census_cache_builder(
     geography,
     variables=None,
     apikey="",
+    validate_variables=False,
     multithread=False,
     thread_pool=4,
-    refresh=False,
-    validate_variables=False
+    refresh=False
 ):
     """
     Method to build out cache for all supported census years for a
@@ -122,7 +122,8 @@ def census_cache_builder(
         thread_list = []
         for year in years:
             x = RestartableThread(target=_threaded_get_cache,
-                                  args=(dataset, year, geography, apikey, validate_variables, True, 100,
+                                  args=(dataset, year, geography, apikey,
+                                        validate_variables, True, 100,
                                         True, container))
             thread_list.append(x)
 
@@ -134,12 +135,29 @@ def census_cache_builder(
     else:
         for year in years:
             get_cache(
-                dataset, year, geography=geography, variables=variables,  apikey=apikey, validate_variables=validate_variables, refresh=refresh, verbose=True
+                dataset,
+                year,
+                geography=geography,
+                variables=variables,
+                apikey=apikey,
+                validate_variables=validate_variables,
+                refresh=refresh,
+                verbose=True
             )
 
 
-def _threaded_get_cache(dataset, year, geography, variables, apikey, validate_variables, refresh,
-                        retry, verbose, container):
+def _threaded_get_cache(
+    dataset,
+    year,
+    geography,
+    variables,
+    apikey,
+    validate_variables,
+    refresh,
+    retry,
+    verbose,
+    container
+):
     """
     Multithreaded method to build and load cache tables of census data to
     improve performance
@@ -160,8 +178,12 @@ def _threaded_get_cache(dataset, year, geography, variables, apikey, validate_va
         option to do variable checking and validation
     refresh : boolean
         option to refresh existing cache
-    profile : bool
-        option to collect economic data
+    retry : int
+        number of retries to make for connection issues
+    verbose : bool
+        flag to print progress to screen, default is False
+    container : BoundedSemaphore
+        threading container
 
     Returns
     -------
@@ -172,8 +194,18 @@ def _threaded_get_cache(dataset, year, geography, variables, apikey, validate_va
     container.release()
 
 
-def get_cache(dataset, year, geography, variables=None, apikey="", validate_variables=False,
-              refresh=False, retry=100, verbose=False):
+def get_cache(
+    dataset,
+    year,
+    geography,
+    variables=None,
+    apikey="",
+    validate_variables=False,
+    refresh=False,
+    retry=100,
+    verbose=False,
+    build_fips_co=False
+):
     """
     Method to build and load cache tables of census data to
     improve performance
@@ -196,6 +228,13 @@ def get_cache(dataset, year, geography, variables=None, apikey="", validate_vari
         data. Useful for first run or so when using defined census variables.
     refresh : boolean
         option to refresh existing cache
+    retry : int
+        number of retries to make for connection issues
+    verbose : bool
+        flag to print progress to screen, default is False
+    build_fips_co : bool
+        flag to re-build fips-co tables for pulling block data. Must be done with
+        decennial county level data pulls
 
     Returns
     -------
@@ -211,8 +250,8 @@ def get_cache(dataset, year, geography, variables=None, apikey="", validate_vari
         geography = geography.replace(sym, " ")
     geography = geography.lower()
 
-    utils_dir = Path(__file__).parent
-    table_file = utils_dir / "../cache/{}_{}_{}.dat".format(year, dataset, geography)
+    cache_dir = Path(__file__).parent / "../cache"
+    table_file = cache_dir / "{}_{}_{}.dat".format(year, dataset, geography)
 
     if not table_file.exists() or refresh:
         url_base = get_base_url(dataset, year)
@@ -221,16 +260,16 @@ def get_cache(dataset, year, geography, variables=None, apikey="", validate_vari
 
         fmt = get_cache_format_str(geography)
         fips_co = None
-        # todo: update this for block data caching. fips_co needs to be every 10 years...
         if dataset == "dec-sf3" and year == 2000 and geography == "block group":
             fips_co = pd.read_csv(
-                utils_dir / "fips_county_table.dat", dtype=str
+                cache_dir / f"{year}_fips_county_table.dat", dtype=str
             ).to_numpy()
             fmt = "block%20group:*&in=state:{}&in=county:{}&in=tract:*"
 
         elif geography == "block":
-            # todo: read in fips_co based on the decennial year
-            print('break')
+            fips_co = pd.read_csv(
+                cache_dir / f"{year}_fips_county_table.dat", dtype=str
+            ).to_numpy()
 
         if fips_co is None:
             iterator = STATE_FIPS
@@ -294,6 +333,10 @@ def get_cache(dataset, year, geography, variables=None, apikey="", validate_vari
                     df = tdf
                 else:
                     df = pd.concat((df, tdf), ignore_index=True)
+
+        if geography == "county" and build_fips_co and year in (2000, 2010, 2020):
+            table_file = cache_dir / f"{year}_fips_county_table.dat"
+            df = df[["state", "county"]]
 
         df.to_csv(table_file, index=False)
 

@@ -1,2 +1,2 @@
-include censusdc/cache/*
+include censusdc/cache/*.dat
 include censusdc/defaults/*.dat
