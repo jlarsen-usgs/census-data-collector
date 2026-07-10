@@ -13,8 +13,14 @@ class TigerWebMapServer(object):
     __2020pl = "https://tigerweb.geo.census.gov/arcgis/rest/services/" + \
                "Census2020/Places_CouSub_ConCity_SubMCD/MapServer"
 
-    levels = ('block', 'block_group', 'tract', 'place',
-              'county_subdivision', 'county')
+    geographies = (
+        'block',
+        'block_group',
+        'tract',
+        'place',
+        'county_subdivision',
+        'county'
+    )
 
     base = {
         1990: __2000,
@@ -102,8 +108,7 @@ class TigerWebMapServer(object):
 
 def identify_census_discretization(geoid):
     """
-    Method to identify the specific census discretization level
-    by GEOID size
+    Method to identify the specific census geography by GEOID size
 
     Parameters
     ----------
@@ -112,7 +117,7 @@ def identify_census_discretization(geoid):
 
     Returns
     -------
-        str: census level (e.g., "tract")
+        str: census geography (e.g., "tract")
     """
     # Note as the census data collector grows this may need to be changed/replaced
     #  to handle other geographies that may have similar geoid lengths. One way could be
@@ -120,24 +125,24 @@ def identify_census_discretization(geoid):
     geoid = str(geoid)
     geoid_len = len(geoid)
     if geoid_len == 2:
-        level = "state"
+        geography = "state"
     elif geoid_len == 5:
-        level = "county"
+        geography = "county"
     elif geoid_len == 7:
-        level = "place"
+        geography = "place"
     elif geoid_len == 10:
-        level = "county subdivision"
+        geography = "county subdivision"
     elif geoid_len == 11:
-        level = "tract"
+        geography = "tract"
     elif geoid_len == 12:
-        level = "block group"
+        geography = "block group"
     elif geoid_len >= 15:
-        level = "block"
+        geography = "block"
     else:
         raise NotImplementedError(
             "Cannot determine census discretization from the geoid length"
         )
-    return level
+    return geography
 
 
 def get_format_str(geography):

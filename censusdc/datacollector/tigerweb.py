@@ -284,7 +284,7 @@ class TigerWeb(object):
             print(f"Grabbing {oyear} decennial geography data")
             return oyear
 
-    def get_data(self, year, level='finest', outfields=(), verbose=True,
+    def get_data(self, year, geography='finest', outfields=(), verbose=True,
                  multiproc=False, multithread=False, thread_pool=4, retry=100):
         """
         Method to pull data feature data from tigerweb
@@ -293,7 +293,7 @@ class TigerWeb(object):
         ----------
         year : int
             data year to grab features from
-        level : str
+        geography : str
             block, block group, tract, or "finest"...
         outfields : tuple
             tuple of output variables to grab from tigerweb
@@ -314,21 +314,21 @@ class TigerWeb(object):
         -------
 
         """
-        level = level.lower()
+        geography = geography.lower()
         year = self._get_decennial_year(year)
 
         lut = None
-        if level == 'finest':
-            for level in TigerWebMapServer.levels:
-                lut = TigerWebMapServer.__dict__[level]
+        if geography == 'finest':
+            for geography in TigerWebMapServer.geographies:
+                lut = TigerWebMapServer.__dict__[geography]
                 if year in lut:
                     break
                 else:
                     lut = None
 
         else:
-            if level in TigerWebMapServer.__dict__:
-                lut = TigerWebMapServer.__dict__[level]
+            if geography in TigerWebMapServer.__dict__:
+                lut = TigerWebMapServer.__dict__[geography]
                 if year in lut:
                     pass
                 else:
@@ -336,13 +336,13 @@ class TigerWeb(object):
 
         if lut is None:
             raise KeyError("No TigerWeb server could be found for {} and {}"
-                           .format(year, level))
+                           .format(year, geography))
 
-        if level == "county_subdivision":
+        if geography == "county_subdivision":
             base = TigerWebMapServer.cousub_base[year]
-        elif level == "county":
+        elif geography == "county":
             base = TigerWebMapServer.cobase[year]
-        elif level == "place":
+        elif geography == "place":
             base = TigerWebMapServer.place_base[year]
         else:
             base = TigerWebMapServer.base[year]

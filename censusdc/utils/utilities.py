@@ -234,7 +234,7 @@ def get_cache(
         flag to print progress to screen, default is False
     build_fips_co : bool
         flag to re-build fips-co tables for pulling block data. Must be done with
-        decennial county level data pulls
+        decennial county geography data pulls
 
     Returns
     -------
