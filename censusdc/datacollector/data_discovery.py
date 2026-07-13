@@ -15,7 +15,7 @@ _SUPPORTED = [
     'acs-acs5-profile',
     'dec-sf1',
     'dec-sf2',
-    'dec-sf3'
+    'dec-sf3',
 ]
 
 _CACHE = {
@@ -190,7 +190,7 @@ def get_geographies(dataset, year):
     ----------
     dataset : str
         dataset name (formatted in manner provided by get_supported_products())
-    year : int
+    year : int, str, Iterable
         year to use for dataset query
 
     Returns
@@ -275,3 +275,37 @@ def get_geographies(dataset, year):
     df_geographies = df_geographies[df_geographies["name"].isin(_GEOGRAPHIES)]
 
     return df_geographies
+
+
+def get_vintages(dataset, geography):
+    """
+    Method to get valid vintage years by dataset and geograhpy
+
+    Parameters
+    ----------
+    dataset : str
+        census dataset string (e.g., "acs-acs5")
+    geography : str
+        census geography string (e.g., "block group")
+
+    Returns
+    -------
+        list : list of valid years
+    """
+    geography = geography.lower()
+    syms = ("_", "-")
+    for sym in syms:
+        geography = geography.replace(sym, " ")
+
+    dataset = dataset.lower()
+    df_supported = get_supported_products()
+
+    dataset = difflib.get_close_matches(
+        dataset, df_supported['dataset'], n=1, cutoff=0.01
+    )[0]
+
+    df_dataset = df_supported[df_supported["dataset"] == dataset]
+    vintages = df_dataset["vintage"].values
+    df_geographies = get_geographies(dataset, list(vintages))
+    df_vint = df_geographies[df_geographies["name"] == geography]
+    return df_vint["year"].to_list()

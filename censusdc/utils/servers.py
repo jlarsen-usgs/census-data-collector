@@ -9,9 +9,7 @@ class TigerWebMapServer(object):
     __2010 = 'https://tigerweb.geo.census.gov/arcgis/rest/services/' + \
              'Census2020/tigerWMS_Census2010/MapServer'
     __2020 = 'https://tigerweb.geo.census.gov/arcgis/rest/services/' + \
-             'Census2020/Tracts_Blocks/MapServer'
-    __2020pl = "https://tigerweb.geo.census.gov/arcgis/rest/services/" + \
-               "Census2020/Places_CouSub_ConCity_SubMCD/MapServer"
+             'Census2020/tigerWMS_Census2020/MapServer'
 
     geographies = (
         'block',
@@ -32,7 +30,7 @@ class TigerWebMapServer(object):
     place_base = {
         2000: __2000,
         2010: __2010,
-        2020: __2020pl
+        2020: __2020
     }
 
     cousub_base = {
@@ -72,7 +70,7 @@ class TigerWebMapServer(object):
                     'outFields': __place},
              2010: {'mapserver': [32, 30],
                     'outFields': __place},
-             2020: {'mapserver': [4, 5],
+             2020: {'mapserver': [28, 26],
                     'outFields': __place}
         ,}
 
@@ -84,7 +82,7 @@ class TigerWebMapServer(object):
                     'outFields': __dec_tract},
              2010: {'mapserver': 10,
                     'outFields': __dec_tract},
-             2020: {'mapserver': 0,
+             2020: {'mapserver': 6,
                     'outFields': __dec_tract}}
 
     __dec_blkgrp = 'GEOID,BLKGRP,STATE,COUNTY,TRACT,AREALAND,AREAWATER'
@@ -93,7 +91,7 @@ class TigerWebMapServer(object):
                           'outFields': __dec_blkgrp},
                    2010: {'mapserver': 12,
                           'outFields': __dec_blkgrp},
-                   2020: {'mapserver': 1,
+                   2020: {'mapserver': 8,
                           'outFields': __dec_blkgrp}}
 
     __dec_block = 'GEOID,BLOCK,BLKGRP,STATE,COUNTY,TRACT,' \
@@ -102,7 +100,7 @@ class TigerWebMapServer(object):
                     'outFields': __dec_block},
              2010: {'mapserver': 14,
                     'outFields': __dec_block},
-             2020: {'mapserver': 2,
+             2020: {'mapserver': 10,
                     'outFields': __dec_block}}
 
 

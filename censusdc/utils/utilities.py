@@ -450,6 +450,11 @@ def check_variables(dataset, year, variables, validate=False, forgive=False):
             raise TypeError(f"{type(variables)} not supported for variables parameter")
 
     if validate:
+        # add a secondary way to enable forgive
+        if isinstance(validate, int):
+            if validate > 1:
+                forgive = True
+
         dfval = get_variables(dataset, year)
         valid = dfval["name"].values
         validated = []

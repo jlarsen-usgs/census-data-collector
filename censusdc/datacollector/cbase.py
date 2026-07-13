@@ -160,6 +160,9 @@ class CensusBase(object):
             cache_variables = ["GEOID",] + [var for var in variables if var in list(cache)]
             cache = cache[cache_variables]
             cache_features = pd.merge(self._features, cache, how="inner", on="GEOID")
+            for var in cache_variables[1:]:
+                cache_features[var] = pd.to_numeric(cache_features[var], errors="coerce")
+            cache_features[cache_variables[1:]] = cache_features[cache_variables[1:]].astype(float)
             cache_features[cache_features[cache_variables[1:]] < 0] = float("nan")
             cached_geoids = cache_features["GEOID"].unique()
             pull_features = self._features[~self._features["GEOID"].isin(cached_geoids)]
@@ -286,7 +289,7 @@ class CensusBase(object):
                 feature[TigerWebVariables.county],
                 feature[TigerWebVariables.tract]
             )
-        elif geography == "block_group":
+        elif geography in ("block_group", "block group"):
             loc = fmt.format(
                 feature[TigerWebVariables.blkgrp],
                 feature[TigerWebVariables.state],
@@ -481,7 +484,7 @@ def multiproc_data_request(year, apikey, feature,
             feature[TigerWebVariables.county],
             feature[TigerWebVariables.tract]
         )
-    elif geography == "block_group":
+    elif geography in ("block_group", "block group"):
         loc = fmt.format(
             feature[TigerWebVariables.blkgrp],
             feature[TigerWebVariables.state],
