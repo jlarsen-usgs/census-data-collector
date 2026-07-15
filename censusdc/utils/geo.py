@@ -3,15 +3,6 @@ import pandas as pd
 import geopandas as gpd
 
 
-# try:
-#     import ray
-#     ENABLE_MULTIPROC = True
-# except ImportError:
-    # fake ray wrapper function for windows
-#     from ..utils import ray
-#     ENABLE_MULTIPROC = False
-
-
 def _IGNORE():
     """
     Variables to ignore when performing area weighted resampling
@@ -49,7 +40,7 @@ def _IGNORE():
     return ignore
 
 
-def calculate_intersection_weights(cen_gdf, aoi_gdf):
+def calculate_intersection_weights(cen_gdf, aoi_gdf, groupby=None):
     """
     Method to calculate weights by the fractional area of itersection between
     census geometries and area of interest geometries.
@@ -60,6 +51,9 @@ def calculate_intersection_weights(cen_gdf, aoi_gdf):
         geodataframe from the TigerWeb().features or from CensusBase.features
     aoi_gdf : gpd.GeoDataFrame
         user provided geodataframe
+    groupby : None, str, Iterable
+        optional groupby routine to calculate and return the intersection weights
+        for reuse, returns only the groupby keys and intersection weights
 
     Returns
     -------
@@ -74,7 +68,17 @@ def calculate_intersection_weights(cen_gdf, aoi_gdf):
     idf["i_weight"] = idf["insec_area"] / idf["cdf_area"]
 
     idf = idf.drop(columns=["insec_area", "cdf_area"])
-    return idf
+    if groupby is not None:
+        if not isinstance(groupby, (list, tuple, np.ndarray)):
+            groupby = [groupby,]
+        else:
+            groupby = list(groupby)
+
+        idf = idf.groupby(by=groupby, as_index=False)[["i_weight"]].sum()
+        return idf
+
+    else:
+        return idf
 
 
 def area_weighted_resampling(cen_gdf, aoi_gdf, groupby, method="accumulate"):
@@ -87,11 +91,16 @@ def area_weighted_resampling(cen_gdf, aoi_gdf, groupby, method="accumulate"):
     ----------
     cen_gdf : gpd.GeoDataFrame
         GeoDataFrame results from the Census data collector
-    aoi_gdf : gpd.GeoDataFrame
-        Input GeoDataFrame containing the area of interest(s) for resampling
+    aoi_gdf : gpd.GeoDataFrame or None
+        Input GeoDataFrame containing the area of interest(s) for resampling,
+        None can be provided if an "i_weight" field has been calculated and joined
+        to the census geodataframe
     groupby : str, list, tuple, or np.ndarray
         str or iterable of dataframe column names
     method : str
+
+    refresh : bool
+        method to refresh the intersection weights if they exist on the dataframe
 
     Returns
     -------
@@ -115,7 +124,22 @@ def area_weighted_resampling(cen_gdf, aoi_gdf, groupby, method="accumulate"):
     else:
         groupby = list(groupby)
 
-    igdf = calculate_intersection_weights(cen_gdf, aoi_gdf)
+    if aoi_gdf is not None:
+        drop_keys = []
+        for key in groupby:
+            if key in list(cen_gdf) and key in list(aoi_gdf):
+                drop_keys.append(key)
+        if drop_keys:
+            cen_gdf = cen_gdf.drop(columns=[drop_keys])
+
+        igdf = calculate_intersection_weights(cen_gdf, aoi_gdf)
+    else:
+        if "i_weight" not in list(cen_gdf):
+            raise KeyError(
+                "i_weight column must be calculated or an aoi_gdf must be provided"
+            )
+        else:
+            igdf = cen_gdf.copy()
 
     ignore = _IGNORE() + tuple(groupby) + ("geometry",)
     columns = [i for i in list(igdf) if i not in ignore]

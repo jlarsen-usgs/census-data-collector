@@ -84,6 +84,7 @@ class CensusBase(object):
         """
         if isinstance(self._census_features, pd.DataFrame):
             df = pd.merge(self._features, self._census_features, on="GEOID", how="left")
+            df = df.drop_duplicates()
             return df
         else:
             raise AssertionError("Please run get_data() prior to grabbing features")
@@ -147,6 +148,9 @@ class CensusBase(object):
         self._census_features = {}
         url = get_base_url(self._dataset, self.year)
 
+        if isinstance(use_cache, bool):
+            use_cache = int(use_cache)
+
         if use_cache:
             cache = get_cache(
                 self._dataset,
@@ -159,14 +163,21 @@ class CensusBase(object):
 
             cache_variables = ["GEOID",] + [var for var in variables if var in list(cache)]
             cache = cache[cache_variables]
-            cache_features = pd.merge(self._features, cache, how="inner", on="GEOID")
+            how = "inner"
+            if use_cache > 1:
+                how = "left"
+            cache_features = pd.merge(self._features, cache, how=how, on="GEOID")
             for var in cache_variables[1:]:
                 cache_features[var] = pd.to_numeric(cache_features[var], errors="coerce")
             cache_features[cache_variables[1:]] = cache_features[cache_variables[1:]].astype(float)
             cache_features[cache_features[cache_variables[1:]] < 0] = float("nan")
+            cache_features = cache_features.drop_duplicates()
             cached_geoids = cache_features["GEOID"].unique()
             pull_features = self._features[~self._features["GEOID"].isin(cached_geoids)]
             self._census_features = {var : cache_features[var].to_list() for var in cache_variables}
+            if use_cache > 1:
+                self._census_features = pd.DataFrame.from_dict(self._census_features)
+                return
         else:
             pull_features = self._features
             self._census_features = {var: [] for var in ["GEOID"] + list(variables)}
