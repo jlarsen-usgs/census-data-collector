@@ -160,8 +160,8 @@ def get_format_str(geography):
         "state": "state:{}",
         "county": "county:{}&in=state:{}",
         "place": "place:{}&in=state:{}",
-        "tract": "tract:{}&in=state:{}&in=county:{}",
-        "block group": "block%20group:{}&in=state:{}&in=county:{}&in=tract:{}",
+        "tract": "tract:{}&in=state:{}%20county:{}",
+        "block group": "block%20group:{}&in=state:{}%20county:{}%20tract:{}",
         "block": "block:{}&in=state:{}%20county:{}%20tract:{}"
     }
     if geography not in formatters:
@@ -198,6 +198,47 @@ def get_cache_format_str(geography):
             f"Census geography data pull formatter has not been implemented for: {geography}"
         )
     return formatters[geography]
+
+
+def get_geography_fmt_str(name):
+    """
+    Get the specific format for different geography codes for creating GEOIDS.
+    e.g., tract = {:06d}
+
+    Parameters
+    ----------
+    name : str
+        geography name
+
+    Returns
+    -------
+        str : formatter
+    """
+    from ..datacollector.tigerweb import TigerWebVariables
+
+    name = name.lower()
+    if name in ("state", TigerWebVariables.state.lower()):
+        fmt = "{:02d}"
+    elif name in ("county", TigerWebVariables.county.lower()):
+        fmt = "{:03d}"
+    elif name in (
+            "cousub",
+            "county subdivision",
+            "county_subdivision",
+            TigerWebVariables.cousub.lower(),
+            "place",
+            TigerWebVariables.place.lower()
+    ):
+        fmt = "{:05d}"
+    elif name in ("tract", TigerWebVariables.tract.lower()):
+        fmt = "{:06d}"
+    elif name in ("block_group", "block group", TigerWebVariables.blkgrp.lower()):
+        fmt = "{:01d}"
+    elif name in ("block", TigerWebVariables.block.lower()):
+        fmt = "{:04d}"
+    else:
+        fmt = None
+    return fmt
 
 
 def get_base_url(dataset, year):

@@ -40,7 +40,7 @@ class CensusBase(object):
     """
     def __init__(self, features, year, apikey, dataset):
         from .data_discovery import get_supported_products
-        from ..utils.servers import identify_census_discretization
+        from ..utils.servers import identify_census_discretization, get_geography_fmt_str
 
         if not isinstance(features, gpd.GeoDataFrame):
             raise TypeError("Features must be supplied as a geodataframe")
@@ -65,7 +65,12 @@ class CensusBase(object):
         self._geography = identify_census_discretization(
             self._features["GEOID"].values[0]
         )
-        # todo: check the geography against the product and year
+
+        # reset geography code formats from tigerweb incase leading zeros were dropped
+        for col in self._features:
+            fmt = get_geography_fmt_str(col)
+            if fmt is not None:
+                self._features[col] = [fmt.format(int(i)) for i in self._features[col]]
 
         self._census_features = {}
         self.__thread_fail = {}
@@ -380,7 +385,7 @@ class CensusBase(object):
         except JSONDecodeError:
             data = []
             if verbose:
-                print(f'Error getting {geography} data for GEOID {feature["GEOID"]}')
+                print(f'Error getting {geography} data for GEOID {feature["GEOID"]}, {loc}')
 
         if len(data) == 2:
             self._census_features["GEOID"].append(feature["GEOID"])
