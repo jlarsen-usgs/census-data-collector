@@ -85,6 +85,23 @@ class TigerWeb(object):
         self._features = {}
         self._get_polygons()
 
+        self._cert = None
+
+    def set_ssl_cert(self, cert):
+        """
+        Method to set a ssl certificate in case of SSLErrors
+
+        Parameters
+        ----------
+        cert : PathLike
+            path to local SSL certificate
+
+        Returns
+        -------
+            None
+        """
+        self._cert = cert
+
     def _get_polygons(self):
         """
         GeoPandas-based method to read and store polygons from self._gdf for
@@ -481,7 +498,7 @@ class TigerWeb(object):
             while not done:
                 try:
                     r = s.get(url, params={'resultOffset': start,
-                                           'resultRecordCount': 32})
+                                           'resultRecordCount': 32}, verify=str(self._cert))
                     r.raise_for_status()
                 except (requests.exceptions.HTTPError,
                         requests.exceptions.ConnectionError,
