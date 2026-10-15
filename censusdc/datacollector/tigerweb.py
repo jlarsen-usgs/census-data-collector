@@ -117,7 +117,7 @@ class TigerWeb(object):
         field_col = None
         if self._field is not None:
             for col in gdf.columns:
-                if col.lower() == self._field:
+                if col.lower() == self._field.lower():
                     field_col = col
                     break
 
