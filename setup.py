@@ -20,7 +20,7 @@ requirements = ["pandas",
 if platform.system().lower() != "windows":
     # fix ray at 0.8.6 until windows subsystem for linux issues solved
     # above 0.8.6 windows firewall blocks the redis server connection
-    requirements.append("ray==0.8.6")
+    requirements.append("ray==2.56.0")
 
 
 setup_requirements = []
