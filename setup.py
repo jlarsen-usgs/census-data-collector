@@ -17,11 +17,6 @@ requirements = ["pandas",
                 "requests",
                 "scipy"]
 
-if platform.system().lower() != "windows":
-    # fix ray at 0.8.6 until windows subsystem for linux issues solved
-    # above 0.8.6 windows firewall blocks the redis server connection
-    requirements.append("ray==0.8.6")
-
 
 setup_requirements = []
 test_requirements = []
@@ -51,7 +46,9 @@ setup(
     name='censusdc',
     packages=find_packages(include=['censusdc',
                                     'censusdc.datacollector',
-                                    'censusdc.utils']),
+                                    'censusdc.utils',
+                                    'censusdc.defaults'
+                                    ]),
     setup_requires=setup_requirements,
     url='',
     version='0.2.0',
