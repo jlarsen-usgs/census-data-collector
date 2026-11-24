@@ -496,9 +496,16 @@ class TigerWeb(object):
             n = 0
 
             while not done:
+                if self._cert in (None, False, True):
+                    if self._cert is None:
+                        cert = True
+                    else:
+                        cert = self._cert
+                else:
+                    cert = str(self._cert)
                 try:
                     r = s.get(url, params={'resultOffset': start,
-                                           'resultRecordCount': 32}, verify=str(self._cert))
+                                           'resultRecordCount': 32}, verify=cert)
                     r.raise_for_status()
                 except (requests.exceptions.HTTPError,
                         requests.exceptions.ConnectionError,
